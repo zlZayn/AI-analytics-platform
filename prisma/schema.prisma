@@ -1,0 +1,372 @@
+// AI Data Analytics Platform - Prisma Schema
+// 版本: 1.1.0
+// 更新时间: 2026-06-22
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// 用户表
+model User {
+  id            String    @id @default(uuid())
+  username      String    @unique
+  email         String    @unique
+  passwordHash  String    @map("password_hash")
+  displayName   String?   @map("display_name")
+  avatarUrl     String?   @map("avatar_url")
+  role          String    @default("user") // admin, user, viewer
+  status        String    @default("active") // active, inactive, suspended
+  lastLoginAt   DateTime? @map("last_login_at")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+
+  // 关联
+  connections   Connection[]
+  savedQueries  SavedQuery[]
+  queryHistory  QueryHistory[]
+  dashboards    Dashboard[]
+  conversations AIConversation[]
+
+  @@map("users")
+}
+
+// 数据库连接配置
+model Connection {
+  id                String    @id @default(uuid())
+  userId            String    @map("user_id")
+  name              String
+  description       String?
+
+  // 连接配置
+  host              String
+  port              Int       @default(5432)
+  database          String
+  username          String
+  passwordEncrypted String    @map("password_encrypted")
+  ssl               Boolean   @default(false)
+  sslMode           String?   @map("ssl_mode")
+
+  // 连接池配置
+  poolMin           Int       @default(2) @map("pool_min")
+  poolMax           Int       @default(10) @map("pool_max")
+  idleTimeout       Int       @default(30) @map("idle_timeout")
+
+  // 状态
+  status            String    @default("pending") // pending, connected, error, disconnected
+  lastConnectedAt   DateTime? @map("last_connected_at")
+  errorMessage      String?   @map("error_message")
+
+  // 元信息
+  dbVersion         String?   @map("db_version")
+  dbSize            BigInt?   @map("db_size")
+  tableCount        Int?      @map("table_count")
+
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
+
+  // 关联
+  user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  schemaSnapshots   SchemaSnapshot[]
+  savedQueries      SavedQuery[]
+  queryHistory      QueryHistory[]
+  dashboards        Dashboard[]
+  conversations     AIConversation[]
+
+  @@index([userId])
+  @@index([status])
+  @@map("connections")
+}
+
+// Schema 快照
+model SchemaSnapshot {
+  id              String   @id @default(uuid())
+  connectionId    String   @map("connection_id")
+  version         Int
+
+  // Schema 内容（JSON 格式）
+  schemaJson      Json     @map("schema_json")
+
+  // 统计信息
+  tableCount      Int      @map("table_count")
+  columnCount     Int      @map("column_count")
+  relationCount   Int      @map("relation_count")
+
+  // 状态
+  status          String   @default("active") // active, outdated, error
+  errorMessage    String?  @map("error_message")
+
+  // 时间
+  scannedAt       DateTime @default(now()) @map("scanned_at")
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  // 关联
+  connection      Connection @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+
+  @@index([connectionId])
+  @@index([connectionId, version(sort: Desc)])
+  @@map("schema_snapshots")
+}
+
+// 保存的查询
+model SavedQuery {
+  id              String    @id @default(uuid())
+  userId          String    @map("user_id")
+  connectionId    String    @map("connection_id")
+
+  name            String
+  description     String?
+  sqlContent      String    @map("sql_content")
+
+  // 可视化配置
+  chartType       String?   @map("chart_type") // line, bar, pie, scatter, table
+  chartConfig     Json?     @map("chart_config")
+
+  // 分类
+  tags            String[]
+  folder          String?
+
+  // 统计
+  executionCount  Int       @default(0) @map("execution_count")
+  lastExecutedAt  DateTime? @map("last_executed_at")
+
+  // 共享
+  isPublic        Boolean   @default(false) @map("is_public")
+
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  // 关联
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  connection      Connection @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([connectionId])
+  @@map("saved_queries")
+}
+
+// 查询历史
+model QueryHistory {
+  id              String    @id @default(uuid())
+  userId          String    @map("user_id")
+  connectionId    String    @map("connection_id")
+
+  sqlContent      String    @map("sql_content")
+
+  // 执行信息
+  status          String    // success, error, timeout
+  executionTimeMs Int?      @map("execution_time_ms")
+  rowCount        Int?      @map("row_count")
+  errorMessage    String?   @map("error_message")
+
+  // 结果
+  resultSummary   String?   @map("result_summary")
+  resultCache     Json?     @map("result_cache")
+
+  // AI 相关
+  isAiGenerated   Boolean   @default(false) @map("is_ai_generated")
+  aiPrompt        String?   @map("ai_prompt")
+
+  createdAt       DateTime  @default(now()) @map("created_at")
+
+  // 关联
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  connection      Connection @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([connectionId])
+  @@index([createdAt(sort: Desc)])
+  @@map("query_history")
+}
+
+// 仪表板
+model Dashboard {
+  id              String    @id @default(uuid())
+  userId          String    @map("user_id")
+  connectionId    String?   @map("connection_id")
+
+  name            String
+  description     String?
+
+  // 布局配置
+  layout          Json      @default("[]")
+
+  // 设置
+  autoRefresh     Boolean   @default(false) @map("auto_refresh")
+  refreshInterval Int       @default(300) @map("refresh_interval")
+
+  // 共享
+  isPublic        Boolean   @default(false) @map("is_public")
+  shareToken      String?   @unique @map("share_token")
+
+  // 统计
+  viewCount       Int       @default(0) @map("view_count")
+
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  // 关联
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  connection      Connection? @relation(fields: [connectionId], references: [id], onDelete: SetNull)
+  widgets         DashboardWidget[]
+
+  @@index([userId])
+  @@map("dashboards")
+}
+
+// 仪表板组件
+model DashboardWidget {
+  id              String    @id @default(uuid())
+  dashboardId     String    @map("dashboard_id")
+
+  name            String
+  description     String?
+
+  // 组件类型
+  type            String    // chart, metric, table, text, filter
+
+  // 关联查询
+  queryId         String?   @map("query_id")
+  customSql       String?   @map("custom_sql")
+
+  // 图表配置
+  chartType       String?   @map("chart_type")
+  chartConfig     Json?     @map("chart_config")
+
+  // 数据缓存
+  dataCache       Json?     @map("data_cache")
+  lastRefreshedAt DateTime? @map("last_refreshed_at")
+
+  // 布局
+  positionX       Int       @default(0) @map("position_x")
+  positionY       Int       @default(0) @map("position_y")
+  width           Int       @default(6)
+  height          Int       @default(4)
+
+  // 样式
+  title           String?
+  showTitle       Boolean   @default(true) @map("show_title")
+  backgroundColor String?   @map("background_color")
+  borderColor     String?   @map("border_color")
+
+  // 刷新
+  autoRefresh     Boolean   @default(false) @map("auto_refresh")
+  refreshInterval Int       @default(300) @map("refresh_interval")
+
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  // 关联
+  dashboard       Dashboard @relation(fields: [dashboardId], references: [id], onDelete: Cascade)
+
+  @@index([dashboardId])
+  @@map("dashboard_widgets")
+}
+
+// 分析模板
+model AnalysisTemplate {
+  id              String    @id @default(uuid())
+
+  name            String
+  description     String?
+  category        String    // trend, distribution, ranking, comparison, funnel
+
+  // 模板内容
+  promptTemplate  String    @map("prompt_template")
+  sqlTemplate     String?   @map("sql_template")
+  chartType       String    @map("chart_type")
+  chartConfigTemplate Json? @map("chart_config_template")
+
+  // 适用条件
+  requiredTables  String[]  @map("required_tables")
+  requiredColumns Json?     @map("required_columns")
+
+  // 使用统计
+  usageCount      Int       @default(0) @map("usage_count")
+
+  // 状态
+  isActive        Boolean   @default(true) @map("is_active")
+  isSystem        Boolean   @default(true) @map("is_system")
+
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  @@index([category])
+  @@map("analysis_templates")
+}
+
+// AI 会话
+model AIConversation {
+  id              String    @id @default(uuid())
+  userId          String    @map("user_id")
+  connectionId    String?   @map("connection_id")
+
+  title           String?
+
+  // 状态
+  status          String    @default("active") // active, archived
+
+  // 统计
+  messageCount    Int       @default(0) @map("message_count")
+
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  // 关联
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  connection      Connection? @relation(fields: [connectionId], references: [id], onDelete: SetNull)
+  messages        AIMessage[]
+
+  @@index([userId])
+  @@map("ai_conversations")
+}
+
+// AI 消息
+model AIMessage {
+  id              String    @id @default(uuid())
+  conversationId  String    @map("conversation_id")
+
+  role            String    // user, assistant, system
+  content         String
+
+  // AI 生成的内容
+  generatedSql    String?   @map("generated_sql")
+  executionResult Json?     @map("execution_result")
+  chartConfig     Json?     @map("chart_config")
+
+  // 元信息
+  tokenCount      Int?      @map("token_count")
+  executionTimeMs Int?      @map("execution_time_ms")
+
+  createdAt       DateTime  @default(now()) @map("created_at")
+
+  // 关联
+  conversation    AIConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId])
+  @@index([createdAt(sort: Desc)])
+  @@map("ai_messages")
+}
+
+// 系统配置
+model SystemConfig {
+  key             String    @id
+  value           Json
+  description     String?
+
+  // 分类
+  category        String?   // ai, security, performance, ui
+
+  // 元信息
+  isPublic        Boolean   @default(false) @map("is_public")
+  isSensitive     Boolean   @default(false) @map("is_sensitive")
+
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  @@map("system_configs")
+}
