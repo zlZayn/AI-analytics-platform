@@ -1,5 +1,73 @@
 # 变更日志
 
+## [1.20.0] - 2026-06-25
+
+### UI 打磨 + 可视化简化
+
+#### 图表系统简化
+
+- 去掉直方图 (和柱状图重复)，保留 7 种图表
+- 简化变量映射: 去掉角色推断过滤，所有列都可选
+- inferMapping 直接用列名填充，不过滤类型
+- 饼图修复: 按分类 GROUP BY 聚合
+- 图表类型图标: emoji 替换为 lucide-react SVG
+- 自定义 DropdownSelect: Vercel 风格，替代 base-ui Select
+
+#### UI 统一
+
+- Vercel 风格 CSS 变量 (hex)
+- ChartConfigPanel: 简化为类型选择 + 列选择 + 图表渲染
+- ResultPanel: 状态栏等宽字体 + 复制按钮带反馈
+- 所有按钮: cursor-pointer + hover 变色
+
+#### 跨页面联动
+
+- Explorer "在工作台执行" → 跳转 workspace 预填 SQL
+- 查询管理 "执行" → 跳转 workspace 预填 SQL
+- AI 生成 SQL → 自动填入左侧编辑器
+
+#### Bug 修复
+
+- 修复 AI 输出重复 SQL (提示词 + 代码双重修复)
+- 修复 Explorer 关联显示为空 (SchemaRelation 类型不匹配)
+- 修复保存查询无法删除 (API 缺少 DELETE 处理器)
+- 修复饼图每行一个扇区 (需 GROUP BY 聚合)
+
+---
+
+## [1.19.0] - 2026-06-25
+
+### 页面重构 + 职责清晰化
+
+#### 页面结构调整
+
+- **数据工作台** `/workspace` - SQL 编辑器 + AI 助手左右分栏
+- **数据探索** `/explorer` - Schema 浏览 (表结构/关联/预览)
+- **查询管理** `/queries` - 收藏查询 + 执行历史合并
+- 删除冗余页面: `/dashboard`, `/ai`, `/queries/history`, `/queries/saved`
+
+#### 跨页面联动
+
+- Explorer 预览 → 点击"在工作台执行" → 跳转 workspace 并预填 SQL
+- 查询管理 → 点击"执行" → 跳转 workspace 并预填 SQL
+- AI 生成 SQL → 自动填入左侧编辑器
+
+#### 代码重构
+
+- 提取共享类型 `src/types/index.ts`
+- 清理未使用依赖 (zustand, react-query, zod)
+- Vercel 风格 CSS 变量 (hex 替代 oklch)
+- 删除冗余组件 (ai-tab, schema-tab, history-tab, sql-editor)
+
+#### Bug 修复
+
+- 修复 Explorer 页面 Table 类型未定义错误
+- 修复 Explorer 页面 Fragment 未闭合错误
+- 修复 DialogTrigger 嵌套 button 警告
+- 修复 package.json 尾逗号错误
+
+---
+
 ## [1.18.0] - 2026-06-22
 
 ### 模拟数据生成器 v3 (星型模型)

@@ -1,11 +1,10 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Badge } from "@/components/ui/badge"
 import {
   Dialog,
   DialogContent,
@@ -15,306 +14,203 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog"
+import { Database, Plus, Pencil, Trash2, ArrowRight } from "lucide-react"
+import type { Connection } from "@/types"
 
-interface Connection {
-  id: string
-  name: string
-  description?: string
-  host: string
-  port: number
-  database: string
-  status: string
-  tableCount?: number
-  lastConnectedAt?: string
+const defaultForm = {
+  name: "",
+  description: "",
+  host: "localhost",
+  port: 5432,
+  database: "",
+  username: "postgres",
+  password: "",
+  ssl: false,
 }
 
 export default function Home() {
+  const router = useRouter()
   const [connections, setConnections] = useState<Connection[]>([])
   const [loading, setLoading] = useState(true)
   const [dialogOpen, setDialogOpen] = useState(false)
-  const [formData, setFormData] = useState({
-    name: "",
-    description: "",
-    host: "localhost",
-    port: 5432,
-    database: "",
-    username: "postgres",
-    password: "",
-    ssl: false
-  })
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [form, setForm] = useState(defaultForm)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState("")
 
-  // 加载连接列表
   useEffect(() => {
-    fetchConnections()
+    fetch("/api/connections")
+      .then((r) => r.json())
+      .then((d) => d.success && setConnections(d.data))
+      .finally(() => setLoading(false))
   }, [])
 
-  async function fetchConnections() {
-    try {
-      const res = await fetch("/api/connections")
-      const data = await res.json()
-      if (data.success) {
-        setConnections(data.data)
-      }
-    } catch (err) {
-      console.error("加载连接失败:", err)
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  async function handleCreate() {
+  async function handleSubmit() {
     setSubmitting(true)
     setError("")
-
     try {
-      const res = await fetch("/api/connections", {
-        method: "POST",
+      const url = editingId ? `/api/connections/${editingId}` : "/api/connections"
+      const method = editingId ? "PUT" : "POST"
+      const res = await fetch(url, {
+        method,
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData)
+        body: JSON.stringify(form),
       })
       const data = await res.json()
-
       if (data.success) {
         setDialogOpen(false)
-        setFormData({
-          name: "",
-          description: "",
-          host: "localhost",
-          port: 5432,
-          database: "",
-          username: "postgres",
-          password: "",
-          ssl: false
-        })
-        fetchConnections()
+        setForm(defaultForm)
+        setEditingId(null)
+        refresh()
       } else {
         setError(data.error)
       }
-    } catch (err) {
-      setError("创建失败")
+    } catch {
+      setError("操作失败")
     } finally {
       setSubmitting(false)
     }
   }
 
   async function handleDelete(id: string) {
-    if (!confirm("确定要删除这个连接吗？")) return
+    if (!confirm("确定删除？")) return
+    const res = await fetch(`/api/connections/${id}`, { method: "DELETE" })
+    const data = await res.json()
+    if (data.success) refresh()
+  }
 
-    try {
-      const res = await fetch(`/api/connections/${id}`, {
-        method: "DELETE"
-      })
-      const data = await res.json()
+  function refresh() {
+    fetch("/api/connections")
+      .then((r) => r.json())
+      .then((d) => d.success && setConnections(d.data))
+  }
 
-      if (data.success) {
-        fetchConnections()
-      }
-    } catch (err) {
-      console.error("删除失败:", err)
-    }
+  function openEdit(conn: Connection) {
+    setEditingId(conn.id)
+    setForm({
+      name: conn.name,
+      description: conn.description || "",
+      host: conn.host,
+      port: conn.port,
+      database: conn.database,
+      username: "postgres",
+      password: "",
+      ssl: false,
+    })
+    setDialogOpen(true)
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="p-6 max-w-3xl mx-auto">
       {/* Header */}
-      <header className="bg-white border-b border-gray-200 px-6 py-4">
-        <div className="max-w-7xl mx-auto flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">AI Data Analytics</h1>
-            <p className="text-sm text-gray-500">通用型 AI 数据分析平台</p>
-          </div>
-          <div className="flex items-center gap-4">
-            <Badge variant="outline">v1.0.0</Badge>
-          </div>
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h1 className="text-lg font-semibold text-gray-900">连接管理</h1>
+          <p className="text-xs text-gray-400">管理 PostgreSQL 数据库连接</p>
         </div>
-      </header>
-
-      {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-6 py-8">
-        {/* Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-gray-500">数据库连接</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-bold">{connections.length}</div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-gray-500">总表数</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-bold">
-                {connections.reduce((sum, c) => sum + (c.tableCount || 0), 0)}
+        <Dialog open={dialogOpen} onOpenChange={(v) => { setDialogOpen(v); if (!v) { setEditingId(null); setForm(defaultForm); setError("") } }}>
+          <DialogTrigger className="inline-flex items-center justify-center rounded-md bg-gray-900 text-white hover:bg-gray-800 h-8 px-3 text-xs font-medium transition-colors">
+            <Plus className="w-3.5 h-3.5 mr-1" />
+            新建
+          </DialogTrigger>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle>{editingId ? "编辑连接" : "新建连接"}</DialogTitle>
+              <DialogDescription>填写 PostgreSQL 连接信息</DialogDescription>
+            </DialogHeader>
+            <div className="space-y-3 py-2">
+              <Field label="名称" value={form.name} onChange={(v) => setForm({ ...form, name: v })} placeholder="生产数据库" />
+              <Field label="描述" value={form.description} onChange={(v) => setForm({ ...form, description: v })} placeholder="可选" />
+              <div className="grid grid-cols-2 gap-3">
+                <Field label="主机" value={form.host} onChange={(v) => setForm({ ...form, host: v })} />
+                <Field label="端口" value={String(form.port)} onChange={(v) => setForm({ ...form, port: Number(v) })} type="number" />
               </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-gray-500">系统状态</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <Badge variant="default" className="bg-green-500">运行中</Badge>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Connections */}
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between">
-            <div>
-              <CardTitle>数据库连接</CardTitle>
-              <CardDescription>管理你的 PostgreSQL 数据库连接</CardDescription>
+              <Field label="数据库" value={form.database} onChange={(v) => setForm({ ...form, database: v })} placeholder="mydb" />
+              <div className="grid grid-cols-2 gap-3">
+                <Field label="用户名" value={form.username} onChange={(v) => setForm({ ...form, username: v })} />
+                <Field label="密码" value={form.password} onChange={(v) => setForm({ ...form, password: v })} type="password" />
+              </div>
+              {error && <p className="text-xs text-red-500">{error}</p>}
             </div>
-            <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-              <DialogTrigger className="inline-flex items-center justify-center rounded-lg bg-primary text-primary-foreground hover:bg-primary/80 h-8 px-2.5 text-sm font-medium">
-                + 新建连接
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>新建数据库连接</DialogTitle>
-                  <DialogDescription>
-                    填写 PostgreSQL 数据库连接信息
-                  </DialogDescription>
-                </DialogHeader>
-                <div className="grid gap-4 py-4">
-                  <div className="grid gap-2">
-                    <Label htmlFor="name">连接名称</Label>
-                    <Input
-                      id="name"
-                      value={formData.name}
-                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                      placeholder="生产数据库"
-                    />
-                  </div>
-                  <div className="grid gap-2">
-                    <Label htmlFor="description">描述（可选）</Label>
-                    <Input
-                      id="description"
-                      value={formData.description}
-                      onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                      placeholder="主要业务数据库"
-                    />
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="grid gap-2">
-                      <Label htmlFor="host">主机</Label>
-                      <Input
-                        id="host"
-                        value={formData.host}
-                        onChange={(e) => setFormData({ ...formData, host: e.target.value })}
-                      />
-                    </div>
-                    <div className="grid gap-2">
-                      <Label htmlFor="port">端口</Label>
-                      <Input
-                        id="port"
-                        type="number"
-                        value={formData.port}
-                        onChange={(e) => setFormData({ ...formData, port: parseInt(e.target.value) })}
-                      />
-                    </div>
-                  </div>
-                  <div className="grid gap-2">
-                    <Label htmlFor="database">数据库名</Label>
-                    <Input
-                      id="database"
-                      value={formData.database}
-                      onChange={(e) => setFormData({ ...formData, database: e.target.value })}
-                      placeholder="myapp"
-                    />
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="grid gap-2">
-                      <Label htmlFor="username">用户名</Label>
-                      <Input
-                        id="username"
-                        value={formData.username}
-                        onChange={(e) => setFormData({ ...formData, username: e.target.value })}
-                      />
-                    </div>
-                    <div className="grid gap-2">
-                      <Label htmlFor="password">密码</Label>
-                      <Input
-                        id="password"
-                        type="password"
-                        value={formData.password}
-                        onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                      />
-                    </div>
-                  </div>
-                  {error && (
-                    <div className="text-sm text-red-500">{error}</div>
-                  )}
+            <DialogFooter>
+              <Button variant="outline" size="sm" onClick={() => setDialogOpen(false)}>取消</Button>
+              <Button size="sm" onClick={handleSubmit} disabled={submitting}>
+                {submitting ? "保存中..." : "保存"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      </div>
+
+      {/* List */}
+      {loading ? (
+        <div className="text-center py-12 text-gray-400 text-sm">加载中...</div>
+      ) : connections.length === 0 ? (
+        <div className="text-center py-12">
+          <Database className="w-10 h-10 mx-auto mb-3 text-gray-300" />
+          <p className="text-sm text-gray-400">暂无连接，点击「新建」开始</p>
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {connections.map((conn) => (
+            <div
+              key={conn.id}
+              className="flex items-center justify-between p-3 rounded-lg border border-gray-200 hover:border-gray-300 transition-colors group"
+            >
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="w-8 h-8 rounded-md bg-gray-100 flex items-center justify-center shrink-0">
+                  <Database className="w-4 h-4 text-gray-500" />
                 </div>
-                <DialogFooter>
-                  <Button variant="outline" onClick={() => setDialogOpen(false)}>
-                    取消
-                  </Button>
-                  <Button onClick={handleCreate} disabled={submitting}>
-                    {submitting ? "创建中..." : "创建"}
-                  </Button>
-                </DialogFooter>
-              </DialogContent>
-            </Dialog>
-          </CardHeader>
-          <CardContent>
-            {loading ? (
-              <div className="text-center py-8 text-gray-500">加载中...</div>
-            ) : connections.length === 0 ? (
-              <div className="text-center py-8 text-gray-500">
-                暂无数据库连接，点击"新建连接"开始
-              </div>
-            ) : (
-              <div className="space-y-4">
-                {connections.map((conn) => (
-                  <div
-                    key={conn.id}
-                    className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50"
-                  >
-                    <div className="flex items-center gap-4">
-                      <div>
-                        <div className="font-medium">{conn.name}</div>
-                        <div className="text-sm text-gray-500">
-                          {conn.host}:{conn.port}/{conn.database}
-                        </div>
-                      </div>
-                      <Badge
-                        variant={conn.status === "connected" ? "default" : "destructive"}
-                      >
-                        {conn.status === "connected" ? "已连接" : "未连接"}
-                      </Badge>
-                      {conn.tableCount && (
-                        <Badge variant="outline">{conn.tableCount} 张表</Badge>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => window.location.href = `/dashboard?connection=${conn.id}`}
-                      >
-                        进入
-                      </Button>
-                      <Button
-                        variant="destructive"
-                        size="sm"
-                        onClick={() => handleDelete(conn.id)}
-                      >
-                        删除
-                      </Button>
-                    </div>
+                <div className="min-w-0">
+                  <div className="text-sm font-medium text-gray-900 truncate">{conn.name}</div>
+                  <div className="text-xs text-gray-400 truncate">
+                    {conn.host}:{conn.port}/{conn.database}
+                    {conn.tableCount ? ` · ${conn.tableCount} 表` : ""}
                   </div>
-                ))}
+                </div>
               </div>
-            )}
-          </CardContent>
-        </Card>
-      </main>
+              <div className="flex items-center gap-1 shrink-0">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 px-2 text-xs"
+                  onClick={() => router.push(`/workspace?connection=${conn.id}`)}
+                >
+                  进入
+                  <ArrowRight className="w-3 h-3 ml-1" />
+                </Button>
+                <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => openEdit(conn)}>
+                  <Pencil className="w-3 h-3" />
+                </Button>
+                <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-gray-400 hover:text-red-500" onClick={() => handleDelete(conn.id)}>
+                  <Trash2 className="w-3 h-3" />
+                </Button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function Field({ label, value, onChange, type = "text", placeholder }: {
+  label: string
+  value: string
+  onChange: (v: string) => void
+  type?: string
+  placeholder?: string
+}) {
+  return (
+    <div className="space-y-1">
+      <Label className="text-xs">{label}</Label>
+      <Input
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        type={type}
+        placeholder={placeholder}
+        className="h-8 text-sm"
+      />
     </div>
   )
 }

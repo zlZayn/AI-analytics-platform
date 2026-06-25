@@ -226,7 +226,6 @@ export type ChartType =
   | "bar"
   | "pie"
   | "scatter"
-  | "histogram"
   | "boxplot"
   | "correlation"
   | "table"
@@ -234,13 +233,11 @@ export type ChartType =
 export type CorrelationMethod = "pearson" | "spearman" | "kendall"
 
 /**
- * 映射槽位定义
+ * 映射槽位定义 -- 简化版，不过滤列类型
  */
 export interface MappingSlot {
   label: string
   required: boolean
-  accepts: VariableRole[]
-  description?: string
 }
 
 /**
@@ -248,33 +245,29 @@ export interface MappingSlot {
  */
 export const CHART_TYPE_SLOTS: Record<ChartType, Record<string, MappingSlot>> = {
   line: {
-    x: { label: "X 轴", required: true, accepts: ["temporal", "categorical", "binary"], description: "横轴字段" },
-    y: { label: "Y 轴", required: true, accepts: ["continuous"], description: "数值字段" },
-    color: { label: "颜色", required: false, accepts: ["categorical", "binary"], description: "分组字段" },
+    x: { label: "X 轴", required: true },
+    y: { label: "Y 轴", required: true },
+    color: { label: "分组", required: false },
   },
   bar: {
-    x: { label: "X 轴", required: true, accepts: ["categorical", "temporal", "binary"], description: "分类字段" },
-    y: { label: "Y 轴", required: true, accepts: ["continuous"], description: "数值字段" },
-    fill: { label: "填充", required: false, accepts: ["categorical", "binary"], description: "分组字段" },
+    x: { label: "X 轴", required: true },
+    y: { label: "Y 轴", required: true },
+    fill: { label: "分组", required: false },
   },
   pie: {
-    name: { label: "分类", required: true, accepts: ["categorical", "binary"], description: "分类字段" },
-    value: { label: "数值", required: true, accepts: ["continuous"], description: "数值字段" },
+    name: { label: "分类", required: true },
+    value: { label: "数值", required: true },
   },
   scatter: {
-    x: { label: "X 轴", required: true, accepts: ["continuous"], description: "数值字段" },
-    y: { label: "Y 轴", required: true, accepts: ["continuous"], description: "数值字段" },
-    color: { label: "颜色", required: false, accepts: ["categorical", "binary"], description: "分组字段" },
-  },
-  histogram: {
-    x: { label: "变量", required: true, accepts: ["continuous"], description: "数值字段" },
-    fill: { label: "分组", required: false, accepts: ["categorical", "binary"], description: "分组字段" },
+    x: { label: "X 轴", required: true },
+    y: { label: "Y 轴", required: true },
+    color: { label: "分组", required: false },
   },
   boxplot: {
-    x: { label: "分组", required: true, accepts: ["categorical", "binary"], description: "分类字段" },
-    y: { label: "数值", required: true, accepts: ["continuous"], description: "数值字段" },
+    x: { label: "分组", required: true },
+    y: { label: "数值", required: true },
   },
-  correlation: {},  // 自动提取所有数值变量
+  correlation: {},
   table: {},
 }
 
@@ -282,52 +275,28 @@ export const CHART_TYPE_SLOTS: Record<ChartType, Record<string, MappingSlot>> = 
  * 图表类型信息
  */
 export const CHART_TYPE_INFO: Record<ChartType, { label: string; icon: string; description: string }> = {
-  line: { label: "折线图", icon: "📈", description: "展示趋势变化" },
-  bar: { label: "柱状图", icon: "📊", description: "分类对比" },
-  pie: { label: "饼图", icon: "🥧", description: "占比分析" },
-  scatter: { label: "散点图", icon: "⊙", description: "变量关系" },
-  histogram: { label: "直方图", icon: "▓", description: "数据分布" },
-  boxplot: { label: "箱线图", icon: "▱", description: "分布统计" },
-  correlation: { label: "相关矩阵", icon: "🔗", description: "变量相关性" },
-  table: { label: "表格", icon: "▦", description: "原始数据" },
+  line: { label: "折线图", icon: "line", description: "展示趋势变化" },
+  bar: { label: "柱状图", icon: "bar", description: "分类对比" },
+  pie: { label: "饼图", icon: "pie", description: "占比分析" },
+  scatter: { label: "散点图", icon: "scatter", description: "变量关系" },
+  boxplot: { label: "箱线图", icon: "boxplot", description: "分布统计" },
+  correlation: { label: "相关矩阵", icon: "correlation", description: "变量相关性" },
+  table: { label: "表格", icon: "table", description: "原始数据" },
 }
 
 /**
- * 自动推断图表类型
+ * 自动推断图表类型 -- 简化版
  */
-export function inferChartType(variables: VariableInfo[]): ChartType {
-  const temporal = variables.filter((v) => v.role === "temporal")
-  const continuous = variables.filter((v) => v.role === "continuous")
-  const categorical = variables.filter((v) => v.role === "categorical" || v.role === "binary")
-
-  // 有时间 + 数值 → 折线图
-  if (temporal.length > 0 && continuous.length > 0) {
-    return "line"
-  }
-
-  // 有分类 + 数值 → 柱状图
-  if (categorical.length > 0 && continuous.length > 0) {
-    return "bar"
-  }
-
-  // 两个数值 → 散点图
-  if (continuous.length >= 2) {
-    return "scatter"
-  }
-
-  // 单个数值 → 直方图
-  if (continuous.length === 1) {
-    return "histogram"
-  }
-
-  return "table"
+export function inferChartType(columns: { name: string; type: string }[]): ChartType {
+  if (columns.length < 2) return "table"
+  return "bar"  // 默认柱状图，用户可以切换
 }
 
 /**
- * 自动填充映射
+ * 自动填充映射 -- 简化版，直接用列名
  */
 export function inferMapping(
-  variables: VariableInfo[],
+  columns: { name: string; type: string }[],
   chartType: ChartType
 ): Record<string, string> {
   const mapping: Record<string, string> = {}
@@ -337,13 +306,11 @@ export function inferMapping(
     return mapping
   }
 
-  Object.entries(slots).forEach(([slot, slotDef]) => {
-    if (!slotDef.required) return
-
-    // 找第一个匹配的变量
-    const match = variables.find((v) => slotDef.accepts.includes(v.role))
-    if (match) {
-      mapping[slot] = match.name
+  // 直接用列名填充，不过滤类型
+  const colNames = columns.map((c) => c.name)
+  Object.keys(slots).forEach((slot, i) => {
+    if (colNames[i]) {
+      mapping[slot] = colNames[i]
     }
   })
 
@@ -354,21 +321,13 @@ export function inferMapping(
  * 检查图表类型是否可用（是否有足够的变量满足必填槽位）
  */
 export function isChartTypeAvailable(
-  variables: VariableInfo[],
+  columns: { name: string }[],
   chartType: ChartType
 ): boolean {
-  if (chartType === "correlation") {
-    return variables.filter((v) => v.role === "continuous").length >= 2
-  }
-  if (chartType === "table") {
-    return true
-  }
-
+  if (chartType === "table" || chartType === "correlation") return true
   const slots = CHART_TYPE_SLOTS[chartType]
-  return Object.entries(slots).every(([_, slotDef]) => {
-    if (!slotDef.required) return true
-    return variables.some((v) => slotDef.accepts.includes(v.role))
-  })
+  const required = Object.entries(slots).filter(([, s]) => s.required).length
+  return columns.length >= required
 }
 
 // ---- 相关系数计算 ----

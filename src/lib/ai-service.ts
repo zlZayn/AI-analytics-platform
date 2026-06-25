@@ -43,10 +43,22 @@ const SYSTEM_PROMPT = `你是一个专业的数据分析助手。根据用户的
    - 复购率: 有2+订单的会员数 / 总会员数
    - 行为转化: view -> favorite -> cart -> purchase 漏斗
 
-## 输出要求
+## 输出格式
 
-直接返回 SQL 语句，不要返回 JSON。
-例如：SELECT dp.category_l2, SUM(fo.pay_amount) AS total_sales FROM fact_orders fo JOIN dim_product dp ON fo.product_id = dp.id GROUP BY dp.category_l2 ORDER BY total_sales DESC`
+严格按以下格式输出，不要添加任何额外内容:
+
+1. 先写一行简短说明 (不超过 20 字)
+2. 空一行
+3. 写 SQL 语句 (不要用代码块包裹)
+
+示例:
+查询各分类销售额
+
+SELECT dp.category_l2, SUM(fo.pay_amount) AS total_sales
+FROM fact_orders fo
+JOIN dim_product dp ON fo.product_id = dp.id
+GROUP BY dp.category_l2
+ORDER BY total_sales DESC`
 
 export interface AIServiceResult {
   sql: string
@@ -84,9 +96,12 @@ export async function generateSQL(
   // 提取 SQL
   const sql = extractSQL(content)
 
+  // 提取解释 (去掉 SQL 部分)
+  const explanation = extractExplanation(content, sql)
+
   return {
     sql,
-    explanation: content
+    explanation
   }
 }
 
@@ -121,4 +136,27 @@ function extractSQL(text: string): string {
 
   // 如果都没找到，返回整个文本
   return text.replace(/;$/, '').trim()
+}
+
+function extractExplanation(text: string, sql: string): string {
+  // 去掉代码块
+  let cleaned = text.replace(/```[\s\S]*?```/g, '').trim()
+  // 去掉重复的 SQL 文本 (精确匹配或去掉分号后匹配)
+  const sqlNoSemicolon = sql.replace(/;$/, '').trim()
+  cleaned = cleaned
+    .split('\n')
+    .filter(line => {
+      const trimmed = line.trim()
+      // 跳过空行
+      if (!trimmed) return false
+      // 跳过纯 SQL 行
+      if (trimmed === sqlNoSemicolon || trimmed === sql.trim()) return false
+      // 跳过 SQL 关键字开头的行 (SELECT, FROM, WHERE, GROUP, ORDER, JOIN, ON, AND, OR, SUM, COUNT, AS)
+      const upper = trimmed.toUpperCase()
+      if (/^(SELECT|FROM|WHERE|GROUP|ORDER|JOIN|ON|AND|OR|SUM|COUNT|AS|HAVING|LIMIT|INSERT|UPDATE|DELETE|CREATE|ALTER|DROP)\b/.test(upper)) return false
+      return true
+    })
+    .join('\n')
+    .trim()
+  return cleaned || '已生成 SQL 查询'
 }

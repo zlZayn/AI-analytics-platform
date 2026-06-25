@@ -9,7 +9,6 @@ import { LineChartView } from "./views/line-chart"
 import { BarChartView } from "./views/bar-chart"
 import { PieChartView } from "./views/pie-chart"
 import { ScatterChartView } from "./views/scatter-chart"
-import { HistogramView } from "./views/histogram"
 import { BoxPlotView } from "./views/box-plot"
 import { HeatmapView } from "./views/heatmap"
 import { CorrelationHeatmap } from "./views/correlation-heatmap"
@@ -78,20 +77,6 @@ function ChartInner({ mapping, data }: ChartProps) {
             xKey={mapping.x!}
             yKey={mapping.y!}
             colorKey={mapping.color}
-          />
-        </ChartErrorBoundary>
-      )
-    }
-    case "histogram": {
-      const err = validateMapping(mapping, ["x"])
-      if (err)
-        return <div className="text-sm text-gray-500 p-4">{err}</div>
-      return (
-        <ChartErrorBoundary chartType="直方图">
-          <HistogramView
-            data={data}
-            xKey={mapping.x!}
-            fillKey={mapping.fill}
           />
         </ChartErrorBoundary>
       )

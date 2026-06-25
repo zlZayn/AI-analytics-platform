@@ -32,6 +32,30 @@ export async function POST(request: NextRequest) {
   }
 }
 
+// 删除保存的查询
+export async function DELETE(request: NextRequest) {
+  try {
+    const { searchParams } = new URL(request.url)
+    const id = searchParams.get('id')
+
+    if (!id) {
+      return NextResponse.json(
+        { success: false, error: '缺少 id' },
+        { status: 400 }
+      )
+    }
+
+    await prisma.savedQuery.delete({ where: { id } })
+
+    return NextResponse.json({ success: true })
+  } catch (error) {
+    return NextResponse.json(
+      { success: false, error: error instanceof Error ? error.message : '删除失败' },
+      { status: 500 }
+    )
+  }
+}
+
 // 获取保存的查询列表
 export async function GET(request: NextRequest) {
   try {

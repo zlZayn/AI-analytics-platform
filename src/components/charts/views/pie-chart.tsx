@@ -19,12 +19,18 @@ export const PieChartView = React.memo(function PieChartView({
   nameKey: string
   valueKey: string
 }) {
-  // 确保 name 为字符串，value 为数字
+  // 按分类字段分组，聚合数值字段
   const chartData = useMemo(() => {
-    return data.map((d) => ({
-      [nameKey]: String(d[nameKey] ?? ""),
-      [valueKey]: Number(d[valueKey]) || 0,
-    }))
+    const grouped = new Map<string, number>()
+    for (const d of data) {
+      const name = String(d[nameKey] ?? "未知")
+      const val = Number(d[valueKey]) || 0
+      grouped.set(name, (grouped.get(name) || 0) + val)
+    }
+    return Array.from(grouped.entries())
+      .map(([name, value]) => ({ name, value }))
+      .sort((a, b) => b.value - a.value)
+      .slice(0, 20) // 最多 20 个扇区
   }, [data, nameKey, valueKey])
 
   return (
@@ -36,8 +42,8 @@ export const PieChartView = React.memo(function PieChartView({
           cy="50%"
           innerRadius={45}
           outerRadius={110}
-          dataKey={valueKey}
-          nameKey={nameKey}
+          dataKey="value"
+          nameKey="name"
           label={({ name, percent }: { name?: string; percent?: number }) =>
             `${name ?? ""} ${((percent ?? 0) * 100).toFixed(0)}%`
           }
