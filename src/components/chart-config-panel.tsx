@@ -87,44 +87,27 @@ export function ChartConfigPanel({ columns, data, mapping, onChange }: ChartConf
 
   return (
     <div className="space-y-3">
-      {/* 图表类型选择 + 图例开关 */}
-      <div className="flex gap-2">
-        <div className="flex-1 grid grid-cols-4 gap-1.5">
-          {(Object.keys(CHART_TYPE_INFO) as ChartType[]).map((type) => {
-            const info = CHART_TYPE_INFO[type]
-            const active = chartType === type
-            return (
-              <button
-                key={type}
-                onClick={() => handleChartTypeChange(type)}
-                className={`flex flex-col items-center gap-0.5 py-2 px-1 rounded-md text-[11px] transition-all cursor-pointer ${
-                  active
-                    ? "bg-[var(--foreground)] text-[var(--background)] font-medium"
-                    : "bg-[var(--muted)] text-[var(--muted-foreground)] hover:bg-[var(--accent)]"
-                }`}
-                title={info.description}
-              >
-                <ChartIcon type={type} className="w-4 h-4" />
-                <span>{info.label}</span>
-              </button>
-            )
-          })}
-        </div>
-
-        {/* 图例开关 */}
-        {chartType !== "table" && (
-          <button
-            onClick={() => setShowLegend(!showLegend)}
-            className={`flex flex-col items-center justify-center gap-0.5 px-3 py-2 rounded-md text-[11px] transition-colors cursor-pointer shrink-0 ${
-              showLegend
-                ? "bg-[var(--foreground)] text-[var(--background)]"
-                : "bg-[var(--muted)] text-[var(--muted-foreground)] hover:bg-[var(--accent)]"
-            }`}
-          >
-            {showLegend ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
-            <span>图例</span>
-          </button>
-        )}
+      {/* 图表类型选择 */}
+      <div className="grid grid-cols-4 gap-1.5">
+        {(Object.keys(CHART_TYPE_INFO) as ChartType[]).map((type) => {
+          const info = CHART_TYPE_INFO[type]
+          const active = chartType === type
+          return (
+            <button
+              key={type}
+              onClick={() => handleChartTypeChange(type)}
+              className={`flex flex-col items-center gap-0.5 py-2 px-1 rounded-md text-[11px] transition-all cursor-pointer ${
+                active
+                  ? "bg-[var(--foreground)] text-[var(--background)] font-medium"
+                  : "bg-[var(--muted)] text-[var(--muted-foreground)] hover:bg-[var(--accent)]"
+              }`}
+              title={info.description}
+            >
+              <ChartIcon type={type} className="w-4 h-4" />
+              <span>{info.label}</span>
+            </button>
+          )
+        })}
       </div>
 
       {/* 相关系数方法 */}
@@ -152,20 +135,40 @@ export function ChartConfigPanel({ columns, data, mapping, onChange }: ChartConf
           {Object.entries(slots).map(([slot, slotDef]) => {
             if (chartType === "correlation" && slot === "columns") return null
             const currentValue = mapping[slot] as string | undefined
+            const isGroupSlot = slot === "color" || slot === "fill"
+
             return (
               <div key={slot} className="flex-1 min-w-[120px]">
                 <label className="text-[10px] font-medium text-[var(--muted-foreground)] uppercase tracking-wider mb-1 block">
                   {slotDef.label}
                 </label>
-                <DropdownSelect
-                  value={currentValue || ""}
-                  placeholder={slotDef.required ? "选择列" : "可选"}
-                  options={columns.map((c) => ({
-                    value: c.name,
-                    label: c.name,
-                  }))}
-                  onChange={(v) => handleSlotChange(slot, v)}
-                />
+                <div className="flex gap-1">
+                  <div className="flex-1">
+                    <DropdownSelect
+                      value={currentValue || ""}
+                      placeholder={slotDef.required ? "选择列" : "可选"}
+                      options={columns.map((c) => ({
+                        value: c.name,
+                        label: c.name,
+                      }))}
+                      onChange={(v) => handleSlotChange(slot, v)}
+                    />
+                  </div>
+                  {/* 图例开关 - 在分组列旁边 */}
+                  {isGroupSlot && currentValue && (
+                    <button
+                      onClick={() => setShowLegend(!showLegend)}
+                      className={`flex items-center justify-center w-9 h-9 rounded-md transition-colors cursor-pointer shrink-0 ${
+                        showLegend
+                          ? "bg-[var(--foreground)] text-[var(--background)]"
+                          : "bg-[var(--muted)] text-[var(--muted-foreground)] hover:bg-[var(--accent)]"
+                      }`}
+                      title={showLegend ? "隐藏图例" : "显示图例"}
+                    >
+                      {showLegend ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
+                    </button>
+                  )}
+                </div>
               </div>
             )
           })}
