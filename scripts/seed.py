@@ -547,16 +547,16 @@ def generate_dim_payment(cursor):
 
 def generate_dim_member(cursor, pharmacy_ids, pharmacy_configs):
     """生成 800 个会员，带真实分布"""
-    print("生成 800 个会员 (真实分布)...")
+    print("生成 1200 个会员 (真实分布)...")
     member_ids = []
     member_data = []  # 存储会员详细信息用于后续生成订单
     now = datetime.now()
 
     # 按会员类型分配数量
     profile_counts = {}
-    remaining = 800
+    remaining = 1200
     for mtype, profile in MEMBER_PROFILES.items():
-        count = int(800 * profile["ratio"])
+        count = int(1200 * profile["ratio"])
         profile_counts[mtype] = min(count, remaining)
         remaining -= profile_counts[mtype]
     profile_counts["occasional"] += remaining  # 剩余归为随机购买
@@ -683,58 +683,98 @@ def generate_fact_orders(cursor, member_data, pharmacy_configs, product_map, pro
         month = base_date.month
 
         for member in member_data:
-            # 根据会员类型决定本月是否购买
-            if random.random() > member["loyalty"] * 0.8:
+            # 根据会员类型决定本月是否购买 (概率性)
+            purchase_prob = member["loyalty"] * 0.7
+            if member["type"] == "chronic":
+                purchase_prob = 0.85  # 慢性病几乎每月买
+            elif member["type"] == "elderly":
+                purchase_prob = 0.6
+            elif member["type"] == "family":
+                purchase_prob = 0.75
+            elif member["type"] == "young":
+                purchase_prob = 0.35
+            else:
+                purchase_prob = 0.15
+
+            if random.random() > purchase_prob:
                 continue
 
-            # 购买次数 (慢性病每月1次，家庭每月2-3次)
+            # 购买次数 (概率性)
             if member["type"] == "chronic":
-                purchase_count = 1 if random.random() < 0.8 else 0
+                purchase_count = random.choices([0, 1, 2], weights=[0.1, 0.7, 0.2])[0]
             elif member["type"] == "family":
-                purchase_count = random.choices([1, 2, 3], weights=[0.3, 0.5, 0.2])[0]
+                purchase_count = random.choices([0, 1, 2, 3], weights=[0.15, 0.4, 0.3, 0.15])[0]
             elif member["type"] == "young":
-                purchase_count = 1 if random.random() < 0.3 else 0
+                purchase_count = random.choices([0, 1, 2], weights=[0.5, 0.35, 0.15])[0]
             elif member["type"] == "elderly":
-                purchase_count = random.choices([1, 2], weights=[0.6, 0.4])[0]
+                purchase_count = random.choices([0, 1, 2], weights=[0.2, 0.55, 0.25])[0]
             else:
-                purchase_count = 1 if random.random() < 0.15 else 0
+                purchase_count = random.choices([0, 1], weights=[0.7, 0.3])[0]
+
+            if purchase_count == 0:
+                continue
 
             for _ in range(purchase_count):
-                # 选日期 (月初发薪日效应 + 节假日效应)
-                day = random.choices(
-                    range(1, 29),
-                    weights=[1.2 if d <= 5 else (2.0 if is_holiday(base_date.replace(day=d)) else 1.0) for d in range(1, 29)]
-                )[0]
+                # 选日期 (月初发薪日效应 + 节假日效应 + 随机波动)
+                day_weights = []
+                for d in range(1, 29):
+                    w = 1.0
+                    if d <= 5:
+                        w *= 1.3  # 发薪日
+                    if is_holiday(base_date.replace(day=d)):
+                        w *= 2.5  # 节假日
+                    elif is_weekend(base_date.replace(day=d)):
+                        w *= 1.4  # 周末
+                    w *= random.uniform(0.7, 1.3)  # 随机波动
+                    day_weights.append(w)
+                day = random.choices(range(1, 29), weights=day_weights)[0]
                 order_date = base_date.replace(day=min(day, 28)).date()
 
                 if order_date > now.date():
                     continue
 
-                # 选商品 (偏好 + 随机)
-                if member["preferred_categories"] and random.random() < 0.6:
-                    # 从偏好分类选
+                # 选商品 (偏好概率 + 随机)
+                prefer_prob = 0.55  # 55% 概率按偏好选
+                if random.random() < prefer_prob and member["preferred_categories"]:
+                    # 从偏好分类选 (但也有概率混入其他分类)
                     preferred_products = [p for p in product_names if product_map[p]["category_l2"] in member["preferred_categories"]]
+                    other_products = [p for p in product_names if product_map[p]["category_l2"] not in member["preferred_categories"]]
+
                     if preferred_products:
+                        # 2-3 个偏好 + 0-1 个其他
+                        k_prefer = random.randint(1, min(2, len(preferred_products)))
+                        k_other = random.randint(0, min(1, len(other_products))) if other_products else 0
                         selected_names = random.choices(
                             preferred_products,
                             weights=[product_map[p]["weight"] for p in preferred_products],
-                            k=random.randint(1, min(3, len(preferred_products))),
+                            k=k_prefer,
                         )
+                        if k_other > 0:
+                            selected_names += random.choices(
+                                other_products,
+                                weights=[product_map[p]["weight"] for p in other_products],
+                                k=k_other,
+                            )
                     else:
                         selected_names = random.choices(product_names, weights=product_probs, k=random.randint(1, 3))
                 else:
-                    # 随机选
-                    num_items = random.randint(1, 3)
+                    # 纯随机 (按全局权重)
+                    num_items = random.choices([1, 2, 3, 4], weights=[0.4, 0.35, 0.2, 0.05])[0]
                     selected_names = random.choices(product_names, weights=product_probs, k=num_items)
 
                 # 去重
                 selected_names = list(set(selected_names))
 
-                # 选门店 (偏好门店)
-                if random.random() < member["loyalty"]:
+                # 选门店 (60% 偏好门店，40% 随机)
+                if random.random() < 0.6:
                     pharmacy_id = member["pharmacy_id"]
                 else:
-                    pharmacy_id = random.choice(list(set(m["pharmacy_id"] for m in member_data)))
+                    # 加权随机: 大店权重高
+                    pharmacy_weights = [p["sales_factor"] for p in pharmacy_configs]
+                    pharmacy_id = random.choices(
+                        [p["id"] for p in pharmacy_configs],
+                        weights=pharmacy_weights,
+                    )[0]
 
                 # 找门店配置
                 pharmacy_config = next((p for p in pharmacy_configs if p["id"] == pharmacy_id), pharmacy_configs[0])
@@ -799,13 +839,34 @@ def generate_fact_behavior(cursor, member_data, product_map):
     print("生成行为事实表...")
     now = datetime.now()
     product_ids = [v["id"] for v in product_map.values()]
+    product_names = list(product_map.keys())
     behaviors = []
 
     for member in member_data:
-        # 每个会员生成 5-20 条行为
-        count = random.randint(5, 20)
+        # 活跃会员行为多，流失会员少
+        if member["type"] == "chronic":
+            count = random.randint(10, 30)
+        elif member["type"] == "family":
+            count = random.randint(8, 25)
+        elif member["type"] == "young":
+            count = random.randint(5, 20)
+        elif member["type"] == "elderly":
+            count = random.randint(3, 15)
+        else:
+            count = random.randint(1, 8)
+
         for _ in range(count):
-            product_id = random.choice(product_ids)
+            # 偏好分类的概率行为
+            if random.random() < 0.4 and member["preferred_categories"]:
+                preferred = [p for p in product_names if product_map[p]["category_l2"] in member["preferred_categories"]]
+                if preferred:
+                    pname = random.choice(preferred)
+                    product_id = product_map[pname]["id"]
+                else:
+                    product_id = random.choice(product_ids)
+            else:
+                product_id = random.choice(product_ids)
+
             action = weighted_choice(ACTION_WEIGHTS, ACTION_PROBS)
             channel = weighted_choice(CHANNEL_WEIGHTS, CHANNEL_PROBS)
             days_ago = random.randint(0, 180)
@@ -824,7 +885,7 @@ def generate_fact_inventory(cursor, product_ids, pharmacy_ids):
     print("生成库存事实表...")
     now = datetime.now()
     logs = []
-    for _ in range(800):
+    for _ in range(1200):
         product_id = random.choice(product_ids)
         pharmacy_id = random.choice(pharmacy_ids)
         change_type = weighted_choice(["purchase", "restock", "return", "adjust"], [55, 30, 10, 5])
