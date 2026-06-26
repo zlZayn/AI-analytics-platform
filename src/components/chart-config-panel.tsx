@@ -87,65 +87,64 @@ export function ChartConfigPanel({ columns, data, mapping, onChange }: ChartConf
 
   return (
     <div className="space-y-3">
-      {/* 图表类型选择 */}
-      <div className="grid grid-cols-4 gap-1.5">
-        {(Object.keys(CHART_TYPE_INFO) as ChartType[]).map((type) => {
-          const info = CHART_TYPE_INFO[type]
-          const active = chartType === type
-          return (
-            <button
-              key={type}
-              onClick={() => handleChartTypeChange(type)}
-              className={`flex flex-col items-center gap-0.5 py-2 px-1 rounded-md text-[11px] transition-all cursor-pointer ${
-                active
-                  ? "bg-[var(--foreground)] text-[var(--background)] font-medium"
-                  : "bg-[var(--muted)] text-[var(--muted-foreground)] hover:bg-[var(--accent)]"
-              }`}
-              title={info.description}
-            >
-              <ChartIcon type={type} className="w-4 h-4" />
-              <span>{info.label}</span>
-            </button>
-          )
-        })}
-      </div>
+      {/* 图表类型选择 + 图例开关 */}
+      <div className="flex gap-2">
+        <div className="flex-1 grid grid-cols-4 gap-1.5">
+          {(Object.keys(CHART_TYPE_INFO) as ChartType[]).map((type) => {
+            const info = CHART_TYPE_INFO[type]
+            const active = chartType === type
+            return (
+              <button
+                key={type}
+                onClick={() => handleChartTypeChange(type)}
+                className={`flex flex-col items-center gap-0.5 py-2 px-1 rounded-md text-[11px] transition-all cursor-pointer ${
+                  active
+                    ? "bg-[var(--foreground)] text-[var(--background)] font-medium"
+                    : "bg-[var(--muted)] text-[var(--muted-foreground)] hover:bg-[var(--accent)]"
+                }`}
+                title={info.description}
+              >
+                <ChartIcon type={type} className="w-4 h-4" />
+                <span>{info.label}</span>
+              </button>
+            )
+          })}
+        </div>
 
-      {/* 图例开关 + 相关系数方法 */}
-      <div className="flex items-center gap-2">
-        {/* 图例开关 - 所有图表类型都显示 */}
+        {/* 图例开关 */}
         {chartType !== "table" && (
           <button
             onClick={() => setShowLegend(!showLegend)}
-            className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[11px] transition-colors cursor-pointer ${
+            className={`flex flex-col items-center justify-center gap-0.5 px-3 py-2 rounded-md text-[11px] transition-colors cursor-pointer shrink-0 ${
               showLegend
                 ? "bg-[var(--foreground)] text-[var(--background)]"
                 : "bg-[var(--muted)] text-[var(--muted-foreground)] hover:bg-[var(--accent)]"
             }`}
           >
-            {showLegend ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
-            图例
+            {showLegend ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
+            <span>图例</span>
           </button>
         )}
-
-        {/* 相关系数方法 */}
-        {chartType === "correlation" && (
-          <div className="flex gap-1.5">
-            {CORRELATION_METHODS.map((m) => (
-              <button
-                key={m.value}
-                onClick={() => onChange({ ...mapping, method: m.value })}
-                className={`px-2.5 py-1 rounded-md text-[11px] transition-colors cursor-pointer ${
-                  mapping.method === m.value
-                    ? "bg-[var(--foreground)] text-[var(--background)]"
-                    : "bg-[var(--muted)] text-[var(--muted-foreground)] hover:bg-[var(--accent)]"
-                }`}
-              >
-                {m.label}
-              </button>
-            ))}
-          </div>
-        )}
       </div>
+
+      {/* 相关系数方法 */}
+      {chartType === "correlation" && (
+        <div className="flex gap-1.5">
+          {CORRELATION_METHODS.map((m) => (
+            <button
+              key={m.value}
+              onClick={() => onChange({ ...mapping, method: m.value })}
+              className={`px-2.5 py-1 rounded-md text-[11px] transition-colors cursor-pointer ${
+                mapping.method === m.value
+                  ? "bg-[var(--foreground)] text-[var(--background)]"
+                  : "bg-[var(--muted)] text-[var(--muted-foreground)] hover:bg-[var(--accent)]"
+              }`}
+            >
+              {m.label}
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* 列映射槽位 */}
       {Object.keys(slots).length > 0 && (

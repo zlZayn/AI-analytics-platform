@@ -32,17 +32,33 @@ export const BarChartView = React.memo(function BarChartView({
 
   return (
     <ResponsiveContainer width="100%" height={320}>
-      <BarChart data={wideData} margin={{ top: 5, right: 20, bottom: 5, left: 10 }}>
+      <BarChart
+        data={wideData}
+        margin={{ top: 5, right: 20, bottom: 5, left: 10 }}
+        barCategoryGap="20%"
+        barGap={2}
+      >
         <CartesianGrid {...GRID_CONFIG} />
         <XAxis dataKey={xKey} {...AXIS_CONFIG} />
         <YAxis {...AXIS_CONFIG} tickFormatter={(v: number) => formatNumber(v)} />
         <Tooltip formatter={TooltipFormatter} />
         {groups.length > 0 ? (
           groups.map((g, i) => (
-            <Bar key={g} dataKey={g} fill={getColor(i)} radius={[3, 3, 0, 0]} />
+            <Bar
+              key={g}
+              dataKey={g}
+              fill={getColor(i)}
+              radius={[3, 3, 0, 0]}
+              maxBarSize={40}
+            />
           ))
         ) : (
-          <Bar dataKey={yKey} fill={getColor(0)} radius={[3, 3, 0, 0]} />
+          <Bar
+            dataKey={yKey}
+            fill={getColor(0)}
+            radius={[3, 3, 0, 0]}
+            maxBarSize={40}
+          />
         )}
         {groups.length > 0 && showLegend && (
           <Legend wrapperStyle={{ fontSize: 11, paddingTop: 8 }} iconType="square" />
