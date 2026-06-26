@@ -225,14 +225,29 @@ const INSIGHTS_PROMPT = `你是一个专业的数据分析助手。根据用户�
 3. SQL 查询 (可直接执行)
 4. 推荐图表类型和列映射
 
-图表类型: line, bar, pie, scatter, boxplot, heatmap, correlation, table
+## 图表类型和映射规则
 
-列映射规则:
-- line/bar: x=分类列, y=数值列
-- pie: name=分类列, value=数值列
-- scatter: x=数值列, y=数值列
-- boxplot: category=分类列, value=数值列
-- table: 无需映射
+严格按以下格式，mapping 中的 key 必须是 SQL 结果中的列别名 (AS 后面的名字):
+
+| type | mapping key | 说明 |
+| --- | --- | --- |
+| line | x, y | x=分类/时间列, y=数值列 |
+| bar | x, y | x=分类列, y=数值列 |
+| pie | name, value | name=分类列, value=数值列 |
+| scatter | x, y | x=数值列, y=数值列 |
+| boxplot | category, value | category=分类列, value=数值列 |
+| table | 无 | 直接显示数据 |
+| correlation | 无 | 自动计算相关系数 |
+
+示例:
+```json
+{
+  "title": "各门店销售额",
+  "insight": "旗舰店销量领先",
+  "sql": "SELECT p.name AS name, SUM(o.pay_amount) AS value FROM fact_orders o JOIN dim_pharmacy p ON o.pharmacy_id = p.id GROUP BY p.name ORDER BY value DESC",
+  "chart": { "type": "bar", "mapping": { "x": "name", "y": "value" } }
+}
+```
 
 ## 输出格式
 

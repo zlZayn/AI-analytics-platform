@@ -8,6 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Label } from "@/components/ui/label"
 import { ResultPanel } from "@/components/dashboard/result-panel"
 import { InsightPanel, type InsightItem } from "@/components/insight-card"
+import { type ChartMapping } from "@/components/chart"
 import { useToast } from "@/components/toast"
 import type { QueryResult } from "@/types"
 import { Play, Trash2, Save, Loader2, Send, Copy, ChevronDown, ChevronUp } from "lucide-react"
@@ -41,6 +42,7 @@ function WorkspaceContent() {
   const [insights, setInsights] = useState<InsightItem[]>([])
   const [insightsLoading, setInsightsLoading] = useState(false)
   const [executingInsightIndex, setExecutingInsightIndex] = useState<number | null>(null)
+  const [pendingChartMapping, setPendingChartMapping] = useState<ChartMapping | null>(null)
 
   // Save dialog
   const [saveDialogOpen, setSaveDialogOpen] = useState(false)
@@ -148,7 +150,14 @@ function WorkspaceContent() {
       if (data.success) {
         setResult(data.data)
         setSql(sql)
-        // 设置图表类型和映射
+
+        // 构建图表映射
+        const mapping: ChartMapping = {
+          chartType: chart.type,
+          ...chart.mapping,
+        }
+        setPendingChartMapping(mapping)
+
         setEditorExpanded(false)
         toast(`洞察执行完成: ${data.data.rowCount} 行`, "success")
       } else {
@@ -331,6 +340,7 @@ function WorkspaceContent() {
           <ResultPanel
             result={result}
             onCopySql={() => { navigator.clipboard.writeText(sql); toast("SQL 已复制", "success") }}
+            initialMapping={pendingChartMapping || undefined}
           />
         </div>
       )}

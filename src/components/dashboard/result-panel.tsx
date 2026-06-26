@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { ChartConfigPanel } from "@/components/chart-config-panel"
 import { type ChartMapping } from "@/components/chart"
@@ -10,11 +10,19 @@ import { Copy, Check } from "lucide-react"
 interface Props {
   result: QueryResult
   onCopySql: () => void
+  initialMapping?: ChartMapping
 }
 
-export function ResultPanel({ result, onCopySql }: Props) {
-  const [chartMapping, setChartMapping] = useState<ChartMapping>({ chartType: "table" })
+export function ResultPanel({ result, onCopySql, initialMapping }: Props) {
+  const [chartMapping, setChartMapping] = useState<ChartMapping>(initialMapping || { chartType: "table" })
   const [copied, setCopied] = useState(false)
+
+  // 当 initialMapping 变化时更新图表配置
+  useEffect(() => {
+    if (initialMapping) {
+      setChartMapping(initialMapping)
+    }
+  }, [initialMapping, result])
 
   function handleCopy() {
     onCopySql()
