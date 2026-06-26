@@ -1,6 +1,6 @@
 "use client"
 
-import React from "react"
+import React, { useMemo } from "react"
 import {
   BarChart,
   Bar,
@@ -30,16 +30,41 @@ export const BarChartView = React.memo(function BarChartView({
 }) {
   const { groups, wideData } = useGroupedData(data, xKey, yKey, fillKey)
 
+  // 动态计算柱子宽度
+  const barLayout = useMemo(() => {
+    const categoryCount = wideData.length
+    const groupCount = groups.length || 1
+
+    // 分组多时用堆叠，避免柱子太细
+    const useStack = groupCount > 3
+
+    // 动态柱子宽度
+    const maxBarSize = categoryCount <= 5 ? 50 : categoryCount <= 10 ? 35 : 25
+
+    return { useStack, maxBarSize }
+  }, [wideData.length, groups.length])
+
+  // X轴标签角度
+  const xAxisAngle = wideData.length > 6 ? -45 : 0
+  const xAxisHeight = wideData.length > 6 ? 60 : 30
+
   return (
     <ResponsiveContainer width="100%" height={320}>
       <BarChart
         data={wideData}
-        margin={{ top: 5, right: 20, bottom: 5, left: 10 }}
-        barCategoryGap="20%"
+        margin={{ top: 5, right: 20, bottom: xAxisHeight, left: 10 }}
+        barCategoryGap="15%"
         barGap={2}
       >
         <CartesianGrid {...GRID_CONFIG} />
-        <XAxis dataKey={xKey} {...AXIS_CONFIG} />
+        <XAxis
+          dataKey={xKey}
+          {...AXIS_CONFIG}
+          angle={xAxisAngle}
+          textAnchor={xAxisAngle ? "end" : "middle"}
+          height={xAxisHeight}
+          interval={0}
+        />
         <YAxis {...AXIS_CONFIG} tickFormatter={(v: number) => formatNumber(v)} />
         <Tooltip formatter={TooltipFormatter} />
         {groups.length > 0 ? (
@@ -48,8 +73,9 @@ export const BarChartView = React.memo(function BarChartView({
               key={g}
               dataKey={g}
               fill={getColor(i)}
-              radius={[3, 3, 0, 0]}
-              maxBarSize={40}
+              radius={barLayout.useStack ? (i === groups.length - 1 ? [3, 3, 0, 0] : [0, 0, 0, 0]) : [3, 3, 0, 0]}
+              maxBarSize={barLayout.maxBarSize}
+              stackId={barLayout.useStack ? "stack" : undefined}
             />
           ))
         ) : (
@@ -57,11 +83,14 @@ export const BarChartView = React.memo(function BarChartView({
             dataKey={yKey}
             fill={getColor(0)}
             radius={[3, 3, 0, 0]}
-            maxBarSize={40}
+            maxBarSize={barLayout.maxBarSize}
           />
         )}
         {groups.length > 0 && showLegend && (
-          <Legend wrapperStyle={{ fontSize: 11, paddingTop: 8 }} iconType="square" />
+          <Legend
+            wrapperStyle={{ fontSize: 11, paddingTop: 8 }}
+            iconType="square"
+          />
         )}
       </BarChart>
     </ResponsiveContainer>
