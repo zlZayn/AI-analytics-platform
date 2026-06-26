@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -30,6 +30,7 @@ const defaultForm = {
 
 export default function Home() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [connections, setConnections] = useState<Connection[]>([])
   const [loading, setLoading] = useState(true)
   const [dialogOpen, setDialogOpen] = useState(false)
@@ -37,6 +38,13 @@ export default function Home() {
   const [form, setForm] = useState(defaultForm)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState("")
+
+  // Auto-open create dialog if ?action=create
+  useEffect(() => {
+    if (searchParams.get("action") === "create") {
+      setDialogOpen(true)
+    }
+  }, [searchParams])
 
   useEffect(() => {
     fetch("/api/connections")
@@ -100,55 +108,60 @@ export default function Home() {
     setDialogOpen(true)
   }
 
+  function enterConnection(conn: Connection) {
+    router.push(`/workspace?connection=${conn.id}`)
+  }
+
   return (
-    <div className="p-6 max-w-3xl mx-auto">
+    <div className="p-6 max-w-2xl mx-auto">
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-lg font-semibold text-gray-900">连接管理</h1>
-          <p className="text-xs text-gray-400">管理 PostgreSQL 数据库连接</p>
-        </div>
-        <Dialog open={dialogOpen} onOpenChange={(v) => { setDialogOpen(v); if (!v) { setEditingId(null); setForm(defaultForm); setError("") } }}>
-          <DialogTrigger className="inline-flex items-center justify-center rounded-md bg-gray-900 text-white hover:bg-gray-800 h-8 px-3 text-xs font-medium transition-colors">
-            <Plus className="w-3.5 h-3.5 mr-1" />
-            新建
-          </DialogTrigger>
-          <DialogContent className="max-w-md">
-            <DialogHeader>
-              <DialogTitle>{editingId ? "编辑连接" : "新建连接"}</DialogTitle>
-              <DialogDescription>填写 PostgreSQL 连接信息</DialogDescription>
-            </DialogHeader>
-            <div className="space-y-3 py-2">
-              <Field label="名称" value={form.name} onChange={(v) => setForm({ ...form, name: v })} placeholder="生产数据库" />
-              <Field label="描述" value={form.description} onChange={(v) => setForm({ ...form, description: v })} placeholder="可选" />
-              <div className="grid grid-cols-2 gap-3">
-                <Field label="主机" value={form.host} onChange={(v) => setForm({ ...form, host: v })} />
-                <Field label="端口" value={String(form.port)} onChange={(v) => setForm({ ...form, port: Number(v) })} type="number" />
-              </div>
-              <Field label="数据库" value={form.database} onChange={(v) => setForm({ ...form, database: v })} placeholder="mydb" />
-              <div className="grid grid-cols-2 gap-3">
-                <Field label="用户名" value={form.username} onChange={(v) => setForm({ ...form, username: v })} />
-                <Field label="密码" value={form.password} onChange={(v) => setForm({ ...form, password: v })} type="password" />
-              </div>
-              {error && <p className="text-xs text-red-500">{error}</p>}
-            </div>
-            <DialogFooter>
-              <Button variant="outline" size="sm" onClick={() => setDialogOpen(false)}>取消</Button>
-              <Button size="sm" onClick={handleSubmit} disabled={submitting}>
-                {submitting ? "保存中..." : "保存"}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+      <div className="mb-8">
+        <h1 className="text-base font-semibold text-gray-900">连接管理</h1>
+        <p className="text-xs text-gray-400 mt-0.5">选择或创建 PostgreSQL 数据库连接</p>
       </div>
 
-      {/* List */}
+      {/* Connection List */}
       {loading ? (
-        <div className="text-center py-12 text-gray-400 text-sm">加载中...</div>
+        <div className="text-center py-12 text-gray-400 text-xs">加载中...</div>
       ) : connections.length === 0 ? (
-        <div className="text-center py-12">
-          <Database className="w-10 h-10 mx-auto mb-3 text-gray-300" />
-          <p className="text-sm text-gray-400">暂无连接，点击「新建」开始</p>
+        <div className="text-center py-16">
+          <div className="w-12 h-12 rounded-xl bg-gray-100 flex items-center justify-center mx-auto mb-3">
+            <Database className="w-5 h-5 text-gray-400" />
+          </div>
+          <p className="text-sm text-gray-500 mb-1">暂无数据库连接</p>
+          <p className="text-xs text-gray-400 mb-4">点击下方按钮创建第一个连接</p>
+          <Dialog open={dialogOpen} onOpenChange={(v) => { setDialogOpen(v); if (!v) { setEditingId(null); setForm(defaultForm); setError("") } }}>
+            <DialogTrigger className="inline-flex items-center justify-center rounded-md bg-gray-900 text-white hover:bg-gray-800 h-8 px-3 text-xs font-medium transition-colors">
+              <Plus className="w-3.5 h-3.5 mr-1" />
+              新建连接
+            </DialogTrigger>
+            <DialogContent className="max-w-md">
+              <DialogHeader>
+                <DialogTitle>新建连接</DialogTitle>
+                <DialogDescription>填写 PostgreSQL 连接信息</DialogDescription>
+              </DialogHeader>
+              <div className="space-y-3 py-2">
+                <Field label="名称" value={form.name} onChange={(v) => setForm({ ...form, name: v })} placeholder="生产数据库" />
+                <Field label="描述" value={form.description} onChange={(v) => setForm({ ...form, description: v })} placeholder="可选" />
+                <div className="grid grid-cols-2 gap-3">
+                  <Field label="主机" value={form.host} onChange={(v) => setForm({ ...form, host: v })} />
+                  <Field label="端口" value={String(form.port)} onChange={(v) => setForm({ ...form, port: Number(v) })} type="number" />
+                </div>
+                <Field label="数据库" value={form.database} onChange={(v) => setForm({ ...form, database: v })} placeholder="mydb" />
+                <div className="grid grid-cols-2 gap-3">
+                  <Field label="用户名" value={form.username} onChange={(v) => setForm({ ...form, username: v })} />
+                  <Field label="密码" value={form.password} onChange={(v) => setForm({ ...form, password: v })} type="password" />
+                </div>
+                {error && <p className="text-xs text-red-500">{error}</p>}
+              </div>
+              <DialogFooter>
+                <Button variant="outline" size="sm" onClick={() => setDialogOpen(false)}>取消</Button>
+                <Button size="sm" onClick={handleSubmit} disabled={submitting}>
+                  {submitting ? "保存中..." : "保存"}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
         </div>
       ) : (
         <div className="space-y-2">
@@ -157,8 +170,11 @@ export default function Home() {
               key={conn.id}
               className="flex items-center justify-between p-3 rounded-lg border border-gray-200 hover:border-gray-300 transition-colors group"
             >
-              <div className="flex items-center gap-3 min-w-0">
-                <div className="w-8 h-8 rounded-md bg-gray-100 flex items-center justify-center shrink-0">
+              <div
+                className="flex items-center gap-3 min-w-0 cursor-pointer flex-1"
+                onClick={() => enterConnection(conn)}
+              >
+                <div className="w-8 h-8 rounded-md bg-gray-100 flex items-center justify-center shrink-0 group-hover:bg-gray-200 transition-colors">
                   <Database className="w-4 h-4 text-gray-500" />
                 </div>
                 <div className="min-w-0">
@@ -174,7 +190,7 @@ export default function Home() {
                   variant="ghost"
                   size="sm"
                   className="h-7 px-2 text-xs"
-                  onClick={() => router.push(`/workspace?connection=${conn.id}`)}
+                  onClick={() => enterConnection(conn)}
                 >
                   进入
                   <ArrowRight className="w-3 h-3 ml-1" />
@@ -188,6 +204,40 @@ export default function Home() {
               </div>
             </div>
           ))}
+
+          {/* Add new */}
+          <Dialog open={dialogOpen} onOpenChange={(v) => { setDialogOpen(v); if (!v) { setEditingId(null); setForm(defaultForm); setError("") } }}>
+            <DialogTrigger className="w-full flex items-center justify-center gap-1.5 p-2.5 rounded-lg border border-dashed border-gray-200 hover:border-gray-300 text-xs text-gray-400 hover:text-gray-600 transition-colors">
+              <Plus className="w-3.5 h-3.5" />
+              新建连接
+            </DialogTrigger>
+            <DialogContent className="max-w-md">
+              <DialogHeader>
+                <DialogTitle>{editingId ? "编辑连接" : "新建连接"}</DialogTitle>
+                <DialogDescription>填写 PostgreSQL 连接信息</DialogDescription>
+              </DialogHeader>
+              <div className="space-y-3 py-2">
+                <Field label="名称" value={form.name} onChange={(v) => setForm({ ...form, name: v })} placeholder="生产数据库" />
+                <Field label="描述" value={form.description} onChange={(v) => setForm({ ...form, description: v })} placeholder="可选" />
+                <div className="grid grid-cols-2 gap-3">
+                  <Field label="主机" value={form.host} onChange={(v) => setForm({ ...form, host: v })} />
+                  <Field label="端口" value={String(form.port)} onChange={(v) => setForm({ ...form, port: Number(v) })} type="number" />
+                </div>
+                <Field label="数据库" value={form.database} onChange={(v) => setForm({ ...form, database: v })} placeholder="mydb" />
+                <div className="grid grid-cols-2 gap-3">
+                  <Field label="用户名" value={form.username} onChange={(v) => setForm({ ...form, username: v })} />
+                  <Field label="密码" value={form.password} onChange={(v) => setForm({ ...form, password: v })} type="password" />
+                </div>
+                {error && <p className="text-xs text-red-500">{error}</p>}
+              </div>
+              <DialogFooter>
+                <Button variant="outline" size="sm" onClick={() => setDialogOpen(false)}>取消</Button>
+                <Button size="sm" onClick={handleSubmit} disabled={submitting}>
+                  {submitting ? "保存中..." : "保存"}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
         </div>
       )}
     </div>

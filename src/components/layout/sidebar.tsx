@@ -1,7 +1,8 @@
 "use client"
 
 import Link from "next/link"
-import { usePathname } from "next/navigation"
+import { useRouter, usePathname } from "next/navigation"
+import { useState, useEffect, useRef } from "react"
 import { cn } from "@/lib/utils"
 import { useConnection } from "./connection-context"
 import {
@@ -9,8 +10,13 @@ import {
   Terminal,
   Search,
   Clock,
-  ArrowLeft,
+  ChevronDown,
+  Check,
+  Settings,
+  Plus,
+  Circle,
 } from "lucide-react"
+import type { Connection } from "@/types"
 
 const navItems = [
   { href: "/workspace", label: "数据工作台", icon: Terminal },
@@ -20,7 +26,42 @@ const navItems = [
 
 export function Sidebar() {
   const pathname = usePathname()
+  const router = useRouter()
   const { connection, connectionId } = useConnection()
+  const [dropdownOpen, setDropdownOpen] = useState(false)
+  const [connections, setConnections] = useState<Connection[]>([])
+  const [loading, setLoading] = useState(false)
+  const dropdownRef = useRef<HTMLDivElement>(null)
+
+  // Fetch connections when dropdown opens
+  useEffect(() => {
+    if (dropdownOpen && connections.length === 0) {
+      setLoading(true)
+      fetch("/api/connections")
+        .then((r) => r.json())
+        .then((d) => d.success && setConnections(d.data))
+        .finally(() => setLoading(false))
+    }
+  }, [dropdownOpen, connections.length])
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setDropdownOpen(false)
+      }
+    }
+    if (dropdownOpen) {
+      document.addEventListener("mousedown", handleClickOutside)
+      return () => document.removeEventListener("mousedown", handleClickOutside)
+    }
+  }, [dropdownOpen])
+
+  function handleSelectConnection(conn: Connection) {
+    const nav = pathname || "/workspace"
+    router.push(`${nav}?connection=${conn.id}`)
+    setDropdownOpen(false)
+  }
 
   return (
     <aside className="w-52 bg-[var(--sidebar)] border-r border-[var(--sidebar-border)] flex flex-col shrink-0 text-[var(--sidebar-foreground)]">
@@ -34,31 +75,92 @@ export function Sidebar() {
         </Link>
       </div>
 
-      {/* Connection */}
-      <div className="px-2 py-2 border-b border-[var(--sidebar-border)]">
-        {connection ? (
-          <div className="space-y-1">
-            <div className="flex items-center gap-1.5 px-2 py-1.5 rounded-md bg-[var(--sidebar-accent)]">
-              <Database className="w-3.5 h-3.5 opacity-50" />
-              <span className="text-[11px] font-medium truncate">{connection.name}</span>
-            </div>
-            <Link
-              href="/"
-              className="flex items-center gap-1 px-2 text-[10px] text-[var(--muted-foreground)] hover:text-[var(--foreground)] transition-colors"
-            >
-              <ArrowLeft className="w-2.5 h-2.5" />
-              切换连接
-            </Link>
-          </div>
-        ) : (
-          <Link
-            href="/"
-            className="flex items-center gap-1.5 px-2 py-1.5 rounded-md border border-dashed border-[var(--sidebar-border)] hover:border-[var(--muted-foreground)] text-[11px] text-[var(--muted-foreground)] transition-colors"
+      {/* Connection Selector */}
+      <div className="px-2 py-2 border-b border-[var(--sidebar-border)]" ref={dropdownRef}>
+        <div className="relative">
+          <button
+            onClick={() => setDropdownOpen(!dropdownOpen)}
+            className={cn(
+              "w-full flex items-center gap-1.5 px-2 py-1.5 rounded-md text-[11px] transition-colors",
+              connection
+                ? "bg-[var(--sidebar-accent)] hover:bg-[var(--sidebar-accent)]/80"
+                : "border border-dashed border-[var(--sidebar-border)] hover:border-[var(--muted-foreground)] text-[var(--muted-foreground)]"
+            )}
           >
-            <Database className="w-3.5 h-3.5" />
-            选择连接
-          </Link>
-        )}
+            <Database className="w-3.5 h-3.5 opacity-50 shrink-0" />
+            <span className="truncate flex-1 text-left">
+              {connection ? connection.name : "选择连接"}
+            </span>
+            <ChevronDown className={cn(
+              "w-3 h-3 opacity-50 shrink-0 transition-transform",
+              dropdownOpen && "rotate-180"
+            )} />
+          </button>
+
+          {/* Dropdown */}
+          {dropdownOpen && (
+            <div className="absolute top-full left-0 right-0 mt-1 bg-[var(--popover)] border border-[var(--border)] rounded-md shadow-lg z-50 overflow-hidden">
+              {loading ? (
+                <div className="px-3 py-2 text-[10px] text-[var(--muted-foreground)]">
+                  加载中...
+                </div>
+              ) : connections.length === 0 ? (
+                <div className="px-3 py-2 text-[10px] text-[var(--muted-foreground)]">
+                  暂无连接
+                </div>
+              ) : (
+                <div className="max-h-48 overflow-auto py-0.5">
+                  {connections.map((conn) => (
+                    <button
+                      key={conn.id}
+                      onClick={() => handleSelectConnection(conn)}
+                      className={cn(
+                        "w-full flex items-center gap-2 px-2.5 py-1.5 text-[11px] transition-colors text-left",
+                        conn.id === connectionId
+                          ? "bg-[var(--accent)] text-[var(--foreground)]"
+                          : "text-[var(--foreground)] hover:bg-[var(--accent)]"
+                      )}
+                    >
+                      <Circle className={cn(
+                        "w-1.5 h-1.5 shrink-0",
+                        conn.id === connectionId ? "fill-[var(--primary)]" : "fill-transparent stroke-[var(--muted-foreground)]"
+                      )} />
+                      <div className="min-w-0 flex-1">
+                        <div className="truncate font-medium">{conn.name}</div>
+                        <div className="truncate text-[9px] text-[var(--muted-foreground)]">
+                          {conn.database}
+                        </div>
+                      </div>
+                      {conn.id === connectionId && (
+                        <Check className="w-3 h-3 shrink-0 text-[var(--primary)]" />
+                      )}
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {/* Footer actions */}
+              <div className="border-t border-[var(--border)] px-1 py-0.5">
+                <Link
+                  href="/"
+                  onClick={() => setDropdownOpen(false)}
+                  className="flex items-center gap-2 px-2 py-1.5 text-[11px] text-[var(--muted-foreground)] hover:text-[var(--foreground)] hover:bg-[var(--accent)] rounded-sm transition-colors"
+                >
+                  <Settings className="w-3 h-3" />
+                  管理连接
+                </Link>
+                <Link
+                  href="/?action=create"
+                  onClick={() => setDropdownOpen(false)}
+                  className="flex items-center gap-2 px-2 py-1.5 text-[11px] text-[var(--muted-foreground)] hover:text-[var(--foreground)] hover:bg-[var(--accent)] rounded-sm transition-colors"
+                >
+                  <Plus className="w-3 h-3" />
+                  新建连接
+                </Link>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Nav */}
@@ -90,7 +192,7 @@ export function Sidebar() {
 
       {/* Footer */}
       <div className="px-3 py-2 border-t border-[var(--sidebar-border)]">
-        <span className="text-[10px] text-[var(--muted-foreground)]">v1.19.0</span>
+        <span className="text-[10px] text-[var(--muted-foreground)]">v1.23.0</span>
       </div>
     </aside>
   )

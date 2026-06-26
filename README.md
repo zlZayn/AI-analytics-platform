@@ -17,7 +17,7 @@
 
 | 层级 | 技术 |
 | :--- | :--- |
-| 前端 | Next.js 16, React 19, TypeScript, TailwindCSS 4, shadcn/ui |
+| 前端 | Next.js 16, React 19, TypeScript, TailwindCSS 4, Base UI |
 | 编辑器 | Monaco Editor |
 | 可视化 | Recharts + 自绘 SVG (箱线图/热力图/相关矩阵) |
 | 后端 | Next.js Route Handlers, Prisma 7, pg |
@@ -68,7 +68,8 @@ npm run dev
 ```text
 src/
 ├── app/                          # Next.js App Router
-│   ├── page.tsx                  # 连接管理页
+│   ├── layout.tsx                # 根布局
+│   ├── page.tsx                  # 连接选择与管理
 │   ├── workspace/page.tsx        # 数据工作台 (SQL + AI)
 │   ├── explorer/page.tsx         # 数据探索
 │   ├── queries/page.tsx          # 查询管理 (收藏 + 历史)
@@ -76,11 +77,11 @@ src/
 │       ├── connections/          # 连接 CRUD
 │       ├── schema/               # Schema 扫描
 │       ├── query/                # SQL 执行 + 历史 + 保存
-│       └── ai/                   # AI SQL 生成
+│       └── ai/                   # AI 分析 + 洞察推荐
 ├── components/
 │   ├── layout/                   # 布局组件
 │   │   ├── app-shell.tsx         # 顶层布局
-│   │   ├── sidebar.tsx           # 侧边栏导航
+│   │   ├── sidebar.tsx           # 侧边栏 + 连接选择器
 │   │   └── connection-context.tsx # 连接上下文
 │   ├── dashboard/                # 共享子组件
 │   │   └── result-panel.tsx      # 结果面板
@@ -90,12 +91,14 @@ src/
 │   │   ├── chart-icons.tsx       # SVG 图标映射
 │   │   ├── types.ts              # 图表类型定义
 │   │   ├── constants.ts          # 颜色/坐标轴配置
-│   │   └── utils.ts              # 统计计算工具
+│   │   ├── utils.ts              # 统计计算工具
+│   │   ├── empty-state.tsx       # 空状态组件
+│   │   └── error-boundary.tsx    # 图表错误边界
 │   ├── chart-config-panel.tsx    # 图表配置面板
 │   ├── chart.tsx                 # 图表 re-export
 │   ├── insight-card.tsx          # AI 洞察卡片
 │   ├── toast.tsx                 # Toast 通知
-│   └── ui/                       # shadcn/ui 组件
+│   └── ui/                       # 基础 UI 组件 (Base UI + TailwindCSS)
 ├── lib/                          # 核心库
 │   ├── ai-service.ts             # AI 服务 (SQL生成 + 洞察推荐)
 │   ├── query-engine.ts           # 查询引擎
@@ -107,13 +110,19 @@ src/
 │   └── utils.ts                  # 工具函数
 ├── types/                        # 共享类型定义
 └── generated/prisma/             # Prisma 客户端
+
+prisma/
+└── schema.prisma                 # 数据库 Schema 定义
+
+scripts/
+└── seed.py                       # 测试数据生成脚本
 ```
 
 ## 页面路由
 
 | 路由 | 功能 |
 | :--- | :--- |
-| `/` | 连接管理 (新建/编辑/删除) |
+| `/` | 连接选择与管理 (侧边栏下拉切换) |
 | `/workspace?connection=xxx` | 数据工作台 (SQL 编辑 + AI 助手) |
 | `/explorer?connection=xxx` | 数据探索 (Schema 浏览) |
 | `/queries?connection=xxx` | 查询管理 (收藏 + 历史) |
@@ -128,7 +137,8 @@ src/
 | POST | `/api/query` | 执行 SQL |
 | GET | `/api/query/history` | 查询历史 |
 | GET/POST | `/api/query/saved` | 保存的查询 |
-| POST | `/api/ai` | AI SQL 生成 |
+| POST | `/api/ai` | AI 分析 (结构化 JSON 输出) |
+| POST | `/api/ai/insights` | AI 洞察推荐 |
 
 ## 图表类型
 
@@ -138,7 +148,6 @@ src/
 | 柱状图 | 分类对比 |
 | 饼图 | 占比分析 |
 | 散点图 | 相关性分析 |
-| 直方图 | 分布分析 |
 | 箱线图 | 统计分布 |
 | 热力图 | 矩阵分析 |
 | 相关系数矩阵 | 变量相关性 |

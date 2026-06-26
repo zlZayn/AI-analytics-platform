@@ -119,5 +119,5 @@ ENCRYPTION_KEY="your-encryption-key"
 
 ---
 
-*文档版本: v1.20.0*
+*文档版本: v1.23.0*
 *最后更新: 2026-06-25*
