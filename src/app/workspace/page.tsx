@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
 import { ResultPanel } from "@/components/dashboard/result-panel"
-import { InsightPanel, type InsightItem } from "@/components/insight-card"
+import { InsightCard, type InsightItem } from "@/components/insight-card"
 import { type ChartMapping } from "@/components/chart"
 import { useToast } from "@/components/toast"
 import type { QueryResult } from "@/types"
@@ -36,11 +36,9 @@ function WorkspaceContent() {
   // AI state
   const [aiInput, setAiInput] = useState("")
   const [aiLoading, setAiLoading] = useState(false)
-  const [aiHistory, setAiHistory] = useState<{ role: "user" | "ai"; content: string; sql?: string }[]>([])
+  const [aiHistory, setAiHistory] = useState<{ role: "user" | "ai"; content: string; sql?: string; insights?: InsightItem[] }[]>([])
 
-  // Insights state
-  const [insights, setInsights] = useState<InsightItem[]>([])
-  const [insightsLoading, setInsightsLoading] = useState(false)
+  // Insight execution state
   const [executingInsightIndex, setExecutingInsightIndex] = useState<number | null>(null)
   const [pendingChartMapping, setPendingChartMapping] = useState<ChartMapping | null>(null)
 
@@ -99,9 +97,19 @@ function WorkspaceContent() {
       })
       const data = await res.json()
       if (data.success) {
-        setAiHistory((prev) => [...prev, { role: "ai", content: data.data.explanation, sql: data.data.sql }])
-        setSql(data.data.sql)
-        toast("AI 已生成 SQL", "success")
+        // 检查是否有洞察
+        if (data.data.insights && data.data.insights.length > 0) {
+          setAiHistory((prev) => [...prev, {
+            role: "ai",
+            content: data.data.explanation,
+            insights: data.data.insights
+          }])
+          toast(`已生成 ${data.data.insights.length} 条洞察`, "success")
+        } else {
+          setAiHistory((prev) => [...prev, { role: "ai", content: data.data.explanation, sql: data.data.sql }])
+          setSql(data.data.sql)
+          toast("AI 已生成 SQL", "success")
+        }
       } else {
         setAiHistory((prev) => [...prev, { role: "ai", content: `错误: ${data.error}` }])
       }
@@ -109,29 +117,6 @@ function WorkspaceContent() {
       setAiHistory((prev) => [...prev, { role: "ai", content: "请求失败" }])
     } finally {
       setAiLoading(false)
-    }
-  }
-
-  async function requestInsights() {
-    if (!connectionId || insightsLoading) return
-    setInsightsLoading(true)
-    try {
-      const res = await fetch("/api/ai/insights", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ connectionId, message: "给我一些有业务洞察的数据分析推荐" }),
-      })
-      const data = await res.json()
-      if (data.success) {
-        setInsights(data.data.insights)
-        toast(`已生成 ${data.data.insights.length} 条洞察`, "success")
-      } else {
-        toast(data.error || "生成洞察失败", "error")
-      }
-    } catch {
-      toast("请求失败", "error")
-    } finally {
-      setInsightsLoading(false)
     }
   }
 
@@ -168,14 +153,6 @@ function WorkspaceContent() {
     } finally {
       setLoading(false)
       setExecutingInsightIndex(null)
-    }
-  }
-
-  async function executeAllInsights() {
-    for (let i = 0; i < insights.length; i++) {
-      await executeInsight(insights[i].sql, insights[i].chart, i)
-      // 等待一点时间让用户看到结果
-      await new Promise(resolve => setTimeout(resolve, 500))
     }
   }
 
@@ -267,69 +244,81 @@ function WorkspaceContent() {
             )}
           </div>
 
-          {/* AI Assistant + Insights */}
-          <div className="flex-[2] flex flex-col min-w-0 gap-3">
-            {/* AI Assistant */}
-            <div className="flex-1 flex flex-col min-h-0 border rounded-lg">
-              <div className="px-3 py-2 border-b flex items-center justify-between">
-                <span className="text-xs font-medium text-[var(--muted-foreground)]">AI 助手</span>
-                <Button variant="ghost" size="sm" className="h-5 text-[10px]" onClick={() => setAiHistory([])} disabled={!aiHistory.length}>
-                  清空
-                </Button>
-              </div>
-              <div className="flex-1 overflow-auto p-3 space-y-2 min-h-0">
-                {aiHistory.length === 0 && (
-                  <div className="flex items-center justify-center h-full text-[var(--muted-foreground)] text-xs">
-                    用自然语言描述你想分析的内容
-                  </div>
-                )}
-                {aiHistory.map((msg, i) => (
-                  <div key={i} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
-                    <div className={`max-w-[90%] rounded-lg px-2.5 py-1.5 text-xs ${msg.role === "user" ? "bg-[var(--primary)] text-[var(--primary-foreground)]" : "bg-[var(--muted)] text-[var(--foreground)]"}`}>
+          {/* AI Assistant */}
+          <div className="flex-[2] flex flex-col min-w-0 border rounded-lg">
+            <div className="px-3 py-2 border-b flex items-center justify-between">
+              <span className="text-xs font-medium text-[var(--muted-foreground)]">AI 助手</span>
+              <Button variant="ghost" size="sm" className="h-5 text-[10px]" onClick={() => setAiHistory([])} disabled={!aiHistory.length}>
+                清空
+              </Button>
+            </div>
+            <div className="flex-1 overflow-auto p-3 space-y-2 min-h-0">
+              {aiHistory.length === 0 && (
+                <div className="flex items-center justify-center h-full text-[var(--muted-foreground)] text-xs">
+                  用自然语言描述你想分析的内容
+                </div>
+              )}
+              {aiHistory.map((msg, i) => (
+                <div key={i} className={`${msg.role === "user" ? "flex justify-end" : "space-y-2"}`}>
+                  {msg.role === "user" ? (
+                    <div className="max-w-[90%] rounded-lg px-2.5 py-1.5 text-xs bg-[var(--primary)] text-[var(--primary-foreground)]">
                       <div className="whitespace-pre-wrap">{msg.content}</div>
-                      {msg.sql && (
-                        <div className="mt-1.5 relative group">
-                          <pre className="p-1.5 rounded bg-black/5 text-[10px] font-mono overflow-x-auto">{msg.sql}</pre>
-                          <button className="absolute top-0.5 right-0.5 p-0.5 rounded opacity-0 group-hover:opacity-100 transition-opacity bg-black/10 hover:bg-black/20" onClick={() => { navigator.clipboard.writeText(msg.sql!); toast("已复制", "success") }}>
-                            <Copy className="w-2.5 h-2.5" />
-                          </button>
+                    </div>
+                  ) : (
+                    <>
+                      {/* 普通消息 */}
+                      <div className="flex justify-start">
+                        <div className="max-w-[90%] rounded-lg px-2.5 py-1.5 text-xs bg-[var(--muted)] text-[var(--foreground)]">
+                          <div className="whitespace-pre-wrap">{msg.content}</div>
+                          {msg.sql && (
+                            <div className="mt-1.5 relative group">
+                              <pre className="p-1.5 rounded bg-black/5 text-[10px] font-mono overflow-x-auto">{msg.sql}</pre>
+                              <button className="absolute top-0.5 right-0.5 p-0.5 rounded opacity-0 group-hover:opacity-100 transition-opacity bg-black/10 hover:bg-black/20" onClick={() => { navigator.clipboard.writeText(msg.sql!); toast("已复制", "success") }}>
+                                <Copy className="w-2.5 h-2.5" />
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                      {/* 洞察卡片 */}
+                      {msg.insights && msg.insights.length > 0 && (
+                        <div className="space-y-1.5 ml-2">
+                          {msg.insights.map((item, j) => (
+                            <InsightCard
+                              key={j}
+                              index={j}
+                              item={item}
+                              onExecute={(sql, chart) => executeInsight(sql, chart, j)}
+                              loading={executingInsightIndex === j}
+                            />
+                          ))}
                         </div>
                       )}
-                    </div>
+                    </>
+                  )}
+                </div>
+              ))}
+              {aiLoading && (
+                <div className="flex justify-start">
+                  <div className="bg-[var(--muted)] rounded-lg px-2.5 py-1.5 flex items-center gap-1 text-xs text-[var(--muted-foreground)]">
+                    <Loader2 className="w-3 h-3 animate-spin" /> 思考中...
                   </div>
-                ))}
-                {aiLoading && (
-                  <div className="flex justify-start">
-                    <div className="bg-[var(--muted)] rounded-lg px-2.5 py-1.5 flex items-center gap-1 text-xs text-[var(--muted-foreground)]">
-                      <Loader2 className="w-3 h-3 animate-spin" /> 思考中...
-                    </div>
-                  </div>
-                )}
-              </div>
-              <div className="p-2 border-t flex gap-1.5">
-                <Input
-                  value={aiInput}
-                  onChange={(e) => setAiInput(e.target.value)}
-                  placeholder="描述你想分析的内容..."
-                  disabled={aiLoading}
-                  className="h-7 text-xs"
-                  onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && (e.preventDefault(), sendAi())}
-                />
-                <Button size="sm" onClick={sendAi} disabled={aiLoading || !aiInput.trim()} className="h-7 w-7 p-0">
-                  <Send className="w-3 h-3" />
-                </Button>
-              </div>
+                </div>
+              )}
             </div>
-
-            {/* Insights Panel */}
-            <InsightPanel
-              insights={insights}
-              loading={insightsLoading}
-              onExecute={(sql, chart) => executeInsight(sql, chart, -1)}
-              onExecuteAll={executeAllInsights}
-              executingIndex={executingInsightIndex}
-              onRequestInsights={requestInsights}
-            />
+            <div className="p-2 border-t flex gap-1.5">
+              <Input
+                value={aiInput}
+                onChange={(e) => setAiInput(e.target.value)}
+                placeholder="描述你想分析的内容，如：给我一些数据洞察"
+                disabled={aiLoading}
+                className="h-7 text-xs"
+                onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && (e.preventDefault(), sendAi())}
+              />
+              <Button size="sm" onClick={sendAi} disabled={aiLoading || !aiInput.trim()} className="h-7 w-7 p-0">
+                <Send className="w-3 h-3" />
+              </Button>
+            </div>
           </div>
         </div>
       )}
