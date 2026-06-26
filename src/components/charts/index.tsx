@@ -16,7 +16,7 @@ import { TableView } from "./views/table-view"
 
 export type { ChartMapping, ChartType, ChartProps } from "./types"
 
-function ChartInner({ mapping, data }: ChartProps) {
+function ChartInner({ mapping, data, showLegend = true }: ChartProps) {
   if (data.length === 0) return <EmptyState />
 
   const { chartType } = mapping
@@ -24,8 +24,7 @@ function ChartInner({ mapping, data }: ChartProps) {
   switch (chartType) {
     case "line": {
       const err = validateMapping(mapping, ["x", "y"])
-      if (err)
-        return <div className="text-sm text-gray-500 p-4">{err}</div>
+      if (err) return <EmptyState message={err} />
       return (
         <ChartErrorBoundary chartType="折线图">
           <LineChartView
@@ -33,14 +32,14 @@ function ChartInner({ mapping, data }: ChartProps) {
             xKey={mapping.x!}
             yKey={mapping.y!}
             colorKey={mapping.color}
+            showLegend={showLegend}
           />
         </ChartErrorBoundary>
       )
     }
     case "bar": {
       const err = validateMapping(mapping, ["x", "y"])
-      if (err)
-        return <div className="text-sm text-gray-500 p-4">{err}</div>
+      if (err) return <EmptyState message={err} />
       return (
         <ChartErrorBoundary chartType="柱状图">
           <BarChartView
@@ -48,14 +47,14 @@ function ChartInner({ mapping, data }: ChartProps) {
             xKey={mapping.x!}
             yKey={mapping.y!}
             fillKey={mapping.fill}
+            showLegend={showLegend}
           />
         </ChartErrorBoundary>
       )
     }
     case "pie": {
       const err = validateMapping(mapping, ["name", "value"])
-      if (err)
-        return <div className="text-sm text-gray-500 p-4">{err}</div>
+      if (err) return <EmptyState message={err} />
       return (
         <ChartErrorBoundary chartType="饼图">
           <PieChartView
@@ -68,8 +67,7 @@ function ChartInner({ mapping, data }: ChartProps) {
     }
     case "scatter": {
       const err = validateMapping(mapping, ["x", "y"])
-      if (err)
-        return <div className="text-sm text-gray-500 p-4">{err}</div>
+      if (err) return <EmptyState message={err} />
       return (
         <ChartErrorBoundary chartType="散点图">
           <ScatterChartView
@@ -82,30 +80,28 @@ function ChartInner({ mapping, data }: ChartProps) {
       )
     }
     case "boxplot": {
-      const err = validateMapping(mapping, ["x", "y"])
-      if (err)
-        return <div className="text-sm text-gray-500 p-4">{err}</div>
+      const err = validateMapping(mapping, ["category", "value"])
+      if (err) return <EmptyState message={err} />
       return (
         <ChartErrorBoundary chartType="箱线图">
           <BoxPlotView
             data={data}
-            xKey={mapping.x!}
-            yKey={mapping.y!}
+            xKey={mapping.category!}
+            yKey={mapping.value!}
           />
         </ChartErrorBoundary>
       )
     }
     case "heatmap": {
       const err = validateMapping(mapping, ["x", "y"])
-      if (err)
-        return <div className="text-sm text-gray-500 p-4">{err}</div>
+      if (err) return <EmptyState message={err} />
       return (
         <ChartErrorBoundary chartType="热力图">
           <HeatmapView
             data={data}
             xKey={mapping.x!}
             yKey={mapping.y!}
-            fillKey={mapping.fill}
+            fillKey={mapping.value}
           />
         </ChartErrorBoundary>
       )

@@ -25,20 +25,30 @@ export const CorrelationHeatmap = React.memo(function CorrelationHeatmap({
     const sample = data.slice(0, MAX_CORR_ROWS)
     const n = labels.length
 
+    // 提取各列数值
+    const columnData = labels.map((col) =>
+      sample.map((d) => Number(d[col]))
+    )
+
     const matrix: number[][] = Array.from({ length: n }, () => Array(n).fill(0))
     for (let i = 0; i < n; i++) {
-      for (let j = 0; j < n; j++) {
+      for (let j = i; j < n; j++) {
         if (i === j) {
           matrix[i][j] = 1
           continue
         }
-        const xArr = sample
-          .map((d) => Number(d[labels[i]]))
-          .filter((v) => !isNaN(v))
-        const yArr = sample
-          .map((d) => Number(d[labels[j]]))
-          .filter((v) => !isNaN(v))
-        matrix[i][j] = computeCorrelation(xArr, yArr, method)
+        // 联合过滤 NaN，保持行对齐
+        const xArr: number[] = []
+        const yArr: number[] = []
+        for (let k = 0; k < columnData[i].length; k++) {
+          if (!isNaN(columnData[i][k]) && !isNaN(columnData[j][k])) {
+            xArr.push(columnData[i][k])
+            yArr.push(columnData[j][k])
+          }
+        }
+        const corr = computeCorrelation(xArr, yArr, method)
+        matrix[i][j] = Math.round(corr * 100) / 100
+        matrix[j][i] = matrix[i][j]
       }
     }
     return { matrix, labels, truncated }
@@ -50,13 +60,14 @@ export const CorrelationHeatmap = React.memo(function CorrelationHeatmap({
   const marginLeft = 80
   const marginTop = 40
 
+  // 正相关蓝色，负相关红色，0 白色
   const valueToColor = (v: number) => {
     if (v >= 0) {
       const t = v
-      return `rgb(${Math.round(239 + (59 - 239) * t)},${Math.round(68 + (130 - 68) * t)},${Math.round(68 + (246 - 68) * t)})`
+      return `rgb(${Math.round(255 - 216 * t)},${Math.round(255 - 132 * t)},${Math.round(255 - 10 * t)})`
     }
     const t = -v
-    return `rgb(${Math.round(239 + (37 - 239) * t)},${Math.round(68 + (99 - 68) * t)},${Math.round(68 + (243 - 68) * t)})`
+    return `rgb(${Math.round(255 - 218 * t)},${Math.round(255 - 156 * t)},${Math.round(255 - 246 * t)})`
   }
 
   return (
@@ -74,9 +85,9 @@ export const CorrelationHeatmap = React.memo(function CorrelationHeatmap({
         >
           <defs>
             <linearGradient id="corrGradient" x1="0" x2="1" y1="0" y2="0">
-              <stop offset="0%" stopColor="rgb(37,99,243)" />
-              <stop offset="50%" stopColor="rgb(239,68,68)" />
-              <stop offset="100%" stopColor="rgb(59,130,246)" />
+              <stop offset="0%" stopColor="rgb(37,99,9)" />
+              <stop offset="50%" stopColor="rgb(255,255,255)" />
+              <stop offset="100%" stopColor="rgb(37,99,246)" />
             </linearGradient>
           </defs>
 

@@ -9,7 +9,7 @@
 - **SQL 编辑器** - Monaco Editor，语法高亮，执行 SQL 查询
 - **AI 分析** - 自然语言 -> SQL，多轮对话
 - **数据探索** - 浏览表结构、字段详情、表关联、数据预览
-- **图表可视化** - 9 种图表类型，自动推断图表类型
+- **图表可视化** - 8 种图表类型，用户自由选择列映射
 - **查询管理** - 查询历史、保存的查询
 
 ## 技术栈
@@ -84,7 +84,7 @@ src/
 │   ├── dashboard/                # 共享子组件
 │   │   └── result-panel.tsx      # 结果面板
 │   ├── charts/                   # 图表系统
-│   │   ├── views/                # 9 种图表视图
+│   │   ├── views/                # 8 种图表视图
 │   │   ├── hooks/                # 自定义 hooks
 │   │   ├── chart-icons.tsx       # SVG 图标映射
 │   │   ├── types.ts              # 图表类型定义
@@ -99,7 +99,7 @@ src/
 │   ├── query-engine.ts           # 查询引擎
 │   ├── schema-service.ts         # Schema 扫描
 │   ├── sql-validator.ts          # SQL 安全校验
-│   ├── variable-types.ts         # 变量类型推断
+│   ├── variable-types.ts         # 图表类型定义 + 映射槽位
 │   ├── encryption.ts             # 密码加密
 │   ├── prisma.ts                 # Prisma 客户端
 │   └── utils.ts                  # 工具函数

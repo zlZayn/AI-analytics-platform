@@ -20,11 +20,13 @@ export const BarChartView = React.memo(function BarChartView({
   xKey,
   yKey,
   fillKey,
+  showLegend = true,
 }: {
   data: Record<string, unknown>[]
   xKey: string
   yKey: string
   fillKey?: string
+  showLegend?: boolean
 }) {
   const { groups, wideData } = useGroupedData(data, xKey, yKey, fillKey)
 
@@ -42,7 +44,7 @@ export const BarChartView = React.memo(function BarChartView({
         ) : (
           <Bar dataKey={yKey} fill={getColor(0)} radius={[3, 3, 0, 0]} />
         )}
-        {groups.length > 0 && (
+        {groups.length > 0 && showLegend && (
           <Legend wrapperStyle={{ fontSize: 11, paddingTop: 8 }} iconType="square" />
         )}
       </BarChart>

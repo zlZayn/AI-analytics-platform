@@ -15,7 +15,7 @@ AI Data Analytics Platform
 1. **Schema 深度绑定** - 自动发现数据库结构，理解表关系
 2. **AI 驱动分析** - 自然语言输入，智能生成 SQL 和图表
 3. **安全可控** - 所有 SQL 经过白名单校验，只允许 SELECT 查询
-4. **可视化丰富** - 9 种图表类型，自动推断最佳图表
+4. **可视化丰富** - 8 种图表类型，用户自由选择列映射
 5. **通用性强** - 可接入任意 PostgreSQL 数据库
 
 ---
@@ -48,7 +48,7 @@ AI Data Analytics Platform
 ### 核心流程
 
 ```text
-用户输入 -> AI 生成 SQL -> 安全校验 -> 执行查询 -> 自动推断图表 -> 可视化
+用户输入 -> AI 生成 SQL -> 安全校验 -> 执行查询 -> 用户选择图表类型 + 列映射 -> 可视化
 ```
 
 ### 系统架构
@@ -87,14 +87,14 @@ AI Data Analytics Platform
 
 | 模块 | 文件 | 职责 |
 | :--- | :--- | :--- |
-| AI Service | `lib/ai-service.ts` | 自然语言 -> SQL 生成 |
+| AI Service | `lib/ai-service.ts` | 自然语言 -> SQL 生成 (含图表数据建议) |
 | Query Engine | `lib/query-engine.ts` | 连接池管理 + SQL 执行 |
 | Schema Service | `lib/schema-service.ts` | 数据库结构扫描 + AI 上下文构建 |
 | SQL Validator | `lib/sql-validator.ts` | SQL 安全校验 (白名单) |
-| Variable Types | `lib/variable-types.ts` | 变量类型推断 + 图表映射 |
+| Variable Types | `lib/variable-types.ts` | 图表类型定义 + 映射槽位 |
 | Encryption | `lib/encryption.ts` | AES-256 密码加密/解密 |
-| Chart System | `components/charts/` | 9 种图表视图 + 配置面板 |
-| Chart Config | `components/chart-config-panel.tsx` | ggplot2 风格图表配置 |
+| Chart System | `components/charts/` | 8 种图表视图 + 工具函数 |
+| Chart Config | `components/chart-config-panel.tsx` | 图表类型选择 + 列映射面板 |
 | Result Panel | `components/dashboard/result-panel.tsx` | 查询结果展示 |
 | Toast | `components/toast.tsx` | 操作反馈通知 |
 | Layout | `components/layout/` | 侧边栏 + 连接上下文 |
@@ -120,5 +120,5 @@ AI Data Analytics Platform
 
 ---
 
-*文档版本: v1.20.0*
-*最后更新: 2026-06-25*
+*文档版本: v1.21.0*
+*最后更新: 2026-06-26*

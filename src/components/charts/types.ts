@@ -1,15 +1,6 @@
-export type ChartType =
-  | "line"
-  | "bar"
-  | "pie"
-  | "scatter"
-  | "histogram"
-  | "boxplot"
-  | "heatmap"
-  | "correlation"
-  | "table"
+import type { ChartType, CorrelationMethod } from "@/lib/variable-types"
 
-export type CorrelationMethod = "pearson" | "spearman" | "kendall"
+export type { ChartType, CorrelationMethod }
 
 export interface ChartMapping {
   chartType: ChartType | string
@@ -20,6 +11,8 @@ export interface ChartMapping {
   facet?: string
   name?: string
   value?: string
+  category?: string
+  valueKey?: string
   method?: CorrelationMethod | string
   [slot: string]: string | undefined
 }
@@ -27,6 +20,7 @@ export interface ChartMapping {
 export interface ChartProps {
   mapping: ChartMapping
   data: Record<string, unknown>[]
+  showLegend?: boolean
 }
 
 export interface BoxStats {

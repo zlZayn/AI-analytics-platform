@@ -1,26 +1,23 @@
 "use client"
 
 import { useState } from "react"
-import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { ChartConfigPanel } from "@/components/chart-config-panel"
 import { type ChartMapping } from "@/components/chart"
 import type { QueryResult } from "@/types"
 import { Copy, Check } from "lucide-react"
-import { useToast } from "@/components/toast"
 
 interface Props {
   result: QueryResult
-  onCopySql: (sql: string) => void
+  onCopySql: () => void
 }
 
 export function ResultPanel({ result, onCopySql }: Props) {
-  const { toast } = useToast()
   const [chartMapping, setChartMapping] = useState<ChartMapping>({ chartType: "table" })
   const [copied, setCopied] = useState(false)
 
   function handleCopy() {
-    onCopySql("")
+    onCopySql()
     setCopied(true)
     setTimeout(() => setCopied(false), 1500)
   }

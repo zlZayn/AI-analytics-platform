@@ -43,6 +43,32 @@ const SYSTEM_PROMPT = `你是一个专业的数据分析助手。根据用户的
    - 复购率: 有2+订单的会员数 / 总会员数
    - 行为转化: view -> favorite -> cart -> purchase 漏斗
 
+## 图表数据建议
+
+SQL 查询结果会直接用于图表绘制。为了让图表效果更好，建议:
+
+1. **柱状图/折线图**: 返回 name + value 格式
+   SELECT category AS name, SUM(amount) AS value FROM ... GROUP BY category
+
+2. **饼图**: 返回 name + value 格式，分类数建议 <= 10
+   SELECT category AS name, COUNT(*) AS value FROM ... GROUP BY category
+
+3. **散点图**: 返回两个数值列
+   SELECT col_a AS x, col_b AS y FROM ...
+
+4. **箱线图**: 返回 category + value 格式，按分组聚合
+   SELECT category, value FROM raw_data (或用 percentile_cont 计算统计量)
+
+5. **热力图**: 返回 x + y + value 交叉表
+   SELECT row_name AS x, col_name AS y, metric AS value FROM ...
+
+6. **相关矩阵**: 返回多个数值列，系统自动计算相关系数
+   SELECT col1, col2, col3 FROM ...
+
+7. **表格**: 直接返回原始数据即可
+
+列名使用有意义的英文别名 (AS)，图表会自动使用这些别名作为轴标签。
+
 ## 输出格式
 
 严格按以下格式输出，不要添加任何额外内容:
@@ -54,11 +80,11 @@ const SYSTEM_PROMPT = `你是一个专业的数据分析助手。根据用户的
 示例:
 查询各分类销售额
 
-SELECT dp.category_l2, SUM(fo.pay_amount) AS total_sales
+SELECT dp.category_l2 AS name, SUM(fo.pay_amount) AS value
 FROM fact_orders fo
 JOIN dim_product dp ON fo.product_id = dp.id
 GROUP BY dp.category_l2
-ORDER BY total_sales DESC`
+ORDER BY value DESC`
 
 export interface AIServiceResult {
   sql: string

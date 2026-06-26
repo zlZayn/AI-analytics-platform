@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { executeQuery } from '@/lib/query-engine'
-import { inferChartType } from '@/lib/chart-inference'
 import { prisma } from '@/lib/prisma'
 
 // 执行 SQL 查询
@@ -19,9 +18,6 @@ export async function POST(request: NextRequest) {
 
     // 执行查询
     const result = await executeQuery(connectionId, sql, timeout || 10000)
-
-    // 推断图表类型
-    const chartConfig = inferChartType(result.columns, result.rows)
 
     // 保存查询历史
     try {
@@ -46,8 +42,7 @@ export async function POST(request: NextRequest) {
         columns: result.columns,
         rows: result.rows,
         rowCount: result.rowCount,
-        executionTimeMs: result.executionTimeMs,
-        chartConfig
+        executionTimeMs: result.executionTimeMs
       }
     })
   } catch (error) {

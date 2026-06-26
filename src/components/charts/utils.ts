@@ -30,56 +30,12 @@ export function validateMapping(
 }
 
 // ============================================================================
-// Statistical computations
+// 固定统计算法
 // ============================================================================
 
-export function computeBins(
-  values: number[],
-  binCount?: number,
-): { bin: string; count: number; start: number; end: number }[] {
-  if (values.length === 0) return []
-
-  const sorted = [...values].sort((a, b) => a - b)
-  const min = sorted[0]
-  const max = sorted[sorted.length - 1]
-
-  if (min === max)
-    return [{ bin: String(min), count: values.length, start: min, end: max }]
-
-  const q1 = sorted[Math.floor(sorted.length * 0.25)]
-  const q3 = sorted[Math.floor(sorted.length * 0.75)]
-  const iqr = q3 - q1
-  const binWidth = binCount
-    ? (max - min) / binCount
-    : iqr > 0
-      ? (2 * iqr) / Math.pow(values.length, 1 / 3)
-      : (max - min) / Math.sqrt(values.length)
-
-  const effectiveBinCount =
-    binCount || Math.max(1, Math.ceil((max - min) / binWidth))
-  const step = (max - min) / effectiveBinCount
-
-  const bins: { bin: string; count: number; start: number; end: number }[] = []
-  for (let i = 0; i < effectiveBinCount; i++) {
-    const start = min + i * step
-    const end =
-      i === effectiveBinCount - 1 ? max : min + (i + 1) * step
-    const count = values.filter((v) =>
-      i === effectiveBinCount - 1
-        ? v >= start && v <= end
-        : v >= start && v < end,
-    ).length
-    bins.push({
-      bin: `${start.toFixed(1)}-${end.toFixed(1)}`,
-      count,
-      start,
-      end,
-    })
-  }
-
-  return bins
-}
-
+/**
+ * 计算箱线图统计量
+ */
 export function computeBoxStats(values: number[]): BoxStats | null {
   if (values.length === 0) return null
   const sorted = [...values].sort((a, b) => a - b)
@@ -109,54 +65,127 @@ export function computeBoxStats(values: number[]): BoxStats | null {
   }
 }
 
+/**
+ * 联合过滤 NaN，保持行对齐
+ */
+function filterPaired(
+  xArr: number[],
+  yArr: number[],
+): [number[], number[]] {
+  const xResult: number[] = []
+  const yResult: number[] = []
+  const len = Math.min(xArr.length, yArr.length)
+  for (let i = 0; i < len; i++) {
+    if (!isNaN(xArr[i]) && !isNaN(yArr[i])) {
+      xResult.push(xArr[i])
+      yResult.push(yArr[i])
+    }
+  }
+  return [xResult, yResult]
+}
+
+/**
+ * Pearson 相关系数
+ */
+export function pearsonCorrelation(x: number[], y: number[]): number {
+  const [xA, yA] = filterPaired(x, y)
+  const n = xA.length
+  if (n < 2) return 0
+
+  const meanX = xA.reduce((a, b) => a + b, 0) / n
+  const meanY = yA.reduce((a, b) => a + b, 0) / n
+
+  let numerator = 0
+  let denomX = 0
+  let denomY = 0
+
+  for (let i = 0; i < n; i++) {
+    const dx = xA[i] - meanX
+    const dy = yA[i] - meanY
+    numerator += dx * dy
+    denomX += dx * dx
+    denomY += dy * dy
+  }
+
+  const denominator = Math.sqrt(denomX * denomY)
+  return denominator === 0 ? 0 : numerator / denominator
+}
+
+/**
+ * Spearman 秩相关系数（处理并列值）
+ */
+export function spearmanCorrelation(x: number[], y: number[]): number {
+  const [xA, yA] = filterPaired(x, y)
+  const n = xA.length
+  if (n < 2) return 0
+
+  const rankX = toRanks(xA)
+  const rankY = toRanks(yA)
+
+  return pearsonCorrelation(rankX, rankY)
+}
+
+/**
+ * 转换为平均秩（处理并列值）
+ */
+function toRanks(arr: number[]): number[] {
+  const indexed = arr.map((v, i) => ({ v, i })).sort((a, b) => a.v - b.v)
+  const ranks = new Array(arr.length)
+  let i = 0
+  while (i < indexed.length) {
+    let j = i
+    // 找到所有并列值
+    while (j < indexed.length && indexed[j].v === indexed[i].v) {
+      j++
+    }
+    // 并列值取平均秩
+    const avgRank = (i + 1 + j) / 2
+    for (let k = i; k < j; k++) {
+      ranks[indexed[k].i] = avgRank
+    }
+    i = j
+  }
+  return ranks
+}
+
+/**
+ * Kendall tau-b 相关系数（处理并列值）
+ */
+export function kendallCorrelation(x: number[], y: number[]): number {
+  const [xA, yA] = filterPaired(x, y)
+  const n = xA.length
+  if (n < 2) return 0
+
+  let concordant = 0
+  let discordant = 0
+  let tiedX = 0
+  let tiedY = 0
+
+  for (let i = 0; i < n - 1; i++) {
+    for (let j = i + 1; j < n; j++) {
+      const xDiff = xA[i] - xA[j]
+      const yDiff = yA[i] - yA[j]
+      if (xDiff === 0) tiedX++
+      if (yDiff === 0) tiedY++
+      if (xDiff * yDiff > 0) concordant++
+      if (xDiff * yDiff < 0) discordant++
+    }
+  }
+
+  const total = (n * (n - 1)) / 2
+  const denominator = Math.sqrt((total - tiedX) * (total - tiedY))
+  return denominator === 0 ? 0 : (concordant - discordant) / denominator
+}
+
+/**
+ * 计算相关系数（统一入口）
+ */
 export function computeCorrelation(
   xArr: number[],
   yArr: number[],
   method: string,
 ): number {
-  const len = Math.min(xArr.length, yArr.length)
-  if (len < 2) return 0
-
-  if (method === "spearman") {
-    const rankX = xArr.map((v) => xArr.filter((w) => w <= v).length)
-    const rankY = yArr.map((v) => yArr.filter((w) => w <= v).length)
-    const meanX = rankX.reduce((a, b) => a + b, 0) / len
-    const meanY = rankY.reduce((a, b) => a + b, 0) / len
-    let cov = 0,
-      dx = 0,
-      dy = 0
-    for (let k = 0; k < len; k++) {
-      cov += (rankX[k] - meanX) * (rankY[k] - meanY)
-      dx += (rankX[k] - meanX) ** 2
-      dy += (rankY[k] - meanY) ** 2
-    }
-    return dx && dy ? cov / Math.sqrt(dx * dy) : 0
-  }
-
-  if (method === "kendall") {
-    let concordant = 0,
-      discordant = 0
-    for (let a = 0; a < len; a++) {
-      for (let b = a + 1; b < len; b++) {
-        const dx = xArr[a] - xArr[b]
-        const dy = yArr[a] - yArr[b]
-        if (dx * dy > 0) concordant++
-        else if (dx * dy < 0) discordant++
-      }
-    }
-    return (concordant - discordant) / (len * (len - 1) / 2 || 1)
-  }
-
-  // Pearson
-  const meanX = xArr.reduce((a, b) => a + b, 0) / len
-  const meanY = yArr.reduce((a, b) => a + b, 0) / len
-  let cov = 0,
-    dx = 0,
-    dy = 0
-  for (let k = 0; k < len; k++) {
-    cov += (xArr[k] - meanX) * (yArr[k] - meanY)
-    dx += (xArr[k] - meanX) ** 2
-    dy += (yArr[k] - meanY) ** 2
-  }
-  return dx && dy ? cov / Math.sqrt(dx * dy) : 0
+  if (method === "spearman") return spearmanCorrelation(xArr, yArr)
+  if (method === "kendall") return kendallCorrelation(xArr, yArr)
+  return pearsonCorrelation(xArr, yArr)
 }

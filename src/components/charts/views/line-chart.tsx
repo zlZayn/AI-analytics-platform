@@ -20,11 +20,13 @@ export const LineChartView = React.memo(function LineChartView({
   xKey,
   yKey,
   colorKey,
+  showLegend = true,
 }: {
   data: Record<string, unknown>[]
   xKey: string
   yKey: string
   colorKey?: string
+  showLegend?: boolean
 }) {
   const { groups, wideData } = useGroupedData(data, xKey, yKey, colorKey)
 
@@ -57,7 +59,7 @@ export const LineChartView = React.memo(function LineChartView({
             connectNulls
           />
         )}
-        {groups.length > 0 && (
+        {groups.length > 0 && showLegend && (
           <Legend wrapperStyle={{ fontSize: 11, paddingTop: 8 }} iconType="plainline" />
         )}
       </LineChart>

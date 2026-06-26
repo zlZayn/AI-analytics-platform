@@ -194,7 +194,7 @@ export default function ExplorerPage() {
                           <span className="text-[var(--foreground)]">{r.fromTable}.{r.fromColumn}</span>
                           <span className="text-[var(--muted-foreground)]">→</span>
                           <span className="text-[var(--foreground)]">{r.toTable}.{r.toColumn}</span>
-                          <Badge variant="outline" className="text-[9px] ml-auto">{r.type}</Badge>
+                          {r.name && <Badge variant="outline" className="text-[9px] ml-auto">{r.name}</Badge>}
                         </div>
                       ))}
                     </div>

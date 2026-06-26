@@ -1,5 +1,65 @@
 # 变更日志
 
+## [1.21.0] - 2026-06-26
+
+### 图表系统重构
+
+#### 核心原则
+
+- 图表只负责接收数据并绘制，不做复杂推断
+- 复杂计算交给 SQL 或 utils.ts 中的固定算法
+- 用户完全控制列到轴的映射
+
+#### 类型统一
+
+- 统一 ChartType 定义: 只在 `variable-types.ts` 定义一次 (8 种)
+- 删除 `charts/types.ts` 中的重复定义，改为从 `variable-types.ts` 导入
+- ChartMapping 类型简化: 去掉 `columns` 字段，索引签名统一为 `string | undefined`
+
+#### 死代码清理
+
+- 删除 `lib/chart-inference.ts` (服务端图表推断，客户端从不使用)
+- 删除 `components/charts/views/histogram.tsx` (从未导入的死代码)
+- 删除 `variable-types.ts` 中 60% 的死代码 (VariableRole, VariableInfo, VariableStats, computeVariableStats, getRoleLabel, getRoleColor, isChartTypeAvailable, pearsonCorrelation, spearmanCorrelation, kendallCorrelation, correlationMatrix)
+
+#### 算法修复
+
+- Spearman 秩相关: 修复并列值处理，使用平均秩
+- Kendall tau-b: 修复分母计算，正确处理并列值
+- 相关矩阵: 修复 NaN 过滤，联合过滤保持行对齐
+- 相关矩阵图例: 修复渐变色，正相关蓝色/负相关红色/0 白色
+
+#### 映射槽位
+
+- heatmap: 添加 x/y/value 槽位 (之前缺失，无法配置)
+- boxplot: 重命名槽位为 category/value (之前用 x/y，与其他图表不一致)
+- correlation: 自动选择所有数值列，不需要用户映射
+- 默认不自动填充列映射，用户自己选择
+
+#### 交互优化
+
+- 工作台: 查询后自动收起 SQL 编辑器和 AI 区域，可视化区域更大
+- 收起状态显示 SQL 预览 + 重新执行按钮
+- 点击收起条可展开编辑器
+- 分组列选择: 唯一值 >20 时弹窗确认，先判断再更新，避免卡顿
+- 图例开关: 所有图表类型可切换显示/隐藏图例
+- 相关系数方法: 切换到相关矩阵时默认选中 Pearson
+
+#### AI 提示词
+
+- 添加图表数据建议: 告诉 AI 如何为每种图表类型准备数据格式
+- 列名使用 AS 别名，图表自动作为轴标签
+- 列名使用 AS 别名，图表自动作为轴标签
+
+#### Bug 修复
+
+- 修复复制 SQL 按钮传递空字符串
+- 修复 Explorer 页面 SchemaRelation.type 不存在
+- 修复 EmptyState 组件支持自定义消息
+- 删除 `.next` 构建缓存中的过期类型声明
+
+---
+
 ## [1.20.0] - 2026-06-25
 
 ### UI 打磨 + 可视化简化
