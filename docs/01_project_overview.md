@@ -14,9 +14,10 @@ AI Data Analytics Platform
 
 1. **Schema 深度绑定** - 自动发现数据库结构，理解表关系
 2. **AI 驱动分析** - 自然语言输入，智能生成 SQL 和图表
-3. **安全可控** - 所有 SQL 经过白名单校验，只允许 SELECT 查询
-4. **可视化丰富** - 8 种图表类型，用户自由选择列映射
-5. **通用性强** - 可接入任意 PostgreSQL 数据库
+3. **AI 洞察推荐** - 自动生成业务洞察，一键执行并可视化
+4. **安全可控** - 所有 SQL 经过白名单校验，只允许 SELECT 查询
+5. **可视化丰富** - 8 种图表类型，用户自由选择列映射
+6. **通用性强** - 可接入任意 PostgreSQL 数据库
 
 ---
 
@@ -87,7 +88,7 @@ AI Data Analytics Platform
 
 | 模块 | 文件 | 职责 |
 | :--- | :--- | :--- |
-| AI Service | `lib/ai-service.ts` | 自然语言 -> SQL 生成 (含图表数据建议) |
+| AI Service | `lib/ai-service.ts` | 自然语言 -> SQL 生成 + 洞察推荐 |
 | Query Engine | `lib/query-engine.ts` | 连接池管理 + SQL 执行 |
 | Schema Service | `lib/schema-service.ts` | 数据库结构扫描 + AI 上下文构建 |
 | SQL Validator | `lib/sql-validator.ts` | SQL 安全校验 (白名单) |
@@ -95,6 +96,7 @@ AI Data Analytics Platform
 | Encryption | `lib/encryption.ts` | AES-256 密码加密/解密 |
 | Chart System | `components/charts/` | 8 种图表视图 + 工具函数 |
 | Chart Config | `components/chart-config-panel.tsx` | 图表类型选择 + 列映射面板 |
+| Insight Card | `components/insight-card.tsx` | AI 洞察卡片组件 |
 | Result Panel | `components/dashboard/result-panel.tsx` | 查询结果展示 |
 | Toast | `components/toast.tsx` | 操作反馈通知 |
 | Layout | `components/layout/` | 侧边栏 + 连接上下文 |
@@ -120,5 +122,5 @@ AI Data Analytics Platform
 
 ---
 
-*文档版本: v1.21.0*
+*文档版本: v1.22.0*
 *最后更新: 2026-06-26*

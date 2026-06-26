@@ -1,6 +1,35 @@
 # 变更日志
 
-## [1.21.0] - 2026-06-26
+## [1.22.0] - 2026-06-26
+
+### AI 洞察推荐
+
+#### 新功能
+
+- AI 助手自动识别洞察请求 (关键词: 洞察/分析推荐/有什么数据)
+- 洞察卡片直接显示在聊天记录中
+- 每条卡片包含: 标题 + 洞察说明 + SQL + 图表推荐
+- 点击「执行」自动运行 SQL 并设置图表类型和列映射
+- 图表类型和列映射根据 AI 推荐自动配置
+
+#### AI 输出规范
+
+- 统一 JSON 格式输出
+- 图表映射规则: line/bar(x,y), pie(name,value), scatter(x,y), boxplot(category,value)
+- SQL 列名使用 AS 别名，图表自动匹配
+
+#### Seed 数据 v4
+
+- 真实中文姓名 (常用姓+名组合)
+- 会员类型: 慢性病/家庭/年轻/老年/随机
+- 门店差异化: 旗舰店1.5x/社区店1x/医院店处方多
+- 慢性病复购模式: 每月固定购药
+- 数据量: 1200会员, 25000+订单, 15000+行为
+
+#### 移除限制
+
+- 移除自动 LIMIT 限制，用户自己控制查询行数
+- SQL 校验器不再自动添加 LIMIT
 
 ### 图表系统重构
 
@@ -14,40 +43,19 @@
 
 - 统一 ChartType 定义: 只在 `variable-types.ts` 定义一次 (8 种)
 - 删除 `charts/types.ts` 中的重复定义，改为从 `variable-types.ts` 导入
-- ChartMapping 类型简化: 去掉 `columns` 字段，索引签名统一为 `string | undefined`
-
-#### 死代码清理
-
-- 删除 `lib/chart-inference.ts` (服务端图表推断，客户端从不使用)
-- 删除 `components/charts/views/histogram.tsx` (从未导入的死代码)
-- 删除 `variable-types.ts` 中 60% 的死代码 (VariableRole, VariableInfo, VariableStats, computeVariableStats, getRoleLabel, getRoleColor, isChartTypeAvailable, pearsonCorrelation, spearmanCorrelation, kendallCorrelation, correlationMatrix)
 
 #### 算法修复
 
 - Spearman 秩相关: 修复并列值处理，使用平均秩
 - Kendall tau-b: 修复分母计算，正确处理并列值
 - 相关矩阵: 修复 NaN 过滤，联合过滤保持行对齐
-- 相关矩阵图例: 修复渐变色，正相关蓝色/负相关红色/0 白色
-
-#### 映射槽位
-
-- heatmap: 添加 x/y/value 槽位 (之前缺失，无法配置)
-- boxplot: 重命名槽位为 category/value (之前用 x/y，与其他图表不一致)
-- correlation: 自动选择所有数值列，不需要用户映射
-- 默认不自动填充列映射，用户自己选择
 
 #### 交互优化
 
-- 工作台: 查询后自动收起 SQL 编辑器和 AI 区域，可视化区域更大
-- 收起状态显示 SQL 预览 + 重新执行按钮
-- 点击收起条可展开编辑器
-- 分组列选择: 唯一值 >20 时弹窗确认，先判断再更新，避免卡顿
+- 工作台: 查询后自动收起 SQL 编辑器，可视化区域更大
+- 分组列选择: 唯一值 >20 时弹窗确认，先判断再更新
 - 图例开关: 所有图表类型可切换显示/隐藏图例
-- 相关系数方法: 切换到相关矩阵时默认选中 Pearson
-
-#### AI 提示词
-
-- 添加图表数据建议: 告诉 AI 如何为每种图表类型准备数据格式
+- 柱状图: 分组>3自动堆叠，动态柱子宽度，X轴标签防重叠
 - 列名使用 AS 别名，图表自动作为轴标签
 - 列名使用 AS 别名，图表自动作为轴标签
 

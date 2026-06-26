@@ -4,7 +4,7 @@
 
 | 模块 | 文件 | 职责 |
 | :--- | :--- | :--- |
-| AI Service | `lib/ai-service.ts` | 自然语言 -> SQL 生成 (含图表数据建议) |
+| AI Service | `lib/ai-service.ts` | 自然语言 -> SQL 生成 + 洞察推荐 |
 | Query Engine | `lib/query-engine.ts` | 连接池管理 + SQL 执行 |
 | Schema Service | `lib/schema-service.ts` | 数据库结构扫描 + AI 上下文构建 |
 | SQL Validator | `lib/sql-validator.ts` | SQL 安全校验 (白名单) |
@@ -13,6 +13,7 @@
 | Prisma Client | `lib/prisma.ts` | Prisma 单例客户端 |
 | Chart System | `components/charts/` | 8 种图表视图 + 工具函数 |
 | Chart Config | `components/chart-config-panel.tsx` | 图表类型选择 + 列映射面板 |
+| Insight Card | `components/insight-card.tsx` | AI 洞察卡片组件 |
 | Result Panel | `components/dashboard/result-panel.tsx` | 查询结果展示 |
 | Toast | `components/toast.tsx` | 操作反馈通知 |
 | Layout | `components/layout/` | 侧边栏 + 连接上下文 |
@@ -24,10 +25,11 @@
 
 ### AI Service (`lib/ai-service.ts`)
 
-调用 OpenAI 兼容 API，将自然语言转换为 SQL。
+调用 OpenAI 兼容 API，将自然语言转换为 SQL 或洞察推荐。
 
-- System Prompt 包含星型模型业务上下文
-- 输出格式: 说明文字 + SQL (不要代码块)
+- 自动检测洞察请求 (关键词匹配)
+- 普通请求: 输出说明文字 + SQL
+- 洞察请求: 输出结构化 JSON (title/insight/sql/chart)
 - 支持多轮对话历史
 
 ### Query Engine (`lib/query-engine.ts`)
@@ -98,6 +100,15 @@ AES-256-GCM 加密/解密数据库连接密码。
 - 分组列选择: 唯一值 >20 时弹窗确认
 - 图表渲染
 
+### Insight Card (`components/insight-card.tsx`)
+
+AI 洞察卡片组件。
+
+- 显示洞察标题和说明
+- 展开查看 SQL 详情
+- 执行按钮: 自动运行 SQL + 设置图表类型和列映射
+- 支持多条洞察卡片
+
 ### Chart Utils (`components/charts/utils.ts`)
 
 固定统计算法和工具函数。
@@ -155,5 +166,5 @@ React Context: 从 URL 读取 `?connection=xxx`，加载连接信息。
 
 ---
 
-*文档版本: v1.21.0*
+*文档版本: v1.22.0*
 *最后更新: 2026-06-26*

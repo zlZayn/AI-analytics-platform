@@ -8,6 +8,7 @@
 - **Schema 发现** - 自动扫描数据库结构，缓存 Schema 快照
 - **SQL 编辑器** - Monaco Editor，语法高亮，执行 SQL 查询
 - **AI 分析** - 自然语言 -> SQL，多轮对话
+- **AI 洞察推荐** - 自动生成业务洞察，一键执行并可视化
 - **数据探索** - 浏览表结构、字段详情、表关联、数据预览
 - **图表可视化** - 8 种图表类型，用户自由选择列映射
 - **查询管理** - 查询历史、保存的查询
@@ -92,10 +93,11 @@ src/
 │   │   └── utils.ts              # 统计计算工具
 │   ├── chart-config-panel.tsx    # 图表配置面板
 │   ├── chart.tsx                 # 图表 re-export
+│   ├── insight-card.tsx          # AI 洞察卡片
 │   ├── toast.tsx                 # Toast 通知
 │   └── ui/                       # shadcn/ui 组件
 ├── lib/                          # 核心库
-│   ├── ai-service.ts             # AI 服务
+│   ├── ai-service.ts             # AI 服务 (SQL生成 + 洞察推荐)
 │   ├── query-engine.ts           # 查询引擎
 │   ├── schema-service.ts         # Schema 扫描
 │   ├── sql-validator.ts          # SQL 安全校验
