@@ -11,7 +11,7 @@ const client = new OpenAI({
   apiKey: AI_CONFIG.apiKey
 })
 
-const SYSTEM_PROMPT = `你是一个专业的数据分析助手。根据用户的自然语言需求，生成 PostgreSQL 查询。
+const SYSTEM_PROMPT = `你是一个专业的数据分析助手。根据用户的自然语言需求，生成结构化的分析结果。
 
 ## 数据模型
 
@@ -33,6 +33,7 @@ const SYSTEM_PROMPT = `你是一个专业的数据分析助手。根据用户的
    - 适当使用聚合函数 (SUM, COUNT, AVG, MAX, MIN)
    - 时间字段使用 date_trunc 进行粒度控制
    - 分组时 SELECT 的非聚合字段必须在 GROUP BY 中
+   - SQL 列名使用 AS 别名，图表会自动使用这些别名
 
 3. **业务理解**
    - 销售额: SUM(fact_orders.pay_amount)
@@ -40,26 +41,29 @@ const SYSTEM_PROMPT = `你是一个专业的数据分析助手。根据用户的
    - 客单价: SUM(pay_amount) / COUNT(DISTINCT order_no)
    - 退款率: 退款数 / 订单数
    - 复购率: 有2+订单的会员数 / 总会员数
-   - 行为转化: view -> favorite -> cart -> purchase 漏斗
 
-## 图表数据建议
+## 输出格式
 
-SQL 查询结果会直接用于图表绘制。为了让图表效果更好，建议:
+严格输出 JSON 数组，不要有任何其他文字:
 
-1. **柱状图/折线图**: 返回 name + value 格式
-   SELECT category AS name, SUM(amount) AS value FROM ... GROUP BY category
+[
+  {
+    "title": "简短标题 (10字以内)",
+    "insight": "一句话说明分析发现",
+    "sql": "SELECT ...",
+    "chart": {"type": "bar", "mapping": {"x": "别名", "y": "别名"}}
+  }
+]
 
-2. **饼图**: 返回 name + value 格式，分类数建议 <= 10
-   SELECT category AS name, COUNT(*) AS value FROM ... GROUP BY category
+图表类型和映射规则:
+- line/bar: x=分类列, y=数值列
+- pie: name=分类列, value=数值列
+- scatter: x=数值列, y=数值列
+- boxplot: category=分类列, value=数值列
+- table: 无需映射
 
-3. **散点图**: 返回两个数值列
-   SELECT col_a AS x, col_b AS y FROM ...
-
-4. **箱线图**: 返回 category + value 格式，按分组聚合
-   SELECT category, value FROM raw_data (或用 percentile_cont 计算统计量)
-
-5. **热力图**: 返回 x + y + value 交叉表
-   SELECT row_name AS x, col_name AS y, metric AS value FROM ...
+示例:
+[{"title":"各门店销售额","insight":"旗舰店销量领先","sql":"SELECT p.name AS name, SUM(o.pay_amount) AS value FROM fact_orders o JOIN dim_pharmacy p ON o.pharmacy_id = p.id GROUP BY p.name ORDER BY value DESC","chart":{"type":"bar","mapping":{"x":"name","y":"value"}}}]
 
 6. **相关矩阵**: 返回多个数值列，系统自动计算相关系数
    SELECT col1, col2, col3 FROM ...
@@ -86,15 +90,7 @@ GROUP BY dp.category_l2
 ORDER BY value DESC`
 
 export interface AIServiceResult {
-  sql: string
-  explanation: string
-  insights?: InsightItem[]
-}
-
-// 检测是否是洞察类请求
-function isInsightRequest(message: string): boolean {
-  const keywords = ['洞察', '分析推荐', '有什么数据', '帮我分析', '数据洞察', '分析机会', '推荐分析', '有什么 insights']
-  return keywords.some(kw => message.includes(kw))
+  items: InsightItem[]
 }
 
 export async function generateSQL(
@@ -102,16 +98,6 @@ export async function generateSQL(
   schemaContext: string,
   conversationHistory?: { role: 'user' | 'assistant'; content: string }[]
 ): Promise<AIServiceResult> {
-  // 如果是洞察请求，使用洞察提示词
-  if (isInsightRequest(message)) {
-    const insights = await generateInsights(message, schemaContext)
-    return {
-      sql: '',
-      explanation: `已生成 ${insights.length} 条分析洞察，请查看下方卡片`,
-      insights
-    }
-  }
-
   const messages: OpenAI.ChatCompletionMessageParam[] = [
     { role: 'system', content: SYSTEM_PROMPT + '\n\n' + schemaContext }
   ]
@@ -130,21 +116,48 @@ export async function generateSQL(
     model: AI_CONFIG.model,
     messages,
     temperature: 0.7,
-    max_tokens: 2000
+    max_tokens: 4000
   })
 
   const content = response.choices[0].message.content || ''
 
-  // 提取 SQL
-  const sql = extractSQL(content)
-
-  // 提取解释 (去掉 SQL 部分)
-  const explanation = extractExplanation(content, sql)
-
-  return {
-    sql,
-    explanation
+  // 尝试解析 JSON
+  const items = parseInsightItems(content)
+  if (items.length > 0) {
+    return { items }
   }
+
+  // 兜底: 普通文本 → 转为单条
+  const sql = extractSQL(content)
+  const explanation = extractExplanation(content, sql)
+  return {
+    items: [{
+      title: explanation.slice(0, 20) || 'AI 分析',
+      insight: explanation,
+      sql,
+      chart: { type: 'table', mapping: {} }
+    }]
+  }
+}
+
+function parseInsightItems(content: string): InsightItem[] {
+  try {
+    // 尝试从代码块提取
+    const codeBlockMatch = content.match(/```(?:json)?\s*\n([\s\S]*?)\n```/)
+    const jsonStr = codeBlockMatch ? codeBlockMatch[1] : content
+
+    // 找到 JSON 数组
+    const arrayMatch = jsonStr.match(/\[[\s\S]*\]/)
+    if (arrayMatch) {
+      const parsed = JSON.parse(arrayMatch[0])
+      if (Array.isArray(parsed) && parsed.length > 0 && parsed[0].sql) {
+        return parsed
+      }
+    }
+  } catch (e) {
+    console.error('解析 JSON 失败:', e)
+  }
+  return []
 }
 
 function extractSQL(text: string): string {
@@ -204,7 +217,7 @@ function extractExplanation(text: string, sql: string): string {
 }
 
 // ============================================================================
-// 洞察推荐
+// 类型定义
 // ============================================================================
 
 export interface InsightItem {
@@ -215,91 +228,4 @@ export interface InsightItem {
     type: string
     mapping: Record<string, string>
   }
-}
-
-const INSIGHTS_PROMPT = `你是一个专业的数据分析助手。根据用户需求，生成多条有业务洞察的分析推荐。
-
-## 数据模型
-
-这是一个药店会员系统的星型模型:
-- 事实表: fact_orders (订单), fact_behavior (行为), fact_inventory (库存), fact_refunds (退款)
-- 维度表: dim_member (会员), dim_product (商品), dim_pharmacy (门店), dim_date (日期), dim_promotion (促销), dim_payment (支付)
-
-## 业务指标
-
-- 销售额: SUM(fact_orders.pay_amount)
-- 订单数: COUNT(DISTINCT fact_orders.order_no)
-- 客单价: SUM(pay_amount) / COUNT(DISTINCT order_no)
-- 退款率: 退款数 / 订单数
-- 复购率: 有2+订单的会员数 / 总会员数
-- 行为转化: view -> favorite -> cart -> purchase 漏斗
-
-## 输出要求
-
-生成 5-8 条洞察，每条包含:
-1. 标题 (简短，10字以内)
-2. 业务洞察 (一句话说明发现)
-3. SQL 查询 (可直接执行)
-4. 推荐图表类型和列映射
-
-## 图表类型和映射规则
-
-严格按以下格式，mapping 中的 key 必须是 SQL 结果中的列别名 (AS 后面的名字):
-
-图表类型: line, bar, pie, scatter, boxplot, table, correlation
-
-映射规则:
-- line/bar: x=分类列, y=数值列
-- pie: name=分类列, value=数值列
-- scatter: x=数值列, y=数值列
-- boxplot: category=分类列, value=数值列
-- table/correlation: 无需映射
-
-示例:
-{"title":"各门店销售额","insight":"旗舰店销量领先","sql":"SELECT p.name AS name, SUM(o.pay_amount) AS value FROM fact_orders o JOIN dim_pharmacy p ON o.pharmacy_id = p.id GROUP BY p.name ORDER BY value DESC","chart":{"type":"bar","mapping":{"x":"name","y":"value"}}}
-
-## 输出格式
-
-严格输出 JSON 数组，不要添加任何额外内容:
-
-[{"title":"各门店销售额排名","insight":"旗舰店销量领先，但医院店客单价更高","sql":"SELECT p.name, SUM(o.pay_amount) as revenue FROM fact_orders o JOIN dim_pharmacy p ON o.pharmacy_id = p.id GROUP BY p.name ORDER BY revenue DESC","chart":{"type":"bar","mapping":{"x":"name","y":"revenue"}}},
-  ...
-]
-
-只输出 JSON，不要有其他文字。`
-
-export async function generateInsights(
-  message: string,
-  schemaContext: string,
-): Promise<InsightItem[]> {
-  const messages: OpenAI.ChatCompletionMessageParam[] = [
-    { role: 'system', content: INSIGHTS_PROMPT + '\n\n' + schemaContext },
-    { role: 'user', content: message }
-  ]
-
-  const response = await client.chat.completions.create({
-    model: AI_CONFIG.model,
-    messages,
-    temperature: 0.7,
-    max_tokens: 4000
-  })
-
-  const content = response.choices[0].message.content || ''
-
-  // 提取 JSON
-  try {
-    // 尝试从代码块提取
-    const codeBlockMatch = content.match(/```(?:json)?\s*\n([\s\S]*?)\n```/)
-    const jsonStr = codeBlockMatch ? codeBlockMatch[1] : content
-
-    // 找到 JSON 数组
-    const arrayMatch = jsonStr.match(/\[[\s\S]*\]/)
-    if (arrayMatch) {
-      return JSON.parse(arrayMatch[0])
-    }
-  } catch (e) {
-    console.error('解析洞察 JSON 失败:', e)
-  }
-
-  return []
 }

@@ -36,7 +36,7 @@ function WorkspaceContent() {
   // AI state
   const [aiInput, setAiInput] = useState("")
   const [aiLoading, setAiLoading] = useState(false)
-  const [aiHistory, setAiHistory] = useState<{ role: "user" | "ai"; content: string; sql?: string; insights?: InsightItem[] }[]>([])
+  const [aiHistory, setAiHistory] = useState<{ role: "user" | "ai"; content: string; items?: InsightItem[] }[]>([])
 
   // Insight execution state
   const [executingInsightIndex, setExecutingInsightIndex] = useState<number | null>(null)
@@ -97,18 +97,16 @@ function WorkspaceContent() {
       })
       const data = await res.json()
       if (data.success) {
-        // 检查是否有洞察
-        if (data.data.insights && data.data.insights.length > 0) {
+        const items = data.data.items || []
+        if (items.length > 0) {
           setAiHistory((prev) => [...prev, {
             role: "ai",
-            content: data.data.explanation,
-            insights: data.data.insights
+            content: items[0].insight || items[0].title,
+            items
           }])
-          toast(`已生成 ${data.data.insights.length} 条洞察`, "success")
+          toast(`已生成 ${items.length} 条分析`, "success")
         } else {
-          setAiHistory((prev) => [...prev, { role: "ai", content: data.data.explanation, sql: data.data.sql }])
-          setSql(data.data.sql)
-          toast("AI 已生成 SQL", "success")
+          setAiHistory((prev) => [...prev, { role: "ai", content: "未生成有效结果" }])
         }
       } else {
         setAiHistory((prev) => [...prev, { role: "ai", content: `错误: ${data.error}` }])
@@ -266,24 +264,10 @@ function WorkspaceContent() {
                     </div>
                   ) : (
                     <>
-                      {/* 普通消息 */}
-                      <div className="flex justify-start">
-                        <div className="max-w-[90%] rounded-lg px-2.5 py-1.5 text-xs bg-[var(--muted)] text-[var(--foreground)]">
-                          <div className="whitespace-pre-wrap">{msg.content}</div>
-                          {msg.sql && (
-                            <div className="mt-1.5 relative group">
-                              <pre className="p-1.5 rounded bg-black/5 text-[10px] font-mono overflow-x-auto">{msg.sql}</pre>
-                              <button className="absolute top-0.5 right-0.5 p-0.5 rounded opacity-0 group-hover:opacity-100 transition-opacity bg-black/10 hover:bg-black/20" onClick={() => { navigator.clipboard.writeText(msg.sql!); toast("已复制", "success") }}>
-                                <Copy className="w-2.5 h-2.5" />
-                              </button>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                      {/* 洞察卡片 */}
-                      {msg.insights && msg.insights.length > 0 && (
-                        <div className="space-y-1.5 ml-2">
-                          {msg.insights.map((item, j) => (
+                      {/* 分析卡片 */}
+                      {msg.items && msg.items.length > 0 && (
+                        <div className="space-y-1.5">
+                          {msg.items.map((item, j) => (
                             <InsightCard
                               key={j}
                               index={j}

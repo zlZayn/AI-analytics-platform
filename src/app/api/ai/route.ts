@@ -54,7 +54,7 @@ export async function POST(request: NextRequest) {
       const messages = await prisma.aIMessage.findMany({
         where: { conversationId },
         orderBy: { createdAt: 'asc' },
-        take: 10 // 只取最近 10 条
+        take: 10
       })
       conversationHistory = messages.map((m: { role: string; content: string }) => ({
         role: m.role as 'user' | 'assistant',
@@ -62,15 +62,13 @@ export async function POST(request: NextRequest) {
       }))
     }
 
-    // 调用 AI 生成 SQL
+    // 调用 AI 生成分析
     const result = await generateSQL(message, schemaContext, conversationHistory)
 
     return NextResponse.json({
       success: true,
       data: {
-        sql: result.sql,
-        explanation: result.explanation,
-        insights: result.insights
+        items: result.items
       }
     })
   } catch (error) {

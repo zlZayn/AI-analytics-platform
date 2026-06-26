@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { generateInsights } from '@/lib/ai-service'
+import { generateSQL } from '@/lib/ai-service'
 import { buildSchemaContext, scanSchema } from '@/lib/schema-service'
 import { prisma } from '@/lib/prisma'
 
-// 生成洞察推荐
+// 生成分析推荐
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
@@ -47,16 +47,16 @@ export async function POST(request: NextRequest) {
     // 构建 Schema 上下文
     const schemaContext = buildSchemaContext(schema)
 
-    // 生成洞察
-    const insights = await generateInsights(message, schemaContext)
+    // 生成分析
+    const result = await generateSQL(message, schemaContext)
 
     return NextResponse.json({
       success: true,
-      data: { insights }
+      data: { items: result.items }
     })
   } catch (error) {
     return NextResponse.json(
-      { success: false, error: error instanceof Error ? error.message : '生成洞察失败' },
+      { success: false, error: error instanceof Error ? error.message : '生成分析失败' },
       { status: 500 }
     )
   }
