@@ -340,7 +340,7 @@ def create_tables(cursor):
             is_active BOOLEAN DEFAULT true,
             segment VARCHAR(20) DEFAULT 'new',
             pharmacy_id INTEGER,
-            member_type VARCHAR(20),  # chronic/family/young/elderly/occasional
+            member_type VARCHAR(20),
             created_at TIMESTAMP DEFAULT NOW(),
             updated_at TIMESTAMP DEFAULT NOW()
         )""",
@@ -997,7 +997,7 @@ def generate_data():
             GROUP BY p.name ORDER BY COUNT(o.id) DESC
         """)
         for row in cursor.fetchall():
-            print(f"  {row[0]}: {row[1]} 单, ¥{row[2]:,.0f}")
+            print(f"  {row[0]}: {row[1]} orders, {row[2]:,.0f} CNY")
 
     except Exception as e:
         conn.rollback()
