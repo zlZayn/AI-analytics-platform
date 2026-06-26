@@ -25,12 +25,11 @@
 
 ### AI Service (`lib/ai-service.ts`)
 
-调用 OpenAI 兼容 API，将自然语言转换为 SQL 或洞察推荐。
+调用 OpenAI 兼容 API，将自然语言转换为结构化分析结果。
 
-- 自动检测洞察请求 (关键词匹配)
-- 普通请求: 输出说明文字 + SQL
-- 洞察请求: 输出结构化 JSON (title/insight/sql/chart)
+- 统一输出格式: JSON 数组 `[{title, insight, sql, chart}]`
 - 支持多轮对话历史
+- SQL 列名使用 AS 别名，图表自动匹配
 
 ### Query Engine (`lib/query-engine.ts`)
 

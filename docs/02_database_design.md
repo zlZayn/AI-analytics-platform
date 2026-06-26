@@ -565,75 +565,13 @@ INSERT INTO system_configs (key, value, description, category) VALUES
 
 ---
 
-## 三、ER 图
+## 三、表关系
 
-```
-┌─────────────┐       ┌─────────────────┐
-│    users    │       │   connections   │
-├─────────────┤       ├─────────────────┤
-│ id (PK)     │──┐    │ id (PK)         │
-│ username    │  │    │ user_id (FK)    │←──┐
-│ email       │  │    │ name            │   │
-│ password_hash│  │    │ host            │   │
-│ role        │  │    │ port            │   │
-│ status      │  │    │ database        │   │
-│ ...         │  │    │ ...             │   │
-└─────────────┘  │    └─────────────────┘   │
-                 │              │            │
-                 │              │ 1:N        │
-                 │              ▼            │
-                 │    ┌─────────────────┐   │
-                 │    │schema_snapshots │   │
-                 │    ├─────────────────┤   │
-                 │    │ id (PK)         │   │
-                 │    │ connection_id   │←──┘
-                 │    │ version         │
-                 │    │ schema_json     │
-                 │    │ ...             │
-                 │    └─────────────────┘
-                 │
-                 │    ┌─────────────────┐
-                 │    │ saved_queries   │
-                 │    ├─────────────────┤
-                 │    │ id (PK)         │
-                 ├───→│ user_id (FK)    │
-                 │    │ connection_id   │
-                 │    │ name            │
-                 │    │ sql_content     │
-                 │    │ chart_config    │
-                 │    │ ...             │
-                 │    └─────────────────┘
-                 │
-                 │    ┌─────────────────┐
-                 │    │ query_history   │
-                 │    ├─────────────────┤
-                 │    │ id (PK)         │
-                 ├───→│ user_id (FK)    │
-                 │    │ connection_id   │
-                 │    │ sql_content     │
-                 │    │ status          │
-                 │    │ ...             │
-                 │    └─────────────────┘
-                 │
-                 │    ┌─────────────────┐
-                 │    │  dashboards     │
-                 │    ├─────────────────┤
-                 │    │ id (PK)         │
-                 ├───→│ user_id (FK)    │
-                 │    │ name            │
-                 │    │ layout          │
-                 │    │ ...             │
-                 │    └─────────────────┘
-                 │
-                 │    ┌─────────────────┐
-                 │    │ai_conversations │
-                 │    ├─────────────────┤
-                 │    │ id (PK)         │
-                 └───→│ user_id (FK)    │
-                      │ title           │
-                      │ ...             │
-                      └─────────────────┘
-```
+- users 是核心表，一个用户可以拥有多个 connections、saved_queries、query_history、dashboards、ai_conversations
+- connections 通过 user_id 关联 users，一个连接可以有多个 schema_snapshots
+- schema_snapshots 通过 connection_id 关联 connections，存储每次扫描的 Schema 快照
+- saved_queries 和 query_history 通过 user_id 和 connection_id 关联用户和连接
+- dashboards 和 ai_conversations 通过 user_id 关联用户
 
 ---
 

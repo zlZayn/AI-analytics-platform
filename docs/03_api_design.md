@@ -4,7 +4,7 @@
 
 1. **RESTful 风格** - HTTP 方法表示操作，资源命名使用名词复数
 2. **统一响应格式** - 所有 API 返回 `{ success, data?, error? }`
-3. **安全第一** - SQL 只允许 SELECT，自动添加 LIMIT
+3. **安全第一** - SQL 只允许 SELECT，禁止危险操作
 
 ---
 

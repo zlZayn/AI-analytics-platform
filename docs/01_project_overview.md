@@ -29,7 +29,7 @@ AI Data Analytics Platform
 | UI 库 | React | 19.2.4 |
 | 类型安全 | TypeScript | 5+ |
 | 样式 | TailwindCSS | 4+ |
-| 组件库 | shadcn/ui | latest |
+| 组件库 | Base UI | 1.6.0 |
 | SQL 编辑器 | Monaco Editor | 4.7.0 |
 | 图表 | Recharts + 自绘 SVG | 3.8.1 |
 | ORM | Prisma | 7.8.0 |
@@ -54,33 +54,7 @@ AI Data Analytics Platform
 
 ### 系统架构
 
-```text
-┌─────────────────────────────────────────┐
-│              Browser                    │
-│         (React / Next.js)               │
-└──────────────────┬──────────────────────┘
-                   │ HTTP
-┌──────────────────▼──────────────────────┐
-│           Next.js App Router            │
-│  ┌─────────┐ ┌─────────┐ ┌─────────┐  │
-│  │  Pages  │ │  APIs   │ │ Layout  │  │
-│  └─────────┘ └─────────┘ └─────────┘  │
-└──────────────────┬──────────────────────┘
-                   │
-    ┌──────────────┼──────────────┐
-    │              │              │
-    ▼              ▼              ▼
-┌────────┐  ┌──────────┐  ┌──────────┐
-│Prisma  │  │ AI       │  │ Query    │
-│Client  │  │ Service  │  │ Engine   │
-└────────┘  └──────────┘  └──────────┘
-    │              │              │
-    ▼              ▼              ▼
-┌────────┐  ┌──────────┐  ┌──────────┐
-│Platform│  │ OpenAI   │  │ User     │
-│  DB    │  │ API      │  │ Database │
-└────────┘  └──────────┘  └──────────┘
-```
+浏览器 (React / Next.js) 通过 HTTP 请求 Next.js App Router。App Router 包含页面、API 路由和布局组件。底层有三个核心服务：Prisma Client 连接平台数据库，AI Service 调用 OpenAI 兼容 API 生成 SQL，Query Engine 执行用户数据库查询。
 
 ---
 

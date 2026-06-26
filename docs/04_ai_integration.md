@@ -2,21 +2,7 @@
 
 ## 一、架构
 
-```text
-用户输入 (自然语言)
-    ↓
-API Layer (/api/ai)
-    ↓
-Schema Service (提供数据库结构上下文)
-    ↓
-AI Service (OpenAI Compatible SDK)
-    ↓
-检测请求类型:
-    ├─ 普通请求 → SQL 生成 + 解释
-    └─ 洞察请求 → 结构化洞察推荐
-    ↓
-前端执行 SQL + 可视化
-```
+用户输入自然语言，通过 API Layer 调用 Schema Service 获取数据库结构上下文，再由 AI Service (OpenAI Compatible SDK) 生成结构化分析结果，最后前端执行 SQL 并可视化。
 
 ---
 
