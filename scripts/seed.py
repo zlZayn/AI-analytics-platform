@@ -1,19 +1,20 @@
 """
-药店会员系统 - 模拟数据生成 v3 (星型模型)
+药店会员系统 - 模拟数据生成 v4 (真实分布)
 
-设计原则:
-1. 星型架构: fact_ 事实表 + dim_ 维度表
-2. 真实分布: Zipf 销量、指数购买间隔、季节性+节假日脉冲
-3. 丰富维度: 日期/会员/商品/门店/促销/支付方式
-4. 动态会员升级: 累计消费驱动等级变化
-5. 完整链路: 行为 -> 购买 -> 退款 -> 复购
+改进点:
+1. 真实中文姓名 (常用姓 + 常用名组合)
+2. 会员生命周期 (新客/活跃/沉睡/流失/高价值)
+3. 慢性病复购模式 (高血压/糖尿病患者定期购药)
+4. 门店差异化 (旗舰店销量高、社区店稳定、医院店处方多)
+5. 商品关联性 (感冒药搭退烧药、高血压药搭他汀)
+6. 季节性爆发 (流感季、过敏季、节日囤货)
+7. 消费水平分化 (80/20 法则)
 """
 
 import random
 from datetime import datetime, timedelta
 import psycopg2
 from psycopg2.extras import execute_values
-
 import numpy as np
 
 DB_CONFIG = {
@@ -38,172 +39,203 @@ LEVEL_NAMES = {
 LEVEL_DISCOUNT = {"normal": 1.0, "silver": 0.98, "gold": 0.95, "diamond": 0.90}
 LEVEL_THRESHOLDS = {"silver": 500, "gold": 2000, "diamond": 5000}
 
-PHARMACIES = [
-    ("大参林药房(南城店)", "东莞市", "南城街道", "社区店", "鸿福路108号"),
-    ("大参林药房(东城店)", "东莞市", "东城街道", "社区店", "东城大道168号"),
-    ("海王星辰(莞城店)", "东莞市", "莞城街道", "旗舰店", "西城楼大街2号"),
-    ("海王星辰(万江店)", "东莞市", "万江街道", "社区店", "莞穗大道42号"),
-    ("老百姓大药房(虎门店)", "东莞市", "虎门镇", "医院店", "太沙路164号"),
-    ("老百姓大药房(长安店)", "东莞市", "长安镇", "社区店", "锦厦社区"),
-    ("一心堂(厚街店)", "东莞市", "厚街镇", "社区店", "厚街大道2号"),
-    ("益丰药房(塘厦店)", "东莞市", "塘厦镇", "社区店", "塘龙中路68号"),
-    ("漱玉平民(大朗店)", "东莞市", "大朗镇", "社区店", "富民大道58号"),
-    ("健之佳(樟木头店)", "东莞市", "樟木头镇", "医院店", "怡安街56号"),
+# 真实中文姓名库
+SURNAMES = [
+    "张", "王", "李", "赵", "刘", "陈", "杨", "黄", "周", "吴",
+    "徐", "孙", "马", "朱", "胡", "郭", "何", "林", "罗", "高",
+    "梁", "郑", "谢", "宋", "唐", "韩", "曹", "许", "邓", "冯",
+]
+GIVEN_NAMES_MALE = [
+    "伟", "强", "磊", "军", "勇", "杰", "涛", "明", "超", "华",
+    "飞", "鹏", "刚", "辉", "建国", "志明", "文博", "子轩", "浩然", "宇轩",
+]
+GIVEN_NAMES_FEMALE = [
+    "芳", "静", "丽", "娟", "敏", "燕", "玲", "霞", "婷", "雪",
+    "晓梅", "秀英", "美玲", "小红", "思琪", "欣怡", "雨萱", "梦琪", "诗涵", "佳琪",
 ]
 
-# 二级分类 -> (一级分类, 品牌, 规格, 剂型, [商品列表])
+# 门店配置 (销量倍率、处方药比例、客群特征)
+PHARMACIES = [
+    ("大参林药房(南城店)", "东莞市", "南城街道", "旗舰店", "鸿福路108号", 1.5, 0.25, "白领/家庭"),
+    ("大参林药房(东城店)", "东莞市", "东城街道", "社区店", "东城大道168号", 1.0, 0.30, "社区居民"),
+    ("海王星辰(莞城店)", "东莞市", "莞城街道", "旗舰店", "西城楼大街2号", 1.4, 0.20, "年轻人群"),
+    ("海王星辰(万江店)", "东莞市", "万江街道", "社区店", "莞穗大道42号", 0.9, 0.28, "老年人多"),
+    ("老百姓大药房(虎门店)", "东莞市", "虎门镇", "医院店", "太沙路164号", 1.2, 0.45, "医院患者"),
+    ("老百姓大药房(长安店)", "东莞市", "长安镇", "社区店", "锦厦社区", 1.0, 0.30, "工厂工人"),
+    ("一心堂(厚街店)", "东莞市", "厚街镇", "社区店", "厚街大道2号", 0.8, 0.32, "家庭主妇"),
+    ("益丰药房(塘厦店)", "东莞市", "塘厦镇", "社区店", "塘龙中路68号", 0.9, 0.28, "混合人群"),
+    ("漱玉平民(大朗店)", "东莞市", "大朗镇", "社区店", "富民大道58号", 0.7, 0.25, "老年人多"),
+    ("健之佳(樟木头店)", "东莞市", "樟木头镇", "医院店", "怡安街56号", 0.8, 0.40, "慢病患者"),
+]
+
+# 商品分类 -> (一级分类, [商品列表])
 PRODUCT_TREE = {
     "感冒发烧": {
         "l1": "呼吸系统",
-        "brand": "白云山",
-        "spec": "10g*9袋",
-        "form": "颗粒剂",
+        "seasonal": "winter",  # 冬季高发
         "items": [
-            ("感冒灵颗粒", 12.5, "OTC"),
-            ("布洛芬缓释胶囊", 18.0, "OTC"),
-            ("连花清瘟胶囊", 25.0, "OTC"),
-            ("板蓝根颗粒", 10.0, "OTC"),
-            ("对乙酰氨基酚片", 8.0, "OTC"),
-            ("小柴胡颗粒", 15.0, "OTC"),
-            ("抗病毒口服液", 22.0, "OTC"),
-            ("清开灵胶囊", 20.0, "OTC"),
+            ("感冒灵颗粒", 12.5, "OTC", 0.8, 25),      # (名, 基价, 类型, 毛利率, 权重)
+            ("布洛芬缓释胶囊", 18.0, "OTC", 0.7, 20),
+            ("连花清瘟胶囊", 25.0, "OTC", 0.65, 15),
+            ("板蓝根颗粒", 10.0, "OTC", 0.75, 12),
+            ("对乙酰氨基酚片", 8.0, "OTC", 0.8, 10),
+            ("小柴胡颗粒", 15.0, "OTC", 0.7, 8),
+            ("抗病毒口服液", 22.0, "OTC", 0.6, 5),
+            ("清开灵胶囊", 20.0, "OTC", 0.65, 5),
         ],
     },
     "肠胃消化": {
         "l1": "消化系统",
-        "brand": "同仁堂",
-        "spec": "10袋",
-        "form": "散剂",
+        "seasonal": "summer",  # 夏季高发
         "items": [
-            ("蒙脱石散", 28.0, "OTC"),
-            ("健胃消食片", 12.0, "OTC"),
-            ("藿香正气水", 9.0, "OTC"),
-            ("益生菌胶囊", 58.0, "OTC"),
-            ("乳酸菌素片", 15.0, "OTC"),
-            ("保和丸", 10.0, "OTC"),
-            ("香砂养胃丸", 14.0, "OTC"),
-            ("枫蓼肠胃康颗粒", 18.0, "OTC"),
+            ("蒙脱石散", 28.0, "OTC", 0.7, 15),
+            ("健胃消食片", 12.0, "OTC", 0.8, 20),
+            ("藿香正气水", 9.0, "OTC", 0.85, 18),
+            ("益生菌胶囊", 58.0, "OTC", 0.6, 8),
+            ("乳酸菌素片", 15.0, "OTC", 0.75, 12),
+            ("保和丸", 10.0, "OTC", 0.8, 10),
+            ("香砂养胃丸", 14.0, "OTC", 0.7, 8),
+            ("枫蓼肠胃康颗粒", 18.0, "OTC", 0.65, 9),
         ],
     },
     "皮肤外用": {
         "l1": "皮肤科",
-        "brand": "云南白药",
-        "spec": "20g",
-        "form": "软膏剂",
+        "seasonal": "spring",  # 春季过敏
         "items": [
-            ("红霉素软膏", 6.0, "OTC"),
-            ("皮炎平软膏", 12.0, "OTC"),
-            ("达克宁乳膏", 22.0, "OTC"),
-            ("云南白药创可贴", 8.0, "OTC"),
-            ("百多邦软膏", 28.0, "OTC"),
-            ("炉甘石洗剂", 10.0, "OTC"),
-            ("曲安奈德乳膏", 15.0, "处方药"),
-            ("酮康唑乳膏", 18.0, "OTC"),
+            ("红霉素软膏", 6.0, "OTC", 0.85, 15),
+            ("皮炎平软膏", 12.0, "OTC", 0.8, 18),
+            ("达克宁乳膏", 22.0, "OTC", 0.7, 12),
+            ("云南白药创可贴", 8.0, "OTC", 0.75, 20),
+            ("百多邦软膏", 28.0, "OTC", 0.65, 8),
+            ("炉甘石洗剂", 10.0, "OTC", 0.8, 10),
+            ("曲安奈德乳膏", 15.0, "处方药", 0.7, 7),
+            ("酮康唑乳膏", 18.0, "OTC", 0.7, 10),
         ],
     },
     "维生素保健": {
         "l1": "营养保健",
-        "brand": "汤臣倍健",
-        "spec": "60片",
-        "form": "片剂",
+        "seasonal": "all",  # 全年稳定
         "items": [
-            ("维生素C片", 15.0, "OTC"),
-            ("维生素B族片", 20.0, "OTC"),
-            ("钙尔奇D片", 58.0, "OTC"),
-            ("鱼油软胶囊", 88.0, "OTC"),
-            ("叶酸片", 35.0, "OTC"),
-            ("铁剂口服液", 42.0, "OTC"),
-            ("锌咀嚼片", 25.0, "OTC"),
-            ("多种维生素", 68.0, "OTC"),
+            ("维生素C片", 15.0, "OTC", 0.8, 20),
+            ("维生素B族片", 20.0, "OTC", 0.75, 15),
+            ("钙尔奇D片", 58.0, "OTC", 0.65, 12),
+            ("鱼油软胶囊", 88.0, "OTC", 0.6, 8),
+            ("叶酸片", 35.0, "OTC", 0.7, 10),
+            ("铁剂口服液", 42.0, "OTC", 0.65, 8),
+            ("锌咀嚼片", 25.0, "OTC", 0.7, 12),
+            ("多种维生素", 68.0, "OTC", 0.6, 15),
         ],
     },
     "心脑血管": {
         "l1": "心脑血管",
-        "brand": "辉瑞",
-        "spec": "7片",
-        "form": "片剂",
+        "seasonal": "winter",  # 冬季高发
         "items": [
-            ("阿司匹林肠溶片", 18.0, "处方药"),
-            ("硝苯地平缓释片", 22.0, "处方药"),
-            ("阿托伐他汀钙片", 45.0, "处方药"),
-            ("美托洛尔缓释片", 38.0, "处方药"),
-            ("缬沙坦胶囊", 32.0, "处方药"),
-            ("氨氯地平片", 28.0, "处方药"),
-            ("银杏叶片", 25.0, "OTC"),
-            ("复方丹参滴丸", 30.0, "OTC"),
+            ("阿司匹林肠溶片", 18.0, "处方药", 0.75, 25),  # 慢性病，复购高
+            ("硝苯地平缓释片", 22.0, "处方药", 0.7, 20),
+            ("阿托伐他汀钙片", 45.0, "处方药", 0.6, 18),
+            ("美托洛尔缓释片", 38.0, "处方药", 0.65, 12),
+            ("缬沙坦胶囊", 32.0, "处方药", 0.7, 10),
+            ("氨氯地平片", 28.0, "处方药", 0.7, 8),
+            ("银杏叶片", 25.0, "OTC", 0.75, 5),
+            ("复方丹参滴丸", 30.0, "OTC", 0.7, 2),
         ],
     },
     "抗生素": {
         "l1": "抗感染",
-        "brand": "联邦制药",
-        "spec": "24粒",
-        "form": "胶囊剂",
+        "seasonal": "all",
         "items": [
-            ("阿莫西林胶囊", 12.0, "处方药"),
-            ("头孢克肟分散片", 28.0, "处方药"),
-            ("罗红霉素胶囊", 15.0, "处方药"),
-            ("左氧氟沙星片", 20.0, "处方药"),
-            ("甲硝唑片", 8.0, "处方药"),
-            ("阿奇霉素片", 18.0, "处方药"),
-            ("头孢拉定胶囊", 10.0, "处方药"),
-            ("诺氟沙星胶囊", 9.0, "处方药"),
+            ("阿莫西林胶囊", 12.0, "处方药", 0.8, 20),
+            ("头孢克肟分散片", 28.0, "处方药", 0.7, 15),
+            ("罗红霉素胶囊", 15.0, "处方药", 0.75, 12),
+            ("左氧氟沙星片", 20.0, "处方药", 0.7, 10),
+            ("甲硝唑片", 8.0, "处方药", 0.85, 8),
+            ("阿奇霉素片", 18.0, "处方药", 0.75, 10),
+            ("头孢拉定胶囊", 10.0, "处方药", 0.8, 12),
+            ("诺氟沙星胶囊", 9.0, "处方药", 0.8, 13),
         ],
     },
     "中成药": {
         "l1": "中成药",
-        "brand": "同仁堂",
-        "spec": "200丸",
-        "form": "丸剂",
+        "seasonal": "autumn",
         "items": [
-            ("六味地黄丸", 22.0, "OTC"),
-            ("逍遥丸", 18.0, "OTC"),
-            ("归脾丸", 20.0, "OTC"),
-            ("知柏地黄丸", 25.0, "OTC"),
-            ("补中益气丸", 16.0, "OTC"),
-            ("安神补脑液", 28.0, "OTC"),
-            ("天王补心丹", 30.0, "OTC"),
-            ("血府逐瘀胶囊", 35.0, "OTC"),
+            ("六味地黄丸", 22.0, "OTC", 0.75, 15),
+            ("逍遥丸", 18.0, "OTC", 0.8, 12),
+            ("归脾丸", 20.0, "OTC", 0.75, 10),
+            ("知柏地黄丸", 25.0, "OTC", 0.7, 8),
+            ("补中益气丸", 16.0, "OTC", 0.8, 12),
+            ("安神补脑液", 28.0, "OTC", 0.7, 15),
+            ("天王补心丹", 30.0, "OTC", 0.65, 8),
+            ("血府逐瘀胶囊", 35.0, "OTC", 0.6, 20),
         ],
     },
     "儿童用药": {
         "l1": "儿科",
-        "brand": "美林",
-        "spec": "100ml",
-        "form": "口服液",
+        "seasonal": "winter",
         "items": [
-            ("美林布洛芬混悬液", 22.0, "OTC"),
-            ("泰诺林对乙酰氨基酚", 25.0, "OTC"),
-            ("妈咪爱益生菌", 32.0, "OTC"),
-            ("小儿感冒颗粒", 18.0, "OTC"),
-            ("止咳糖浆", 15.0, "OTC"),
-            ("小儿七星茶", 20.0, "OTC"),
-            ("开塞露", 5.0, "OTC"),
-            ("退热贴", 12.0, "OTC"),
+            ("美林布洛芬混悬液", 22.0, "OTC", 0.7, 20),
+            ("泰诺林对乙酰氨基酚", 25.0, "OTC", 0.65, 18),
+            ("妈咪爱益生菌", 32.0, "OTC", 0.6, 12),
+            ("小儿感冒颗粒", 18.0, "OTC", 0.75, 15),
+            ("止咳糖浆", 15.0, "OTC", 0.8, 10),
+            ("小儿七星茶", 20.0, "OTC", 0.75, 8),
+            ("开塞露", 5.0, "OTC", 0.9, 10),
+            ("退热贴", 12.0, "OTC", 0.8, 7),
         ],
     },
 }
 
-# 热门商品 -> 基础权重 (Zipf 分布叠加)
-HOT_ITEMS = {
-    "感冒灵颗粒": 20,
-    "布洛芬缓释胶囊": 16,
-    "维生素C片": 14,
-    "钙尔奇D片": 12,
-    "阿莫西林胶囊": 11,
-    "健胃消食片": 10,
-    "连花清瘟胶囊": 9,
-    "板蓝根颗粒": 8,
-    "达克宁乳膏": 7,
-    "云南白药创可贴": 6,
+# 季节性因子
+SEASONAL_FACTORS = {
+    "winter": [1.5, 1.3, 1.0, 0.7, 0.5, 0.4, 0.4, 0.5, 0.7, 1.0, 1.3, 1.6],
+    "summer": [0.8, 0.8, 0.9, 1.0, 1.2, 1.3, 1.4, 1.3, 1.1, 1.0, 0.9, 0.8],
+    "spring": [0.7, 0.7, 0.9, 1.1, 1.3, 1.5, 1.5, 1.4, 1.2, 1.0, 0.8, 0.7],
+    "autumn": [1.1, 1.0, 1.0, 0.9, 0.9, 0.9, 0.9, 1.0, 1.0, 1.0, 1.1, 1.2],
+    "all": [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0],
 }
 
-MEMBER_NAMES = [
-    "张伟", "王芳", "李静", "刘洋", "陈明", "杨帆", "黄磊", "周杰",
-    "吴倩", "郑强", "冯刚", "赵丽颖", "唐嫣", "刘诗诗",
-    "张三丰", "李小龙", "王思聪", "赵敏", "周芷若",
-    "张学友", "刘德华", "郭富城", "黎明", "周润发",
-    "成龙", "李连杰", "甄子丹", "吴京", "黄渤",
-]
+# 会员类型 -> 购买特征
+MEMBER_PROFILES = {
+    "chronic": {  # 慢性病患者 (高血压/糖尿病)
+        "ratio": 0.15,
+        "avg_order_value": 150,
+        "purchase_interval_days": 28,  # 每月复购
+        "preferred_categories": ["心脑血管", "抗生素"],
+        "loyalty": 0.9,  # 高忠诚度
+        "level_bias": "gold",
+    },
+    "family": {  # 家庭采购
+        "ratio": 0.25,
+        "avg_order_value": 120,
+        "purchase_interval_days": 14,
+        "preferred_categories": ["感冒发烧", "维生素保健", "儿童用药"],
+        "loyalty": 0.6,
+        "level_bias": "silver",
+    },
+    "young": {  # 年轻人 (偶尔买)
+        "ratio": 0.30,
+        "avg_order_value": 45,
+        "purchase_interval_days": 45,
+        "preferred_categories": ["皮肤外用", "维生素保健"],
+        "loyalty": 0.3,
+        "level_bias": "normal",
+    },
+    "elderly": {  # 老年人
+        "ratio": 0.20,
+        "avg_order_value": 80,
+        "purchase_interval_days": 20,
+        "preferred_categories": ["心脑血管", "中成药", "维生素保健"],
+        "loyalty": 0.8,
+        "level_bias": "silver",
+    },
+    "occasional": {  # 随机购买
+        "ratio": 0.10,
+        "avg_order_value": 35,
+        "purchase_interval_days": 90,
+        "preferred_categories": [],  # 无偏好
+        "loyalty": 0.1,
+        "level_bias": "normal",
+    },
+}
 
 PAYMENT_METHODS = [
     ("wechat", "微信支付"),
@@ -220,49 +252,22 @@ PROMOTIONS = [
     ("买二送一", "赠品", 0, 0, 0.12),
 ]
 
-# 2026 年中国法定节假日/调休 (日期字符串)
+# 2026 年节假日
 HOLIDAYS_2026 = {
-    # 元旦
     "2026-01-01", "2026-01-02", "2026-01-03",
-    # 春节 (假设 2/17 除夕)
     "2026-02-15", "2026-02-16", "2026-02-17", "2026-02-18",
     "2026-02-19", "2026-02-20", "2026-02-21",
-    # 清明
     "2026-04-04", "2026-04-05", "2026-04-06",
-    # 劳动节
     "2026-05-01", "2026-05-02", "2026-05-03", "2026-05-04", "2026-05-05",
-    # 端午
     "2026-06-19", "2026-06-20", "2026-06-21",
-    # 中秋+国庆
     "2026-09-25", "2026-09-26", "2026-09-27",
     "2026-10-01", "2026-10-02", "2026-10-03",
     "2026-10-04", "2026-10-05", "2026-10-06", "2026-10-07",
 }
 
-# 季节性因子 (月份 1-12)
-SEASONAL_FACTORS = {
-    "呼吸系统": [1.5, 1.3, 1.0, 0.7, 0.5, 0.4, 0.4, 0.5, 0.7, 1.0, 1.3, 1.6],
-    "消化系统": [0.8, 0.8, 0.9, 1.0, 1.2, 1.3, 1.4, 1.3, 1.1, 1.0, 0.9, 0.8],
-    "皮肤科": [0.7, 0.7, 0.9, 1.1, 1.3, 1.5, 1.5, 1.4, 1.2, 1.0, 0.8, 0.7],
-    "营养保健": [1.0, 1.0, 1.1, 1.1, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0],
-    "心脑血管": [1.2, 1.1, 1.0, 0.9, 0.8, 0.8, 0.8, 0.9, 1.0, 1.1, 1.2, 1.3],
-    "抗感染": [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0],
-    "中成药": [1.1, 1.0, 1.0, 0.9, 0.9, 0.9, 0.9, 1.0, 1.0, 1.0, 1.1, 1.2],
-    "儿科": [1.3, 1.2, 1.0, 0.8, 0.6, 0.5, 0.5, 0.6, 0.8, 1.0, 1.2, 1.4],
-}
-
 REFUND_REASONS = ["质量问题", "效果不佳", "发错货", "过期", "过敏反应", "不需要了", "价格问题"]
-
-DEVICES = [
-    "iPhone 14", "iPhone 15", "iPhone 16",
-    "Samsung S23", "Samsung S24",
-    "Huawei P60", "Huawei Mate60",
-    "Xiaomi 14", "Xiaomi 15",
-]
-
 ACTION_WEIGHTS = ["view", "favorite", "cart", "purchase"]
 ACTION_PROBS = [50, 20, 15, 15]
-
 CHANNEL_WEIGHTS = ["app", "mini_program", "h5", "pos"]
 CHANNEL_PROBS = [40, 25, 15, 20]
 
@@ -274,15 +279,12 @@ CHANNEL_PROBS = [40, 25, 15, 20]
 def is_holiday(dt):
     return dt.strftime("%Y-%m-%d") in HOLIDAYS_2026
 
-
 def is_weekend(dt):
     return dt.weekday() >= 5
 
-
-def get_seasonal_factor(l1_category, month):
-    factors = SEASONAL_FACTORS.get(l1_category, [1.0] * 12)
+def get_seasonal_factor(seasonal_key, month):
+    factors = SEASONAL_FACTORS.get(seasonal_key, [1.0] * 12)
     return factors[month - 1]
-
 
 def assign_member_level(total_spent):
     if total_spent >= LEVEL_THRESHOLDS["diamond"]:
@@ -293,15 +295,14 @@ def assign_member_level(total_spent):
         return "silver"
     return "normal"
 
-
 def weighted_choice(items, weights):
     return items[np.random.choice(len(items), p=np.array(weights) / sum(weights))]
 
-
-def random_date_in_range(start_days_ago, end_days_ago):
-    days = random.randint(end_days_ago, start_days_ago)
-    dt = datetime.now() - timedelta(days=days, hours=random.randint(6, 22), minutes=random.randint(0, 59))
-    return dt
+def generate_chinese_name(gender):
+    """生成真实中文姓名"""
+    surname = random.choice(SURNAMES)
+    given = random.choice(GIVEN_NAMES_MALE if gender == "male" else GIVEN_NAMES_FEMALE)
+    return surname + given
 
 
 # ============================================================================
@@ -310,7 +311,6 @@ def random_date_in_range(start_days_ago, end_days_ago):
 
 def create_tables(cursor):
     tables = [
-        # ---- 维度表 ----
         """CREATE TABLE IF NOT EXISTS dim_date (
             date_key DATE PRIMARY KEY,
             year INTEGER NOT NULL,
@@ -340,6 +340,7 @@ def create_tables(cursor):
             is_active BOOLEAN DEFAULT true,
             segment VARCHAR(20) DEFAULT 'new',
             pharmacy_id INTEGER,
+            member_type VARCHAR(20),  # chronic/family/young/elderly/occasional
             created_at TIMESTAMP DEFAULT NOW(),
             updated_at TIMESTAMP DEFAULT NOW()
         )""",
@@ -389,7 +390,6 @@ def create_tables(cursor):
             code VARCHAR(20) UNIQUE NOT NULL,
             name VARCHAR(50) NOT NULL
         )""",
-        # ---- 事实表 ----
         """CREATE TABLE IF NOT EXISTS fact_orders (
             id SERIAL PRIMARY KEY,
             order_no VARCHAR(32) NOT NULL,
@@ -447,7 +447,6 @@ def create_tables(cursor):
 # ============================================================================
 
 def generate_dim_date(cursor):
-    """生成日期维度: 2025-06-01 ~ 2026-12-31"""
     print("生成日期维度...")
     start = datetime(2025, 6, 1).date()
     end = datetime(2026, 12, 31).date()
@@ -455,16 +454,10 @@ def generate_dim_date(cursor):
     current = start
     while current <= end:
         dates.append((
-            current,
-            current.year,
-            (current.month - 1) // 3 + 1,
-            current.month,
-            current.isocalendar()[1],
-            current.weekday(),
+            current, current.year, (current.month - 1) // 3 + 1, current.month,
+            current.isocalendar()[1], current.weekday(),
             ["周一", "周二", "周三", "周四", "周五", "周六", "周日"][current.weekday()],
-            current.weekday() >= 5,
-            is_holiday(current),
-            f"{current.month}月",
+            current.weekday() >= 5, is_holiday(current), f"{current.month}月",
         ))
         current += timedelta(days=1)
     execute_values(cursor, """
@@ -477,7 +470,8 @@ def generate_dim_date(cursor):
 def generate_dim_pharmacy(cursor):
     print("生成门店维度...")
     pharmacy_ids = []
-    for name, city, district, store_type, addr in PHARMACIES:
+    pharmacy_configs = []
+    for name, city, district, store_type, addr, sales_factor, rx_ratio, crowd in PHARMACIES:
         lat = round(random.uniform(22.9, 23.1), 6)
         lon = round(random.uniform(113.6, 113.9), 6)
         opening = datetime(2020, 1, 1) + timedelta(days=random.randint(0, 1000))
@@ -486,31 +480,46 @@ def generate_dim_pharmacy(cursor):
             VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
             RETURNING id
         """, (name, city, district, store_type, addr, lat, lon, opening.date()))
-        pharmacy_ids.append(cursor.fetchone()[0])
-    return pharmacy_ids
+        pid = cursor.fetchone()[0]
+        pharmacy_ids.append(pid)
+        pharmacy_configs.append({
+            "id": pid,
+            "sales_factor": sales_factor,
+            "rx_ratio": rx_ratio,
+            "crowd": crowd,
+        })
+    return pharmacy_ids, pharmacy_configs
 
 
 def generate_dim_product(cursor):
     print("生成商品维度...")
-    product_map = {}  # name -> (id, price, category_l1)
+    product_map = {}
     for cat_l2, info in PRODUCT_TREE.items():
-        for prod_name, base_price, rx_type in info["items"]:
-            is_hot = prod_name in HOT_ITEMS
-            price_noise = random.uniform(0.85, 1.15)
+        for prod_name, base_price, rx_type, margin, weight in info["items"]:
+            is_hot = weight >= 15
+            price_noise = random.uniform(0.9, 1.1)
             price = round(base_price * price_noise, 2)
-            cost = round(price * random.uniform(0.4, 0.65), 2)
-            stock = random.randint(80, 500) if is_hot else random.randint(20, 200)
+            cost = round(price * (1 - margin), 2)
+            stock = random.randint(100, 500) if is_hot else random.randint(30, 150)
             is_rx = rx_type == "处方药"
             cursor.execute("""
                 INSERT INTO dim_product (name, category_l1, category_l2, brand, specification, dosage_form, price, cost, is_rx, is_hot, stock)
                 VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                 RETURNING id
             """, (
-                prod_name, info["l1"], cat_l2, info["brand"],
-                info["spec"], info["form"], price, cost, is_hot, is_rx, stock,
+                prod_name, info["l1"], cat_l2, info.get("brand", "通用"),
+                info.get("spec", ""), info.get("form", "片剂"), price, cost, is_rx, is_hot, stock,
             ))
             pid = cursor.fetchone()[0]
-            product_map[prod_name] = (pid, price, info["l1"])
+            product_map[prod_name] = {
+                "id": pid,
+                "price": price,
+                "cost": cost,
+                "category_l1": info["l1"],
+                "category_l2": cat_l2,
+                "weight": weight,
+                "seasonal": info.get("seasonal", "all"),
+            }
     return product_map
 
 
@@ -531,169 +540,243 @@ def generate_dim_payment(cursor):
     print("生成支付方式维度...")
     payment_ids = {}
     for code, name in PAYMENT_METHODS:
-        cursor.execute(
-            "INSERT INTO dim_payment (code, name) VALUES (%s, %s) RETURNING id",
-            (code, name),
-        )
+        cursor.execute("INSERT INTO dim_payment (code, name) VALUES (%s, %s) RETURNING id", (code, name))
         payment_ids[code] = cursor.fetchone()[0]
     return payment_ids
 
 
-def generate_dim_member(cursor, pharmacy_ids):
-    """生成 800 个会员，注册日期分布在 180 天内"""
-    print("生成 800 个会员...")
+def generate_dim_member(cursor, pharmacy_ids, pharmacy_configs):
+    """生成 800 个会员，带真实分布"""
+    print("生成 800 个会员 (真实分布)...")
     member_ids = []
+    member_data = []  # 存储会员详细信息用于后续生成订单
     now = datetime.now()
 
-    for i in range(800):
-        name = random.choice(MEMBER_NAMES) + str(random.randint(1, 999))
-        phone = f'1{random.choice(["38", "39", "58", "59", "86", "87"])}{random.randint(10000000, 99999999)}'
-        gender = random.choice(["male", "female"])
-        age = random.randint(18, 75)
-        birth_date = (now - timedelta(days=age * 365 + random.randint(0, 364))).date()
-        register_date = (now - timedelta(days=random.randint(30, 180))).date()
-        pharmacy_id = random.choice(pharmacy_ids)
+    # 按会员类型分配数量
+    profile_counts = {}
+    remaining = 800
+    for mtype, profile in MEMBER_PROFILES.items():
+        count = int(800 * profile["ratio"])
+        profile_counts[mtype] = min(count, remaining)
+        remaining -= profile_counts[mtype]
+    profile_counts["occasional"] += remaining  # 剩余归为随机购买
 
-        # 初始消费额用幂律分布模拟 (少数人高消费)
-        initial_spent = float(np.random.zipf(1.5)) * 10
-        initial_spent = min(initial_spent, 15000)
-        total_spent = round(initial_spent, 2)
-        level = assign_member_level(total_spent)
+    member_seq = 0
+    for mtype, count in profile_counts.items():
+        profile = MEMBER_PROFILES[mtype]
+        for _ in range(count):
+            member_seq += 1
+            gender = random.choice(["male", "female"])
+            name = generate_chinese_name(gender)
+            phone = f'1{random.choice(["38", "39", "58", "59", "86", "87"])}{random.randint(10000000, 99999999)}'
 
-        order_count = max(0, int(total_spent / random.uniform(50, 200)))
-        last_order_date = (now - timedelta(days=random.randint(0, 60))).date() if order_count > 0 else None
+            # 年龄分布: 慢性病偏大，年轻人偏小
+            if mtype == "chronic":
+                age = random.randint(45, 75)
+            elif mtype == "elderly":
+                age = random.randint(60, 80)
+            elif mtype == "young":
+                age = random.randint(18, 35)
+            elif mtype == "family":
+                age = random.randint(28, 50)
+            else:
+                age = random.randint(20, 65)
 
-        # 注册日期 <= 首购日期 <= 最后购买日期
-        first_order_date = None
-        if order_count > 0:
-            first_order_date = register_date + timedelta(days=random.randint(1, 30))
+            birth_date = (now - timedelta(days=age * 365 + random.randint(0, 364))).date()
+
+            # 注册日期: 老会员多，新会员少
+            days_ago = random.choices(
+                [random.randint(30, 90), random.randint(90, 365), random.randint(365, 700)],
+                weights=[0.2, 0.5, 0.3]
+            )[0]
+            register_date = (now - timedelta(days=days_ago)).date()
+
+            # 门店偏好: 70% 概率选固定门店
+            if random.random() < 0.7:
+                pharmacy_id = random.choice(pharmacy_ids[:5])  # 前5家大店
+            else:
+                pharmacy_id = random.choice(pharmacy_ids)
+
+            # 初始消费 (幂律分布)
+            if mtype == "chronic":
+                total_spent = round(random.uniform(1000, 8000), 2)
+            elif mtype == "elderly":
+                total_spent = round(random.uniform(300, 3000), 2)
+            elif mtype == "family":
+                total_spent = round(random.uniform(500, 5000), 2)
+            elif mtype == "young":
+                total_spent = round(random.uniform(50, 800), 2)
+            else:
+                total_spent = round(float(np.random.zipf(1.8)) * 5, 2)
+                total_spent = min(total_spent, 500)
+
+            level = assign_member_level(total_spent)
+            order_count = max(1, int(total_spent / random.uniform(40, 150)))
+            points = int(total_spent * 0.1)
+
+            # 时间线
+            first_order_date = register_date + timedelta(days=random.randint(1, min(30, days_ago)))
             if first_order_date > now.date():
                 first_order_date = now.date()
 
-        # 活跃判定: 30 天内有购买 = 活跃
-        is_active = last_order_date and (now.date() - last_order_date).days <= 30
+            last_order_days_ago = random.randint(0, min(60, days_ago))
+            last_order_date = (now - timedelta(days=last_order_days_ago)).date() if order_count > 0 else None
 
-        # 细分标签
-        if total_spent >= 3000 and order_count >= 10:
-            segment = "high_value"
-        elif total_spent >= 500 and order_count >= 5:
-            segment = "loyal"
-        elif is_active and order_count <= 2:
-            segment = "new"
-        elif not is_active and (now.date() - (last_order_date or register_date)).days > 60:
-            segment = "churned"
-        else:
-            segment = "regular"
+            is_active = last_order_date and (now.date() - last_order_date).days <= 30
 
-        points = int(total_spent * 0.1)
+            # 细分标签
+            if total_spent >= 3000 and order_count >= 10:
+                segment = "high_value"
+            elif total_spent >= 500 and order_count >= 5:
+                segment = "loyal"
+            elif is_active and order_count <= 2:
+                segment = "new"
+            elif not is_active and (now.date() - (last_order_date or register_date)).days > 60:
+                segment = "churned"
+            else:
+                segment = "regular"
 
-        cursor.execute("""
-            INSERT INTO dim_member (name, phone, gender, birth_date, register_date, first_order_date,
-                last_order_date, level, points, total_spent, order_count, is_active, segment, pharmacy_id)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-            RETURNING id
-        """, (
-            name, phone, gender, birth_date, register_date, first_order_date,
-            last_order_date, level, points, total_spent, order_count, is_active, segment, pharmacy_id,
-        ))
-        member_ids.append(cursor.fetchone()[0])
+            cursor.execute("""
+                INSERT INTO dim_member (name, phone, gender, birth_date, register_date, first_order_date,
+                    last_order_date, level, points, total_spent, order_count, is_active, segment, pharmacy_id, member_type)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                RETURNING id
+            """, (
+                name, phone, gender, birth_date, register_date, first_order_date,
+                last_order_date, level, points, total_spent, order_count, is_active, segment, pharmacy_id, mtype,
+            ))
+            mid = cursor.fetchone()[0]
+            member_ids.append(mid)
+            member_data.append({
+                "id": mid,
+                "type": mtype,
+                "pharmacy_id": pharmacy_id,
+                "preferred_categories": profile["preferred_categories"],
+                "purchase_interval": profile["purchase_interval_days"],
+                "avg_order_value": profile["avg_order_value"],
+                "loyalty": profile["loyalty"],
+            })
 
-    return member_ids
+    return member_ids, member_data
 
 
 # ============================================================================
 # 生成事实数据
 # ============================================================================
 
-def generate_fact_orders(cursor, member_ids, pharmacy_ids, product_map, promo_ids, payment_ids):
-    """生成 3000 个订单 (行级事实)，含季节性 + 节假日脉冲"""
-    print("生成订单事实表 (3000条)...")
+def generate_fact_orders(cursor, member_data, pharmacy_configs, product_map, promo_ids, payment_ids):
+    """生成订单事实表，带真实购买模式"""
+    print("生成订单事实表 (带真实模式)...")
     now = datetime.now()
-    product_names = list(product_map.keys())
-    product_weights = []
-    for pname in product_names:
-        product_weights.append(HOT_ITEMS.get(pname, 1))
-
-    # 归一化权重
-    total_w = sum(product_weights)
-    product_probs = [w / total_w for w in product_weights]
-
     order_ids = []
     order_seq = 0
 
-    # 按月生成，每月 150-250 单，带季节性
-    for month_offset in range(18):  # 18 个月 (2025-07 ~ 2026-12)
+    # 产品权重表
+    product_names = list(product_map.keys())
+    product_weights = [product_map[p]["weight"] for p in product_names]
+    total_pw = sum(product_weights)
+    product_probs = [w / total_pw for w in product_weights]
+
+    # 按月生成
+    for month_offset in range(18):
         base_date = now - timedelta(days=30 * (17 - month_offset))
+        month = base_date.month
 
-        # 基础订单数 + 随机波动
-        base_orders = random.randint(150, 250)
-
-        # 月份内分布
-        days_in_month = 30
-        for day in range(days_in_month):
-            dt = base_date.replace(day=min(day + 1, 28)) - timedelta(days=base_date.day - 1)
-            dt = dt + timedelta(days=day)
-
-            if dt > now:
+        for member in member_data:
+            # 根据会员类型决定本月是否购买
+            if random.random() > member["loyalty"] * 0.8:
                 continue
 
-            # 每日订单数 = 基础 / 30 * 日因子
-            day_factor = 1.0
-            if is_holiday(dt):
-                day_factor = 2.5  # 节假日脉冲
-            elif is_weekend(dt):
-                day_factor = 1.3
-            elif dt.day <= 5:
-                day_factor = 1.2  # 发薪日效应
+            # 购买次数 (慢性病每月1次，家庭每月2-3次)
+            if member["type"] == "chronic":
+                purchase_count = 1 if random.random() < 0.8 else 0
+            elif member["type"] == "family":
+                purchase_count = random.choices([1, 2, 3], weights=[0.3, 0.5, 0.2])[0]
+            elif member["type"] == "young":
+                purchase_count = 1 if random.random() < 0.3 else 0
+            elif member["type"] == "elderly":
+                purchase_count = random.choices([1, 2], weights=[0.6, 0.4])[0]
+            else:
+                purchase_count = 1 if random.random() < 0.15 else 0
 
-            daily_orders = max(1, int(base_orders / days_in_month * day_factor * random.uniform(0.7, 1.3)))
+            for _ in range(purchase_count):
+                # 选日期 (月初发薪日效应 + 节假日效应)
+                day = random.choices(
+                    range(1, 29),
+                    weights=[1.2 if d <= 5 else (2.0 if is_holiday(base_date.replace(day=d)) else 1.0) for d in range(1, 29)]
+                )[0]
+                order_date = base_date.replace(day=min(day, 28)).date()
 
-            for _ in range(daily_orders):
-                member_id = random.choice(member_ids)
-                pharmacy_id = random.choice(pharmacy_ids)
+                if order_date > now.date():
+                    continue
 
-                # 选商品 (1-4 件)
-                num_items = random.randint(1, 4)
-                selected_indices = np.random.choice(
-                    len(product_names),
-                    size=num_items,
-                    replace=False,
-                    p=product_probs,
-                )
+                # 选商品 (偏好 + 随机)
+                if member["preferred_categories"] and random.random() < 0.6:
+                    # 从偏好分类选
+                    preferred_products = [p for p in product_names if product_map[p]["category_l2"] in member["preferred_categories"]]
+                    if preferred_products:
+                        selected_names = random.choices(
+                            preferred_products,
+                            weights=[product_map[p]["weight"] for p in preferred_products],
+                            k=random.randint(1, min(3, len(preferred_products))),
+                        )
+                    else:
+                        selected_names = random.choices(product_names, weights=product_probs, k=random.randint(1, 3))
+                else:
+                    # 随机选
+                    num_items = random.randint(1, 3)
+                    selected_names = random.choices(product_names, weights=product_probs, k=num_items)
 
-                # 使用促销 (30%)
-                use_promo = random.random() < 0.3
+                # 去重
+                selected_names = list(set(selected_names))
+
+                # 选门店 (偏好门店)
+                if random.random() < member["loyalty"]:
+                    pharmacy_id = member["pharmacy_id"]
+                else:
+                    pharmacy_id = random.choice(list(set(m["pharmacy_id"] for m in member_data)))
+
+                # 找门店配置
+                pharmacy_config = next((p for p in pharmacy_configs if p["id"] == pharmacy_id), pharmacy_configs[0])
+
+                # 选促销
+                use_promo = random.random() < 0.25
                 promo_id = random.choice(promo_ids) if use_promo else None
+
+                # 选支付方式
                 pay_method = random.choices(
                     list(payment_ids.keys()),
                     weights=[45, 35, 10, 10],
                 )[0]
                 payment_id = payment_ids[pay_method]
 
-                order_date = dt.date()
-                order_datetime = dt + timedelta(hours=random.randint(8, 21), minutes=random.randint(0, 59))
+                # 生成订单行
+                for pname in selected_names:
+                    pinfo = product_map[pname]
+                    pid = pinfo["id"]
+                    price = pinfo["price"]
 
-                total_amount = 0
-                for idx in selected_indices:
-                    pname = product_names[idx]
-                    pid, price, _ = product_map[pname]
-                    qty = random.randint(1, 3)
+                    # 数量
+                    if member["type"] == "chronic" and pinfo["category_l2"] == "心脑血管":
+                        qty = random.choices([1, 2, 3], weights=[0.5, 0.3, 0.2])[0]  # 慢性病囤货
+                    else:
+                        qty = random.choices([1, 2], weights=[0.7, 0.3])[0]
+
                     subtotal = round(qty * price, 2)
-                    total_amount += subtotal
-
-                    order_seq += 1
-
-                    # 插入订单行
-                    discount = round(subtotal * random.uniform(0, 0.15), 2) if use_promo else 0
+                    discount = round(subtotal * random.uniform(0, 0.12), 2) if use_promo else 0
                     pay_amount = round(subtotal - discount, 2)
                     points_earned = int(pay_amount * 0.1)
 
                     status = random.choices(
                         ["completed", "refunded", "pending"],
-                        weights=[0.88, 0.08, 0.04],
+                        weights=[0.90, 0.07, 0.03],
                     )[0]
 
+                    order_seq += 1
                     order_no = f"ORD{order_date.strftime('%Y%m%d')}{str(order_seq).zfill(6)}"
+                    order_datetime = datetime.combine(order_date, datetime.min.time()) + timedelta(
+                        hours=random.randint(8, 21), minutes=random.randint(0, 59)
+                    )
 
                     cursor.execute("""
                         INSERT INTO fact_orders (order_no, order_date, member_id, pharmacy_id,
@@ -702,7 +785,7 @@ def generate_fact_orders(cursor, member_ids, pharmacy_ids, product_map, promo_id
                         VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                         RETURNING id
                     """, (
-                        order_no, order_date, member_id, pharmacy_id,
+                        order_no, order_date, member["id"], pharmacy_id,
                         pid, promo_id, payment_id, qty, price,
                         discount, pay_amount, points_earned, status,
                     ))
@@ -711,28 +794,23 @@ def generate_fact_orders(cursor, member_ids, pharmacy_ids, product_map, promo_id
     return order_ids
 
 
-def generate_fact_behavior(cursor, member_ids, product_map):
-    """生成 10000 条行为记录"""
-    print("生成行为事实表 (10000条)...")
+def generate_fact_behavior(cursor, member_data, product_map):
+    """生成行为事实表"""
+    print("生成行为事实表...")
     now = datetime.now()
-    product_ids = [v[0] for v in product_map.values()]
-
+    product_ids = [v["id"] for v in product_map.values()]
     behaviors = []
-    for _ in range(10000):
-        member_id = random.choice(member_ids)
-        product_id = random.choice(product_ids)
-        action = weighted_choice(ACTION_WEIGHTS, ACTION_PROBS)
-        channel = weighted_choice(CHANNEL_WEIGHTS, CHANNEL_PROBS)
 
-        referrer = weighted_choice(
-            ["direct", "search", "ad", "recommend", "share"],
-            [30, 25, 20, 15, 10],
-        )
-
-        days_ago = random.randint(0, 120)
-        created_at = now - timedelta(days=days_ago, hours=random.randint(6, 23), minutes=random.randint(0, 59))
-
-        behaviors.append((member_id, product_id, action, channel, referrer, created_at))
+    for member in member_data:
+        # 每个会员生成 5-20 条行为
+        count = random.randint(5, 20)
+        for _ in range(count):
+            product_id = random.choice(product_ids)
+            action = weighted_choice(ACTION_WEIGHTS, ACTION_PROBS)
+            channel = weighted_choice(CHANNEL_WEIGHTS, CHANNEL_PROBS)
+            days_ago = random.randint(0, 180)
+            created_at = now - timedelta(days=days_ago, hours=random.randint(6, 23), minutes=random.randint(0, 59))
+            behaviors.append((member["id"], product_id, action, channel, "direct", created_at))
 
     execute_values(cursor, """
         INSERT INTO fact_behavior (member_id, product_id, action, channel, referrer, created_at)
@@ -742,30 +820,21 @@ def generate_fact_behavior(cursor, member_ids, product_map):
 
 
 def generate_fact_inventory(cursor, product_ids, pharmacy_ids):
-    """生成 800 条库存变动"""
-    print("生成库存事实表 (800条)...")
+    """生成库存变动"""
+    print("生成库存事实表...")
     now = datetime.now()
-    change_types = ["purchase", "restock", "return", "adjust"]
-    change_probs = [55, 30, 10, 5]
-
     logs = []
     for _ in range(800):
         product_id = random.choice(product_ids)
         pharmacy_id = random.choice(pharmacy_ids)
-        change_type = weighted_choice(change_types, change_probs)
-
-        if change_type == "purchase":
-            qty = -random.randint(1, 5)
-        elif change_type == "restock":
-            qty = random.randint(10, 100)
-        elif change_type == "return":
-            qty = random.randint(1, 3)
-        else:
-            qty = random.randint(-5, 5)
-
+        change_type = weighted_choice(["purchase", "restock", "return", "adjust"], [55, 30, 10, 5])
+        qty = -random.randint(1, 5) if change_type == "purchase" else (
+            random.randint(10, 100) if change_type == "restock" else (
+                random.randint(1, 3) if change_type == "return" else random.randint(-5, 5)
+            )
+        )
         days_ago = random.randint(0, 180)
         created_at = now - timedelta(days=days_ago, hours=random.randint(6, 20))
-
         logs.append((product_id, pharmacy_id, change_type, qty, created_at))
 
     execute_values(cursor, """
@@ -775,24 +844,24 @@ def generate_fact_inventory(cursor, product_ids, pharmacy_ids):
     return len(logs)
 
 
-def generate_fact_refunds(cursor, order_ids, member_ids, product_ids, pharmacy_ids):
-    """生成退款记录 (约 8% 的订单退款)"""
+def generate_fact_refunds(cursor, order_ids, member_data, product_ids, pharmacy_ids):
+    """生成退款记录"""
     print("生成退款事实表...")
     now = datetime.now()
-    refund_count = int(len(order_ids) * 0.08)
-
+    refund_count = int(len(order_ids) * 0.07)
     refunds = []
-    for _ in range(refund_count):
+
+    for i in range(refund_count):
         order_id = random.choice(order_ids)
-        member_id = random.choice(member_ids)
+        member = random.choice(member_data)
         product_id = random.choice(product_ids)
         pharmacy_id = random.choice(pharmacy_ids)
-        refund_amount = round(random.uniform(10, 300), 2)
+        refund_amount = round(random.uniform(10, 250), 2)
         refund_reason = random.choice(REFUND_REASONS)
         refund_date = (now - timedelta(days=random.randint(0, 180))).date()
 
-        refunds.append((f"REF{refund_date.strftime('%Y%m%d')}{str(_+1).zfill(6)}",
-                        order_id, member_id, product_id, pharmacy_id,
+        refunds.append((f"REF{refund_date.strftime('%Y%m%d')}{str(i+1).zfill(6)}",
+                        order_id, member["id"], product_id, pharmacy_id,
                         refund_amount, refund_reason, refund_date))
 
     execute_values(cursor, """
@@ -809,69 +878,65 @@ def generate_fact_refunds(cursor, order_ids, member_ids, product_ids, pharmacy_i
 
 def generate_data():
     print("=" * 50)
-    print("药店会员系统 - 模拟数据生成 v3 (星型模型)")
+    print("药店会员系统 - 模拟数据生成 v4 (真实分布)")
     print("=" * 50)
 
     conn = psycopg2.connect(**DB_CONFIG)
     cursor = conn.cursor()
 
     try:
-        # 清理旧表
         print("\n清理旧表...")
-        for table in [
-            "fact_refunds", "fact_inventory", "fact_behavior", "fact_orders",
-            "dim_payment", "dim_promotion", "dim_product", "dim_pharmacy",
-            "dim_member", "dim_date",
-        ]:
+        for table in ["fact_refunds", "fact_inventory", "fact_behavior", "fact_orders",
+                       "dim_payment", "dim_promotion", "dim_product", "dim_pharmacy",
+                       "dim_member", "dim_date"]:
             cursor.execute(f"DROP TABLE IF EXISTS {table} CASCADE")
         conn.commit()
 
-        # 建表
         print("创建表结构...")
         create_tables(cursor)
         conn.commit()
 
-        # 维度
         generate_dim_date(cursor)
-        pharmacy_ids = generate_dim_pharmacy(cursor)
+        pharmacy_ids, pharmacy_configs = generate_dim_pharmacy(cursor)
         product_map = generate_dim_product(cursor)
         promo_ids = generate_dim_promotion(cursor)
         payment_ids = generate_dim_payment(cursor)
-        member_ids = generate_dim_member(cursor, pharmacy_ids)
+        member_ids, member_data = generate_dim_member(cursor, pharmacy_ids, pharmacy_configs)
         conn.commit()
 
-        # 事实
-        product_ids = [v[0] for v in product_map.values()]
-        order_ids = generate_fact_orders(cursor, member_ids, pharmacy_ids, product_map, promo_ids, payment_ids)
-        generate_fact_behavior(cursor, member_ids, product_map)
+        product_ids = [v["id"] for v in product_map.values()]
+        order_ids = generate_fact_orders(cursor, member_data, pharmacy_configs, product_map, promo_ids, payment_ids)
+        generate_fact_behavior(cursor, member_data, product_map)
         generate_fact_inventory(cursor, product_ids, pharmacy_ids)
-        generate_fact_refunds(cursor, order_ids, member_ids, product_ids, pharmacy_ids)
+        generate_fact_refunds(cursor, order_ids, member_data, product_ids, pharmacy_ids)
         conn.commit()
 
-        # 统计
         print("\n" + "=" * 50)
         print("数据生成完成!")
         print("=" * 50)
-        tables = [
-            "dim_date", "dim_member", "dim_product", "dim_pharmacy",
-            "dim_promotion", "dim_payment",
-            "fact_orders", "fact_behavior", "fact_inventory", "fact_refunds",
-        ]
-        for t in tables:
+        for t in ["dim_date", "dim_member", "dim_product", "dim_pharmacy",
+                   "dim_promotion", "dim_payment", "fact_orders", "fact_behavior", "fact_inventory", "fact_refunds"]:
             cursor.execute(f"SELECT COUNT(*) FROM {t}")
             print(f"  {t}: {cursor.fetchone()[0]:>6}")
 
-        # 会员等级分布
+        print("\n会员类型分布:")
+        cursor.execute("SELECT member_type, COUNT(*) FROM dim_member GROUP BY member_type ORDER BY COUNT(*) DESC")
+        for row in cursor.fetchall():
+            print(f"  {row[0]}: {row[1]}")
+
         print("\n会员等级分布:")
         cursor.execute("SELECT level, COUNT(*) FROM dim_member GROUP BY level ORDER BY COUNT(*) DESC")
         for row in cursor.fetchall():
             print(f"  {LEVEL_NAMES.get(row[0], row[0])}: {row[1]}")
 
-        # 会员细分
-        print("\n会员细分:")
-        cursor.execute("SELECT segment, COUNT(*) FROM dim_member GROUP BY segment ORDER BY COUNT(*) DESC")
+        print("\n门店销量:")
+        cursor.execute("""
+            SELECT p.name, COUNT(o.id), SUM(o.pay_amount)
+            FROM fact_orders o JOIN dim_pharmacy p ON o.pharmacy_id = p.id
+            GROUP BY p.name ORDER BY COUNT(o.id) DESC
+        """)
         for row in cursor.fetchall():
-            print(f"  {row[0]}: {row[1]}")
+            print(f"  {row[0]}: {row[1]} 单, ¥{row[2]:,.0f}")
 
     except Exception as e:
         conn.rollback()
