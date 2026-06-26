@@ -69,7 +69,8 @@ export async function POST(request: NextRequest) {
       success: true,
       data: {
         sql: result.sql,
-        explanation: result.explanation
+        explanation: result.explanation,
+        insights: result.insights
       }
     })
   } catch (error) {
