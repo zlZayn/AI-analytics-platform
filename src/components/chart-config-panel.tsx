@@ -58,8 +58,25 @@ export function ChartConfigPanel({ columns, data, mapping, onChange }: ChartConf
   function handleSlotChange(slot: string, value: string) {
     const newMapping = { ...mapping, [slot]: value || undefined }
 
-    // 检测分组数量
-    if (value && data.length > 0) {
+    // 只对分组/分类槽位做检查
+    const isGroupSlot = slot === "color" || slot === "fill" || slot === "category"
+
+    if (isGroupSlot && value && data.length > 0) {
+      // 判断是否为数值列
+      const sampleValues = data.slice(0, 20).map((d) => d[value])
+      const numericCount = sampleValues.filter((v) => v !== null && v !== undefined && !isNaN(Number(v))).length
+      const isNumeric = numericCount > sampleValues.length * 0.8
+
+      if (isNumeric) {
+        setConfirmDialog({
+          open: true,
+          message: "数值列不适合做分组/分类，建议使用文本列",
+          pendingMapping: newMapping,
+        })
+        return
+      }
+
+      // 非数值列：检查唯一值数量
       const uniqueCount = new Set(data.map((d) => String(d[value] ?? ""))).size
       if (uniqueCount > GROUP_WARN_THRESHOLD) {
         setConfirmDialog({
