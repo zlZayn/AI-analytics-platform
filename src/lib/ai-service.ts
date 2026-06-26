@@ -185,3 +185,103 @@ function extractExplanation(text: string, sql: string): string {
     .trim()
   return cleaned || '已生成 SQL 查询'
 }
+
+// ============================================================================
+// 洞察推荐
+// ============================================================================
+
+export interface InsightItem {
+  title: string
+  insight: string
+  sql: string
+  chart: {
+    type: string
+    mapping: Record<string, string>
+  }
+}
+
+const INSIGHTS_PROMPT = `你是一个专业的数据分析助手。根据用户需求，生成多条有业务洞察的分析推荐。
+
+## 数据模型
+
+这是一个药店会员系统的星型模型:
+- 事实表: fact_orders (订单), fact_behavior (行为), fact_inventory (库存), fact_refunds (退款)
+- 维度表: dim_member (会员), dim_product (商品), dim_pharmacy (门店), dim_date (日期), dim_promotion (促销), dim_payment (支付)
+
+## 业务指标
+
+- 销售额: SUM(fact_orders.pay_amount)
+- 订单数: COUNT(DISTINCT fact_orders.order_no)
+- 客单价: SUM(pay_amount) / COUNT(DISTINCT order_no)
+- 退款率: 退款数 / 订单数
+- 复购率: 有2+订单的会员数 / 总会员数
+- 行为转化: view -> favorite -> cart -> purchase 漏斗
+
+## 输出要求
+
+生成 5-8 条洞察，每条包含:
+1. 标题 (简短，10字以内)
+2. 业务洞察 (一句话说明发现)
+3. SQL 查询 (可直接执行)
+4. 推荐图表类型和列映射
+
+图表类型: line, bar, pie, scatter, boxplot, heatmap, correlation, table
+
+列映射规则:
+- line/bar: x=分类列, y=数值列
+- pie: name=分类列, value=数值列
+- scatter: x=数值列, y=数值列
+- boxplot: category=分类列, value=数值列
+- table: 无需映射
+
+## 输出格式
+
+严格输出 JSON 数组，不要添加任何额外内容:
+
+[
+  {
+    "title": "各门店销售额排名",
+    "insight": "旗舰店销量领先，但医院店客单价更高",
+    "sql": "SELECT p.name, SUM(o.pay_amount) as revenue FROM fact_orders o JOIN dim_pharmacy p ON o.pharmacy_id = p.id GROUP BY p.name ORDER BY revenue DESC",
+    "chart": { "type": "bar", "mapping": { "x": "name", "y": "revenue" } }
+  },
+  ...
+]
+
+只输出 JSON，不要有其他文字。`
+
+export async function generateInsights(
+  message: string,
+  schemaContext: string,
+): Promise<InsightItem[]> {
+  const messages: OpenAI.ChatCompletionMessageParam[] = [
+    { role: 'system', content: INSIGHTS_PROMPT + '\n\n' + schemaContext },
+    { role: 'user', content: message }
+  ]
+
+  const response = await client.chat.completions.create({
+    model: AI_CONFIG.model,
+    messages,
+    temperature: 0.7,
+    max_tokens: 4000
+  })
+
+  const content = response.choices[0].message.content || ''
+
+  // 提取 JSON
+  try {
+    // 尝试从代码块提取
+    const codeBlockMatch = content.match(/```(?:json)?\s*\n([\s\S]*?)\n```/)
+    const jsonStr = codeBlockMatch ? codeBlockMatch[1] : content
+
+    // 找到 JSON 数组
+    const arrayMatch = jsonStr.match(/\[[\s\S]*\]/)
+    if (arrayMatch) {
+      return JSON.parse(arrayMatch[0])
+    }
+  } catch (e) {
+    console.error('解析洞察 JSON 失败:', e)
+  }
+
+  return []
+}

@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
 import { ResultPanel } from "@/components/dashboard/result-panel"
+import { InsightPanel, type InsightItem } from "@/components/insight-card"
 import { useToast } from "@/components/toast"
 import type { QueryResult } from "@/types"
 import { Play, Trash2, Save, Loader2, Send, Copy, ChevronDown, ChevronUp } from "lucide-react"
@@ -35,6 +36,11 @@ function WorkspaceContent() {
   const [aiInput, setAiInput] = useState("")
   const [aiLoading, setAiLoading] = useState(false)
   const [aiHistory, setAiHistory] = useState<{ role: "user" | "ai"; content: string; sql?: string }[]>([])
+
+  // Insights state
+  const [insights, setInsights] = useState<InsightItem[]>([])
+  const [insightsLoading, setInsightsLoading] = useState(false)
+  const [executingInsightIndex, setExecutingInsightIndex] = useState<number | null>(null)
 
   // Save dialog
   const [saveDialogOpen, setSaveDialogOpen] = useState(false)
@@ -104,6 +110,66 @@ function WorkspaceContent() {
     }
   }
 
+  async function requestInsights() {
+    if (!connectionId || insightsLoading) return
+    setInsightsLoading(true)
+    try {
+      const res = await fetch("/api/ai/insights", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ connectionId, message: "给我一些有业务洞察的数据分析推荐" }),
+      })
+      const data = await res.json()
+      if (data.success) {
+        setInsights(data.data.insights)
+        toast(`已生成 ${data.data.insights.length} 条洞察`, "success")
+      } else {
+        toast(data.error || "生成洞察失败", "error")
+      }
+    } catch {
+      toast("请求失败", "error")
+    } finally {
+      setInsightsLoading(false)
+    }
+  }
+
+  async function executeInsight(sql: string, chart: InsightItem["chart"], index: number) {
+    if (!connectionId || !sql.trim()) return
+    setExecutingInsightIndex(index)
+    setLoading(true)
+    setError("")
+    try {
+      const res = await fetch("/api/query", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ connectionId, sql }),
+      })
+      const data = await res.json()
+      if (data.success) {
+        setResult(data.data)
+        setSql(sql)
+        // 设置图表类型和映射
+        setEditorExpanded(false)
+        toast(`洞察执行完成: ${data.data.rowCount} 行`, "success")
+      } else {
+        setError(data.error)
+      }
+    } catch {
+      setError("洞察执行失败")
+    } finally {
+      setLoading(false)
+      setExecutingInsightIndex(null)
+    }
+  }
+
+  async function executeAllInsights() {
+    for (let i = 0; i < insights.length; i++) {
+      await executeInsight(insights[i].sql, insights[i].chart, i)
+      // 等待一点时间让用户看到结果
+      await new Promise(resolve => setTimeout(resolve, 500))
+    }
+  }
+
   async function saveQuery() {
     if (!saveName.trim() || !sql.trim() || !connectionId) return
     await fetch("/api/query/saved", {
@@ -124,10 +190,7 @@ function WorkspaceContent() {
     <div className="h-[calc(100vh-2rem)] flex flex-col p-4 overflow-hidden">
       {/* Collapsed header - show when editor is collapsed */}
       {result && !editorExpanded && (
-        <div
-          className="flex items-center justify-between px-3 py-2 bg-[var(--muted)] rounded-lg cursor-pointer hover:bg-[var(--accent)] transition-colors mb-3"
-          onClick={() => setEditorExpanded(true)}
-        >
+        <div className="flex items-center justify-between px-3 py-2 bg-[var(--muted)] rounded-lg cursor-pointer hover:bg-[var(--accent)] transition-colors mb-3" onClick={() => setEditorExpanded(true)}>
           <div className="flex items-center gap-2">
             <ChevronDown className="w-3.5 h-3.5 text-[var(--muted-foreground)]" />
             <span className="text-xs font-medium text-[var(--muted-foreground)]">SQL 编辑器</span>
@@ -136,13 +199,7 @@ function WorkspaceContent() {
             </span>
           </div>
           <div className="flex items-center gap-2">
-            <Button
-              size="sm"
-              variant="ghost"
-              className="h-6 text-[10px] gap-1"
-              onClick={(e) => { e.stopPropagation(); execute() }}
-              disabled={loading}
-            >
+            <Button size="sm" variant="ghost" className="h-6 text-[10px] gap-1" onClick={(e) => { e.stopPropagation(); execute() }} disabled={loading}>
               {loading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Play className="w-3 h-3" />}
               重新执行
             </Button>
@@ -159,10 +216,7 @@ function WorkspaceContent() {
               <div className="flex items-center gap-2">
                 <span className="text-xs font-medium text-[var(--muted-foreground)]">SQL 编辑器</span>
                 {result && (
-                  <button
-                    className="text-[10px] text-[var(--muted-foreground)] hover:text-[var(--foreground)] transition-colors flex items-center gap-0.5"
-                    onClick={() => setEditorExpanded(false)}
-                  >
+                  <button className="text-[10px] text-[var(--muted-foreground)] hover:text-[var(--foreground)] transition-colors flex items-center gap-0.5" onClick={() => setEditorExpanded(false)}>
                     <ChevronUp className="w-3 h-3" />
                     收起
                   </button>
@@ -204,68 +258,74 @@ function WorkspaceContent() {
             )}
           </div>
 
-          {/* AI Assistant */}
-          <div className="flex-[2] flex flex-col min-w-0 border rounded-lg">
-            <div className="px-3 py-2 border-b flex items-center justify-between">
-              <span className="text-xs font-medium text-[var(--muted-foreground)]">AI 助手</span>
-              <Button variant="ghost" size="sm" className="h-5 text-[10px]" onClick={() => setAiHistory([])} disabled={!aiHistory.length}>
-                清空
-              </Button>
-            </div>
-            {/* AI Messages */}
-            <div className="flex-1 overflow-auto p-3 space-y-2 min-h-0">
-              {aiHistory.length === 0 && (
-                <div className="flex items-center justify-center h-full text-[var(--muted-foreground)] text-xs">
-                  用自然语言描述你想分析的内容
-                </div>
-              )}
-              {aiHistory.map((msg, i) => (
-                <div key={i} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
-                  <div className={`max-w-[90%] rounded-lg px-2.5 py-1.5 text-xs ${
-                    msg.role === "user" ? "bg-[var(--primary)] text-[var(--primary-foreground)]" : "bg-[var(--muted)] text-[var(--foreground)]"
-                  }`}>
-                    <div className="whitespace-pre-wrap">{msg.content}</div>
-                    {msg.sql && (
-                      <div className="mt-1.5 relative group">
-                        <pre className="p-1.5 rounded bg-black/5 text-[10px] font-mono overflow-x-auto">{msg.sql}</pre>
-                        <button
-                          className="absolute top-0.5 right-0.5 p-0.5 rounded opacity-0 group-hover:opacity-100 transition-opacity bg-black/10 hover:bg-black/20"
-                          onClick={() => { navigator.clipboard.writeText(msg.sql!); toast("已复制", "success") }}
-                        >
-                          <Copy className="w-2.5 h-2.5" />
-                        </button>
-                      </div>
-                    )}
+          {/* AI Assistant + Insights */}
+          <div className="flex-[2] flex flex-col min-w-0 gap-3">
+            {/* AI Assistant */}
+            <div className="flex-1 flex flex-col min-h-0 border rounded-lg">
+              <div className="px-3 py-2 border-b flex items-center justify-between">
+                <span className="text-xs font-medium text-[var(--muted-foreground)]">AI 助手</span>
+                <Button variant="ghost" size="sm" className="h-5 text-[10px]" onClick={() => setAiHistory([])} disabled={!aiHistory.length}>
+                  清空
+                </Button>
+              </div>
+              <div className="flex-1 overflow-auto p-3 space-y-2 min-h-0">
+                {aiHistory.length === 0 && (
+                  <div className="flex items-center justify-center h-full text-[var(--muted-foreground)] text-xs">
+                    用自然语言描述你想分析的内容
                   </div>
-                </div>
-              ))}
-              {aiLoading && (
-                <div className="flex justify-start">
-                  <div className="bg-[var(--muted)] rounded-lg px-2.5 py-1.5 flex items-center gap-1 text-xs text-[var(--muted-foreground)]">
-                    <Loader2 className="w-3 h-3 animate-spin" /> 思考中...
+                )}
+                {aiHistory.map((msg, i) => (
+                  <div key={i} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
+                    <div className={`max-w-[90%] rounded-lg px-2.5 py-1.5 text-xs ${msg.role === "user" ? "bg-[var(--primary)] text-[var(--primary-foreground)]" : "bg-[var(--muted)] text-[var(--foreground)]"}`}>
+                      <div className="whitespace-pre-wrap">{msg.content}</div>
+                      {msg.sql && (
+                        <div className="mt-1.5 relative group">
+                          <pre className="p-1.5 rounded bg-black/5 text-[10px] font-mono overflow-x-auto">{msg.sql}</pre>
+                          <button className="absolute top-0.5 right-0.5 p-0.5 rounded opacity-0 group-hover:opacity-100 transition-opacity bg-black/10 hover:bg-black/20" onClick={() => { navigator.clipboard.writeText(msg.sql!); toast("已复制", "success") }}>
+                            <Copy className="w-2.5 h-2.5" />
+                          </button>
+                        </div>
+                      )}
+                    </div>
                   </div>
-                </div>
-              )}
+                ))}
+                {aiLoading && (
+                  <div className="flex justify-start">
+                    <div className="bg-[var(--muted)] rounded-lg px-2.5 py-1.5 flex items-center gap-1 text-xs text-[var(--muted-foreground)]">
+                      <Loader2 className="w-3 h-3 animate-spin" /> 思考中...
+                    </div>
+                  </div>
+                )}
+              </div>
+              <div className="p-2 border-t flex gap-1.5">
+                <Input
+                  value={aiInput}
+                  onChange={(e) => setAiInput(e.target.value)}
+                  placeholder="描述你想分析的内容..."
+                  disabled={aiLoading}
+                  className="h-7 text-xs"
+                  onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && (e.preventDefault(), sendAi())}
+                />
+                <Button size="sm" onClick={sendAi} disabled={aiLoading || !aiInput.trim()} className="h-7 w-7 p-0">
+                  <Send className="w-3 h-3" />
+                </Button>
+              </div>
             </div>
-            {/* AI Input */}
-            <div className="p-2 border-t flex gap-1.5">
-              <Input
-                value={aiInput}
-                onChange={(e) => setAiInput(e.target.value)}
-                placeholder="描述你想分析的内容..."
-                disabled={aiLoading}
-                className="h-7 text-xs"
-                onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && (e.preventDefault(), sendAi())}
-              />
-              <Button size="sm" onClick={sendAi} disabled={aiLoading || !aiInput.trim()} className="h-7 w-7 p-0">
-                <Send className="w-3 h-3" />
-              </Button>
-            </div>
+
+            {/* Insights Panel */}
+            <InsightPanel
+              insights={insights}
+              loading={insightsLoading}
+              onExecute={(sql, chart) => executeInsight(sql, chart, -1)}
+              onExecuteAll={executeAllInsights}
+              executingIndex={executingInsightIndex}
+              onRequestInsights={requestInsights}
+            />
           </div>
         </div>
       )}
 
-      {/* Results area - takes remaining space */}
+      {/* Results area */}
       {result && (
         <div className={`${editorExpanded ? "shrink-0 mt-3 max-h-[40vh] overflow-auto" : "flex-1 min-h-0 overflow-auto"} border rounded-lg`}>
           <ResultPanel
