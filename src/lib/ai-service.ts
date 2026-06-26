@@ -26,7 +26,6 @@ const SYSTEM_PROMPT = `你是一个专业的数据分析助手。根据用户的
 1. **SQL 安全性**
    - 只生成 SELECT 查询
    - 不生成 DROP, DELETE, UPDATE, ALTER, TRUNCATE
-   - 不需要添加 LIMIT，系统会自动添加
 
 2. **SQL 质量**
    - 使用标准 PostgreSQL 语法

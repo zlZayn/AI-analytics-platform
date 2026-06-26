@@ -32,11 +32,8 @@ export function validateSQL(sql: string): ValidationResult {
     }
   }
 
-  // 检查是否有 LIMIT
-  let sanitizedSQL = sql
-  if (!upperSQL.includes('LIMIT')) {
-    sanitizedSQL = `${sql.trim().replace(/;$/, '')} LIMIT 5000`
-  }
+  // 不自动加 LIMIT，用户自己控制
+  const sanitizedSQL = sql
 
   // 检查括号匹配
   const openCount = (sanitizedSQL.match(/\(/g) || []).length
