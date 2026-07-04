@@ -93,11 +93,21 @@ export interface AIServiceResult {
   items: InsightItem[]
 }
 
+/** 检查 AI 是否已配置，未配置则抛出明确错误 */
+function requireAIConfigured(): void {
+  if (!AI_CONFIG.apiKey) {
+    throw new Error(
+      'AI 服务未配置：缺少 API Key。请在 .env 文件中设置 AI_API_KEY。'
+    )
+  }
+}
+
 export async function generateSQL(
   message: string,
   schemaContext: string,
   conversationHistory?: { role: 'user' | 'assistant'; content: string }[]
 ): Promise<AIServiceResult> {
+  requireAIConfigured()
   const messages: OpenAI.ChatCompletionMessageParam[] = [
     { role: 'system', content: SYSTEM_PROMPT + '\n\n' + schemaContext }
   ]

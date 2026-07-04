@@ -36,6 +36,7 @@ function WorkspaceContent() {
   // AI state
   const [aiInput, setAiInput] = useState("")
   const [aiLoading, setAiLoading] = useState(false)
+  const [aiUnavailable, setAiUnavailable] = useState(false)
   const [aiHistory, setAiHistory] = useState<{ role: "user" | "ai"; content: string; items?: InsightItem[] }[]>([])
 
   // Insight execution state
@@ -97,6 +98,7 @@ function WorkspaceContent() {
       })
       const data = await res.json()
       if (data.success) {
+        setAiUnavailable(false)
         const items = data.data.items || []
         if (items.length > 0) {
           setAiHistory((prev) => [...prev, {
@@ -110,6 +112,11 @@ function WorkspaceContent() {
         }
       } else {
         setAiHistory((prev) => [...prev, { role: "ai", content: `错误: ${data.error}` }])
+        // 检测 AI 未配置的情况，弹出醒目提示
+        if (data.error?.includes("未配置") || data.error?.includes("API Key")) {
+          setAiUnavailable(true)
+          toast("AI 服务未配置，请在 .env 文件中设置 AI_API_KEY", "warning")
+        }
       }
     } catch {
       setAiHistory((prev) => [...prev, { role: "ai", content: "请求失败" }])
@@ -251,7 +258,13 @@ function WorkspaceContent() {
               </Button>
             </div>
             <div className="flex-1 overflow-auto p-3 space-y-2 min-h-0">
-              {aiHistory.length === 0 && (
+              {aiUnavailable && (
+                <div className="p-2 rounded bg-[var(--muted)] border border-[var(--border)] text-xs text-[var(--muted-foreground)] leading-relaxed">
+                  AI 服务未配置。请在 <code className="font-mono bg-[var(--border)] px-1 rounded">.env</code> 中设置
+                  {' '}<code className="font-mono bg-[var(--border)] px-1 rounded">AI_API_KEY</code>。
+                </div>
+              )}
+              {aiHistory.length === 0 && !aiUnavailable && (
                 <div className="flex items-center justify-center h-full text-[var(--muted-foreground)] text-xs">
                   用自然语言描述你想分析的内容
                 </div>
