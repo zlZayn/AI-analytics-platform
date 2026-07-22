@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, Suspense } from "react"
+import { useState, useEffect, useRef, Suspense } from "react"
 import { useSearchParams, useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -13,6 +13,7 @@ import { useToast } from "@/components/toast"
 import type { QueryResult } from "@/types"
 import { Play, Trash2, Save, Loader2, Send, Copy, ChevronDown, ChevronUp } from "lucide-react"
 import dynamic from "next/dynamic"
+import { fetchApi, ApiRequestError } from "@/lib/client-api"
 
 const MonacoEditor = dynamic(() => import("@monaco-editor/react"), {
   ssr: false,
@@ -46,6 +47,8 @@ function WorkspaceContent() {
   // Save dialog
   const [saveDialogOpen, setSaveDialogOpen] = useState(false)
   const [saveName, setSaveName] = useState("")
+  const queryController = useRef<AbortController | null>(null)
+  const aiController = useRef<AbortController | null>(null)
 
   const { toast } = useToast()
 
@@ -62,23 +65,26 @@ function WorkspaceContent() {
     if (!connectionId || !q.trim()) return
     setLoading(true)
     setError("")
+    queryController.current?.abort()
+    const controller = new AbortController()
+    queryController.current = controller
     try {
-      const res = await fetch("/api/query", {
+      const data = await fetchApi<{ success: boolean; data?: QueryResult; error?: string }>("/api/query", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ connectionId, sql: q }),
+        signal: controller.signal,
       })
-      const data = await res.json()
-      if (data.success) {
+      if (data.success && data.data) {
         setResult(data.data)
         setSql(q)
         setEditorExpanded(false)
         toast(`查询完成: ${data.data.rowCount} 行, ${data.data.executionTimeMs}ms`, "success")
       } else {
-        setError(data.error)
+        setError(data.error || "查询执行失败")
       }
-    } catch {
-      setError("查询执行失败")
+    } catch (error) {
+      if (!(error instanceof DOMException && error.name === "AbortError")) setError(error instanceof ApiRequestError ? error.message : "查询执行失败")
     } finally {
       setLoading(false)
     }
@@ -90,14 +96,17 @@ function WorkspaceContent() {
     setAiInput("")
     setAiHistory((prev) => [...prev, { role: "user", content: msg }])
     setAiLoading(true)
+    aiController.current?.abort()
+    const controller = new AbortController()
+    aiController.current = controller
     try {
-      const res = await fetch("/api/ai", {
+      const data = await fetchApi<{ success: boolean; data?: { items?: InsightItem[] }; error?: string }>("/api/ai", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ connectionId, message: msg }),
+        signal: controller.signal,
       })
-      const data = await res.json()
-      if (data.success) {
+      if (data.success && data.data) {
         setAiUnavailable(false)
         const items = data.data.items || []
         if (items.length > 0) {
@@ -118,8 +127,8 @@ function WorkspaceContent() {
           toast("AI 服务未配置，请在 .env 文件中设置 AI_API_KEY", "warning")
         }
       }
-    } catch {
-      setAiHistory((prev) => [...prev, { role: "ai", content: "请求失败" }])
+    } catch (error) {
+      if (!(error instanceof DOMException && error.name === "AbortError")) setAiHistory((prev) => [...prev, { role: "ai", content: error instanceof ApiRequestError ? error.message : "请求失败" }])
     } finally {
       setAiLoading(false)
     }
@@ -131,13 +140,12 @@ function WorkspaceContent() {
     setLoading(true)
     setError("")
     try {
-      const res = await fetch("/api/query", {
+      const data = await fetchApi<{ success: boolean; data?: QueryResult; error?: string }>("/api/query", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ connectionId, sql }),
       })
-      const data = await res.json()
-      if (data.success) {
+      if (data.success && data.data) {
         setResult(data.data)
         setSql(sql)
 
@@ -151,10 +159,10 @@ function WorkspaceContent() {
         setEditorExpanded(false)
         toast(`洞察执行完成: ${data.data.rowCount} 行`, "success")
       } else {
-        setError(data.error)
+        setError(data.error || "洞察执行失败")
       }
-    } catch {
-      setError("洞察执行失败")
+    } catch (error) {
+      setError(error instanceof ApiRequestError ? error.message : "洞察执行失败")
     } finally {
       setLoading(false)
       setExecutingInsightIndex(null)
@@ -163,14 +171,18 @@ function WorkspaceContent() {
 
   async function saveQuery() {
     if (!saveName.trim() || !sql.trim() || !connectionId) return
-    await fetch("/api/query/saved", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ connectionId, name: saveName, sql }),
-    })
-    setSaveDialogOpen(false)
-    setSaveName("")
-    toast("查询已保存", "success")
+    try {
+      await fetchApi("/api/query/saved", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ connectionId, name: saveName, sql }),
+      })
+      setSaveDialogOpen(false)
+      setSaveName("")
+      toast("查询已保存", "success")
+    } catch (error) {
+      toast(error instanceof ApiRequestError ? error.message : "保存失败，请重试", "error")
+    }
   }
 
   if (!connectionId) {
@@ -178,7 +190,7 @@ function WorkspaceContent() {
   }
 
   return (
-    <div className="h-[calc(100vh-2rem)] flex flex-col p-4 overflow-hidden">
+    <div className="flex h-full min-h-0 flex-col overflow-hidden p-3 sm:p-4">
       {/* Collapsed header - show when editor is collapsed */}
       {result && !editorExpanded && (
         <div className="flex items-center justify-between px-3 py-2 bg-[var(--muted)] rounded-lg cursor-pointer hover:bg-[var(--accent)] transition-colors mb-3" onClick={() => setEditorExpanded(true)}>
@@ -200,9 +212,9 @@ function WorkspaceContent() {
 
       {/* Expanded editor area */}
       {editorExpanded && (
-        <div className="flex gap-3 flex-1 min-h-0">
+        <div className="flex min-h-0 flex-1 flex-col gap-3 lg:flex-row">
           {/* SQL Editor */}
-          <div className="flex-[3] flex flex-col min-w-0">
+          <div className="flex min-h-[340px] min-w-0 flex-1 flex-col lg:min-h-0 lg:flex-[3]">
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center gap-2">
                 <span className="text-xs font-medium text-[var(--muted-foreground)]">SQL 编辑器</span>
@@ -250,7 +262,7 @@ function WorkspaceContent() {
           </div>
 
           {/* AI Assistant */}
-          <div className="flex-[2] flex flex-col min-w-0 border rounded-lg">
+          <div className="flex min-h-[240px] min-w-0 flex-1 flex-col rounded-lg border lg:min-h-0 lg:flex-[2]">
             <div className="px-3 py-2 border-b flex items-center justify-between">
               <span className="text-xs font-medium text-[var(--muted-foreground)]">AI 助手</span>
               <Button variant="ghost" size="sm" className="h-5 text-[10px]" onClick={() => setAiHistory([])} disabled={!aiHistory.length}>
@@ -322,7 +334,7 @@ function WorkspaceContent() {
 
       {/* Results area */}
       {result && (
-        <div className={`${editorExpanded ? "shrink-0 mt-3 max-h-[40vh] overflow-auto" : "flex-1 min-h-0 overflow-auto"} border rounded-lg`}>
+        <div className={`${editorExpanded ? "mt-3 max-h-[42vh] shrink-0 overflow-auto" : "min-h-0 flex-1 overflow-auto"} rounded-lg border`}>
           <ResultPanel
             result={result}
             onCopySql={() => { navigator.clipboard.writeText(sql); toast("SQL 已复制", "success") }}

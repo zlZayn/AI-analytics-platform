@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/dialog"
 import { Database, Plus, Pencil, Trash2, ArrowRight } from "lucide-react"
 import type { Connection } from "@/types"
+import { ApiRequestError, fetchApi } from "@/lib/client-api"
 
 const defaultForm = {
   name: "",
@@ -31,26 +32,23 @@ const defaultForm = {
 export default function Home() {
   const router = useRouter()
   const searchParams = useSearchParams()
+  const shouldCreate = searchParams.get("action") === "create"
   const [connections, setConnections] = useState<Connection[]>([])
   const [loading, setLoading] = useState(true)
-  const [dialogOpen, setDialogOpen] = useState(false)
+  const [dialogOpen, setDialogOpen] = useState(shouldCreate)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [form, setForm] = useState(defaultForm)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState("")
-
-  // Auto-open create dialog if ?action=create
-  useEffect(() => {
-    if (searchParams.get("action") === "create") {
-      setDialogOpen(true)
-    }
-  }, [searchParams])
+  const [listError, setListError] = useState("")
 
   useEffect(() => {
-    fetch("/api/connections")
-      .then((r) => r.json())
-      .then((d) => d.success && setConnections(d.data))
-      .finally(() => setLoading(false))
+    const controller = new AbortController()
+    fetchApi<{ success: boolean; data?: Connection[] }>("/api/connections", { signal: controller.signal }, 8000)
+      .then((d) => { if (d.success && d.data) setConnections(d.data) })
+      .catch((requestError) => { if (!(requestError instanceof DOMException && requestError.name === "AbortError")) setListError(requestError instanceof ApiRequestError ? requestError.message : "连接列表加载失败") })
+      .finally(() => { if (!controller.signal.aborted) setLoading(false) })
+    return () => controller.abort()
   }, [])
 
   async function handleSubmit() {
@@ -71,7 +69,7 @@ export default function Home() {
         setEditingId(null)
         refresh()
       } else {
-        setError(data.error)
+        setError(data.error || "操作失败")
       }
     } catch {
       setError("操作失败")
@@ -88,9 +86,10 @@ export default function Home() {
   }
 
   function refresh() {
-    fetch("/api/connections")
-      .then((r) => r.json())
-      .then((d) => d.success && setConnections(d.data))
+    setListError("")
+    fetchApi<{ success: boolean; data?: Connection[] }>("/api/connections", {}, 8000)
+      .then((d) => { if (d.success && d.data) setConnections(d.data) })
+      .catch((requestError) => setListError(requestError instanceof ApiRequestError ? requestError.message : "连接列表加载失败"))
   }
 
   function openEdit(conn: Connection) {
@@ -119,6 +118,7 @@ export default function Home() {
         <h1 className="text-base font-semibold text-gray-900">连接管理</h1>
         <p className="text-xs text-gray-400 mt-0.5">选择或创建 PostgreSQL 数据库连接</p>
       </div>
+      {listError && <div className="mb-4 flex items-center justify-between rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-700"><span>{listError}</span><Button variant="ghost" size="sm" className="h-6 text-xs" onClick={refresh}>重试</Button></div>}
 
       {/* Connection List */}
       {loading ? (

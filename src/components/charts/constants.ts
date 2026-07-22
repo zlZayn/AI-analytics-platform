@@ -1,20 +1,20 @@
 export const COLORS = [
-  "#3b82f6", "#ef4444", "#10b981", "#f59e0b",
-  "#8b5cf6", "#ec4899", "#06b6d4", "#f97316",
-  "#6366f1", "#14b8a6", "#e11d48", "#84cc16",
+  "#2563eb", "#0f766e", "#c2410c", "#7c3aed",
+  "#be123c", "#0369a1", "#15803d", "#a16207",
+  "#4338ca", "#0e7490", "#9f1239", "#4d7c0f",
 ]
 
 export const AXIS_CONFIG = {
-  tick: { fontSize: 11, fill: "#6b7280" },
+  tick: { fontSize: 11, fill: "var(--chart-tick)" },
   tickLine: false as const,
-  axisLine: { stroke: "#e5e7eb" },
+  axisLine: { stroke: "var(--border)" },
 }
 
 export const GRID_CONFIG = {
   strokeDasharray: "3 3" as const,
-  stroke: "#f0f0f0",
+  stroke: "var(--chart-grid)",
 }
 
 export const MAX_HEATMAP_ENTRIES = 20
-export const MAX_CORR_COLUMNS = 10
-export const MAX_CORR_ROWS = 100
+export const MAX_CORR_COLUMNS = 20
+export const MAX_CORR_ROWS = 2000

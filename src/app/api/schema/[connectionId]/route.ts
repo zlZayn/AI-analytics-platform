@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { scanSchema } from '@/lib/schema-service'
+import { apiFailure } from '@/lib/api-response'
+import type { Prisma } from '@/generated/prisma/client'
 
 // 获取 Schema
 export async function GET(
@@ -54,11 +56,16 @@ export async function GET(
     const columnCount = schema.tables.reduce((sum, t) => sum + t.columns.length, 0)
     const relationCount = schema.relations.length
 
+    await prisma.schemaSnapshot.updateMany({
+      where: { connectionId, status: 'active' },
+      data: { status: 'archived' }
+    })
+
     await prisma.schemaSnapshot.create({
       data: {
         connectionId,
         version: schema.version,
-        schemaJson: schema as unknown as Record<string, unknown> as any,
+        schemaJson: schema as unknown as Prisma.InputJsonValue,
         tableCount,
         columnCount,
         relationCount,
@@ -82,9 +89,7 @@ export async function GET(
       }
     })
   } catch (error) {
-    return NextResponse.json(
-      { success: false, error: error instanceof Error ? error.message : '获取 Schema 失败' },
-      { status: 500 }
-    )
+    console.error('获取 Schema 失败', error)
+    return apiFailure('获取 Schema 失败，请稍后重试', 500, 'SCHEMA_READ_FAILED', true)
   }
 }

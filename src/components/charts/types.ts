@@ -14,7 +14,12 @@ export interface ChartMapping {
   category?: string
   valueKey?: string
   method?: CorrelationMethod | string
-  [slot: string]: string | undefined
+  label?: string
+  comparison?: string
+  columns?: string
+  mode?: "grouped" | "stacked" | "normalized"
+  showLegend?: boolean
+  [slot: string]: string | boolean | undefined
 }
 
 export interface ChartProps {

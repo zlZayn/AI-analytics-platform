@@ -72,6 +72,16 @@
   --chart-3: #2563ef;
   --chart-4: #1a4eda;
   --chart-5: #1f3fad;
+  --chart-grid: #e7edf2;
+  --chart-tick: #64748b;
+  --chart-accent: #0f766e;
+  --chart-positive: #15803d;
+  --chart-negative: #be123c;
+  --chart-sequential-low: #d9f3f0;
+  --chart-sequential-high: #0f766e;
+  --chart-diverging-negative: #be123c;
+  --chart-diverging-neutral: #f8fafc;
+  --chart-diverging-positive: #2563eb;
   --radius: 0.5rem;
   --sidebar: #fafafa;
   --sidebar-foreground: #0a0a0a;
@@ -107,6 +117,16 @@
   --chart-3: oklch(0.439 0 0);
   --chart-4: oklch(0.371 0 0);
   --chart-5: oklch(0.269 0 0);
+  --chart-grid: oklch(1 0 0 / 12%);
+  --chart-tick: oklch(0.75 0 0);
+  --chart-accent: #2dd4bf;
+  --chart-positive: #4ade80;
+  --chart-negative: #fb7185;
+  --chart-sequential-low: #134e4a;
+  --chart-sequential-high: #5eead4;
+  --chart-diverging-negative: #fb7185;
+  --chart-diverging-neutral: #334155;
+  --chart-diverging-positive: #60a5fa;
   --sidebar: oklch(0.205 0 0);
   --sidebar-foreground: oklch(0.985 0 0);
   --sidebar-primary: oklch(0.488 0.243 264.376);
@@ -123,6 +143,22 @@
   }
   body {
     @apply bg-background text-foreground;
+    min-width: 320px;
+  }
+  button, a, [role="button"] {
+    -webkit-tap-highlight-color: transparent;
+  }
+  :focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
   }
   html {
     @apply font-sans;

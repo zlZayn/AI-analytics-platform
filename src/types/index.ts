@@ -18,6 +18,9 @@ export interface QueryResult {
   rows: Record<string, unknown>[]
   rowCount: number
   executionTimeMs: number
+  returnedRowCount?: number
+  truncated?: boolean
+  rowLimit?: number
 }
 
 export interface SchemaColumn {

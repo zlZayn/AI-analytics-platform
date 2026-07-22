@@ -2,7 +2,8 @@
 
 import React, { useMemo, useRef } from "react"
 import { useContainerWidth } from "../hooks/use-container-width"
-import { getColor, formatNumber, computeBoxStats } from "../utils"
+import { getColor, formatNumber } from "../utils"
+import { computeBoxStats } from "../algorithms"
 import { EmptyState } from "../empty-state"
 
 export const BoxPlotView = React.memo(function BoxPlotView({

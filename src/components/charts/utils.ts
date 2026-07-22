@@ -20,7 +20,7 @@ export function TooltipFormatter(value: any, name: any): [string, string] {
 }
 
 export function validateMapping(
-  mapping: Record<string, string | undefined>,
+  mapping: Record<string, unknown>,
   required: string[],
 ): string | null {
   for (const field of required) {

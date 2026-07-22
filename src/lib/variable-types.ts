@@ -17,6 +17,8 @@ export type ChartType =
   | "boxplot"
   | "heatmap"
   | "correlation"
+  | "kpi"
+  | "histogram"
   | "table"
 
 export type CorrelationMethod = "pearson" | "spearman" | "kendall"
@@ -65,6 +67,15 @@ export const CHART_TYPE_SLOTS: Record<ChartType, Record<string, MappingSlot>> = 
   correlation: {
     columns: { label: "数值列(多选)", required: true },
   },
+  kpi: {
+    value: { label: "指标值", required: true },
+    label: { label: "标题", required: false },
+    comparison: { label: "对比值", required: false },
+  },
+  histogram: {
+    value: { label: "数值", required: true },
+    color: { label: "分组", required: false },
+  },
   table: {},
 }
 
@@ -79,6 +90,8 @@ export const CHART_TYPE_INFO: Record<ChartType, { label: string; description: st
   boxplot: { label: "箱线图", description: "分布统计" },
   heatmap: { label: "热力图", description: "矩阵分布" },
   correlation: { label: "相关矩阵", description: "变量相关性" },
+  kpi: { label: "指标卡", description: "展示核心单值指标" },
+  histogram: { label: "直方图", description: "展示连续数值分布" },
   table: { label: "表格", description: "原始数据" },
 }
 

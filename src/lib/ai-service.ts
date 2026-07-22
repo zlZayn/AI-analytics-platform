@@ -6,20 +6,13 @@ const AI_CONFIG = {
   model: process.env.AI_MODEL || 'mimo-v2.5-pro'
 }
 
-const client = new OpenAI({
-  baseURL: AI_CONFIG.apiBase,
-  apiKey: AI_CONFIG.apiKey
-})
+let client: OpenAI | null = null
 
 const SYSTEM_PROMPT = `你是一个专业的数据分析助手。根据用户的自然语言需求，生成结构化的分析结果。
 
 ## 数据模型
 
-这是一个药店会员系统的星型模型:
-- 事实表: fact_orders (订单), fact_behavior (行为), fact_inventory (库存), fact_refunds (退款)
-- 维度表: dim_member (会员), dim_product (商品), dim_pharmacy (门店), dim_date (日期), dim_promotion (促销), dim_payment (支付)
-
-事实表通过 *_id 外键关联维度表。
+下面会注入当前连接真实扫描出的 Schema。不得假设数据库属于某个行业，也不得引用 Schema 中不存在的表、列或关系。
 
 ## 规则
 
@@ -34,13 +27,6 @@ const SYSTEM_PROMPT = `你是一个专业的数据分析助手。根据用户的
    - 时间字段使用 date_trunc 进行粒度控制
    - 分组时 SELECT 的非聚合字段必须在 GROUP BY 中
    - SQL 列名使用 AS 别名，图表会自动使用这些别名
-
-3. **业务理解**
-   - 销售额: SUM(fact_orders.pay_amount)
-   - 订单数: COUNT(DISTINCT fact_orders.order_no)
-   - 客单价: SUM(pay_amount) / COUNT(DISTINCT order_no)
-   - 退款率: 退款数 / 订单数
-   - 复购率: 有2+订单的会员数 / 总会员数
 
 ## 输出格式
 
@@ -61,6 +47,8 @@ const SYSTEM_PROMPT = `你是一个专业的数据分析助手。根据用户的
 - scatter: x=数值列, y=数值列
 - boxplot: category=分类列, value=数值列
 - table: 无需映射
+- kpi: value=单个数值列，可选 label/comparison
+- histogram: value=数值列，可选 color=分组列
 
 示例:
 [{"title":"各门店销售额","insight":"旗舰店销量领先","sql":"SELECT p.name AS name, SUM(o.pay_amount) AS value FROM fact_orders o JOIN dim_pharmacy p ON o.pharmacy_id = p.id GROUP BY p.name ORDER BY value DESC","chart":{"type":"bar","mapping":{"x":"name","y":"value"}}}]
@@ -70,24 +58,9 @@ const SYSTEM_PROMPT = `你是一个专业的数据分析助手。根据用户的
 
 7. **表格**: 直接返回原始数据即可
 
-列名使用有意义的英文别名 (AS)，图表会自动使用这些别名作为轴标签。
+相关矩阵返回多个数值列，由系统计算相关系数。列名使用有意义的英文别名作为轴标签。
 
-## 输出格式
-
-严格按以下格式输出，不要添加任何额外内容:
-
-1. 先写一行简短说明 (不超过 20 字)
-2. 空一行
-3. 写 SQL 语句 (不要用代码块包裹)
-
-示例:
-查询各分类销售额
-
-SELECT dp.category_l2 AS name, SUM(fo.pay_amount) AS value
-FROM fact_orders fo
-JOIN dim_product dp ON fo.product_id = dp.id
-GROUP BY dp.category_l2
-ORDER BY value DESC`
+兼容性说明：仍然严格返回最前面的 JSON 数组，不要添加任何额外内容；不要返回纯文本 SQL。`
 
 export interface AIServiceResult {
   items: InsightItem[]
@@ -102,12 +75,23 @@ function requireAIConfigured(): void {
   }
 }
 
+function getClient(): OpenAI {
+  requireAIConfigured()
+  if (!client) {
+    client = new OpenAI({
+      baseURL: AI_CONFIG.apiBase,
+      apiKey: AI_CONFIG.apiKey,
+    })
+  }
+  return client
+}
+
 export async function generateSQL(
   message: string,
   schemaContext: string,
   conversationHistory?: { role: 'user' | 'assistant'; content: string }[]
 ): Promise<AIServiceResult> {
-  requireAIConfigured()
+  const aiClient = getClient()
   const messages: OpenAI.ChatCompletionMessageParam[] = [
     { role: 'system', content: SYSTEM_PROMPT + '\n\n' + schemaContext }
   ]
@@ -122,7 +106,7 @@ export async function generateSQL(
   // 添加当前用户消息
   messages.push({ role: 'user', content: message })
 
-  const response = await client.chat.completions.create({
+  const response = await aiClient.chat.completions.create({
     model: AI_CONFIG.model,
     messages,
     temperature: 0.7,
@@ -160,8 +144,19 @@ function parseInsightItems(content: string): InsightItem[] {
     const arrayMatch = jsonStr.match(/\[[\s\S]*\]/)
     if (arrayMatch) {
       const parsed = JSON.parse(arrayMatch[0])
-      if (Array.isArray(parsed) && parsed.length > 0 && parsed[0].sql) {
-        return parsed
+      if (Array.isArray(parsed)) {
+        const allowed = new Set(['line', 'bar', 'pie', 'scatter', 'boxplot', 'heatmap', 'correlation', 'kpi', 'histogram', 'table'])
+        return parsed.filter((item): item is InsightItem => {
+          if (!item || typeof item !== 'object') return false
+          const candidate = item as Record<string, unknown>
+          const chart = candidate.chart as Record<string, unknown> | undefined
+          return typeof candidate.title === 'string' && typeof candidate.insight === 'string' && typeof candidate.sql === 'string' && !!chart && typeof chart.type === 'string' && allowed.has(chart.type) && typeof chart.mapping === 'object'
+        }).map((item) => ({
+          title: item.title.slice(0, 80),
+          insight: item.insight.slice(0, 1000),
+          sql: item.sql.trim(),
+          chart: { type: item.chart.type, mapping: item.chart.mapping || {} },
+        }))
       }
     }
   } catch (e) {

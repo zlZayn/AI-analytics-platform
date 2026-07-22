@@ -15,8 +15,10 @@ import {
   Settings,
   Plus,
   Circle,
+  X,
 } from "lucide-react"
 import type { Connection } from "@/types"
+import { ThemeToggle } from "./theme-toggle"
 
 const navItems = [
   { href: "/workspace", label: "数据工作台", icon: Terminal },
@@ -24,7 +26,7 @@ const navItems = [
   { href: "/queries", label: "查询管理", icon: Clock },
 ]
 
-export function Sidebar() {
+export function Sidebar({ mobileOpen = false, onClose }: { mobileOpen?: boolean; onClose?: () => void }) {
   const pathname = usePathname()
   const router = useRouter()
   const { connection, connectionId } = useConnection()
@@ -64,7 +66,13 @@ export function Sidebar() {
   }
 
   return (
-    <aside className="w-52 bg-[var(--sidebar)] border-r border-[var(--sidebar-border)] flex flex-col shrink-0 text-[var(--sidebar-foreground)]">
+    <aside className={cn(
+      "fixed inset-y-0 left-0 z-50 flex w-64 flex-col border-r border-[var(--sidebar-border)] bg-[var(--sidebar)] text-[var(--sidebar-foreground)] shadow-xl transition-transform md:relative md:z-auto md:w-52 md:translate-x-0 md:shadow-none",
+      mobileOpen ? "translate-x-0" : "-translate-x-full",
+    )}>
+      <button data-testid="mobile-nav-close" className="absolute right-2 top-3 rounded p-1 text-[var(--muted-foreground)] hover:bg-[var(--sidebar-accent)] md:hidden" onClick={onClose} aria-label="关闭导航">
+        <X className="h-4 w-4" />
+      </button>
       {/* Header */}
       <div className="px-3 py-3 border-b border-[var(--sidebar-border)]">
         <Link href="/" className="flex items-center gap-2">
@@ -192,7 +200,10 @@ export function Sidebar() {
 
       {/* Footer */}
       <div className="px-3 py-2 border-t border-[var(--sidebar-border)]">
-        <span className="text-[10px] text-[var(--muted-foreground)]">v1.23.0</span>
+        <div className="flex items-center justify-between">
+          <span className="text-[10px] text-[var(--muted-foreground)]">v1.23.0</span>
+          <ThemeToggle />
+        </div>
       </div>
     </aside>
   )

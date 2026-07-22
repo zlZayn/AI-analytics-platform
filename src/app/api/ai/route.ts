@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { generateSQL } from '@/lib/ai-service'
 import { buildSchemaContext, scanSchema } from '@/lib/schema-service'
 import { prisma } from '@/lib/prisma'
+import { apiFailure } from '@/lib/api-response'
 
 // AI 分析
 export async function POST(request: NextRequest) {
@@ -72,9 +73,7 @@ export async function POST(request: NextRequest) {
       }
     })
   } catch (error) {
-    return NextResponse.json(
-      { success: false, error: error instanceof Error ? error.message : 'AI 分析失败' },
-      { status: 500 }
-    )
+    console.error('AI 分析失败', error)
+    return apiFailure(error instanceof Error && /未配置|API Key/.test(error.message) ? 'AI 服务未配置，请设置 AI_API_KEY' : 'AI 分析失败，请稍后重试', 500, 'AI_FAILED', true)
   }
 }
