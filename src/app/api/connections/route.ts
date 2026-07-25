@@ -2,9 +2,10 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { encrypt } from '@/lib/encryption'
 import { Pool } from 'pg'
+import { apiFailure } from '@/lib/api-response'
 
 // 获取连接列表
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
     const connections = await prisma.connection.findMany({
       select: {
@@ -24,10 +25,8 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ success: true, data: connections })
   } catch (error) {
-    return NextResponse.json(
-      { success: false, error: error instanceof Error ? error.message : '获取连接列表失败' },
-      { status: 500 }
-    )
+    console.error('获取连接列表失败', error)
+    return apiFailure('获取连接列表失败，请稍后重试', 500, 'CONNECTION_LIST_FAILED', true)
   }
 }
 
@@ -58,12 +57,11 @@ export async function POST(request: NextRequest) {
 
     try {
       await testClient.query('SELECT 1')
-      await testClient.end()
     } catch (error) {
-      return NextResponse.json(
-        { success: false, error: `连接测试失败: ${error instanceof Error ? error.message : '未知错误'}` },
-        { status: 400 }
-      )
+      console.error('连接测试失败', error)
+      return apiFailure('连接测试失败，请检查主机、端口、数据库和账号', 400, 'CONNECTION_TEST_FAILED', false)
+    } finally {
+      await testClient.end().catch(() => undefined)
     }
 
     // 加密密码
@@ -111,9 +109,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ success: true, data: connection })
   } catch (error) {
-    return NextResponse.json(
-      { success: false, error: error instanceof Error ? error.message : '创建连接失败' },
-      { status: 500 }
-    )
+    console.error('创建连接失败', error)
+    return apiFailure('创建连接失败，请稍后重试', 500, 'CONNECTION_CREATE_FAILED', true)
   }
 }

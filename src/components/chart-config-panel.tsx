@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useMemo, useState } from "react"
 import { DropdownSelect } from "@/components/ui/dropdown-select"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
@@ -12,6 +12,7 @@ import {
   CHART_TYPE_SLOTS,
   CHART_TYPE_INFO,
 } from "@/lib/variable-types"
+import { profileData, recommendCharts, validateChartMapping } from "@/components/charts/pipeline"
 import { Eye, EyeOff } from "lucide-react"
 
 interface ChartConfigPanelProps {
@@ -32,6 +33,9 @@ const GROUP_WARN_THRESHOLD = 20
 export function ChartConfigPanel({ columns, data, mapping, onChange }: ChartConfigPanelProps) {
   const chartType = (mapping.chartType as ChartType) || "table"
   const slots = CHART_TYPE_SLOTS[chartType] || {}
+  const profile = useMemo(() => profileData(columns, data), [columns, data])
+  const recommendations = useMemo(() => recommendCharts(profile).slice(0, 2), [profile])
+  const validation = useMemo(() => validateChartMapping(mapping, profile, data), [mapping, profile, data])
 
   // Legend toggle
   const [showLegend, setShowLegend] = useState(true)
@@ -105,7 +109,13 @@ export function ChartConfigPanel({ columns, data, mapping, onChange }: ChartConf
   return (
     <div className="space-y-3">
       {/* 图表类型选择 */}
-      <div className="grid grid-cols-4 gap-1.5">
+      {chartType === "table" && recommendations.length > 0 && (
+        <div className="flex flex-wrap items-center gap-1.5 rounded-md border border-[var(--border)] bg-[var(--muted)] px-2 py-1.5 text-[10px] text-[var(--muted-foreground)]">
+          <span>推荐：</span>
+          {recommendations.map((recommendation) => <button key={recommendation.chartType} type="button" className="rounded border border-[var(--border)] bg-[var(--card)] px-2 py-1 font-medium text-[var(--foreground)] hover:border-[var(--ring)]" onClick={() => onChange(recommendation.mapping)}>{CHART_TYPE_INFO[recommendation.chartType as ChartType]?.label}</button>)}
+        </div>
+      )}
+      <div className="grid grid-cols-4 gap-1.5 sm:grid-cols-5">
         {(Object.keys(CHART_TYPE_INFO) as ChartType[]).map((type) => {
           const info = CHART_TYPE_INFO[type]
           const active = chartType === type
@@ -193,9 +203,9 @@ export function ChartConfigPanel({ columns, data, mapping, onChange }: ChartConf
       )}
 
       {/* 必填项提示 */}
-      {missingRequired.length > 0 && chartType !== "table" && chartType !== "correlation" && (
+      {validation.issues.length > 0 && chartType !== "table" && chartType !== "correlation" && (
         <div className="text-[11px] text-amber-600 bg-amber-50 border border-amber-200 rounded px-2 py-1">
-          请为 {missingRequired.map(([, s]) => s.label).join("、")} 选择列
+          {validation.issues[0].message}
         </div>
       )}
 

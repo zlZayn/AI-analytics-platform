@@ -2,7 +2,7 @@
 
 import React, { useMemo } from "react"
 import { MAX_CORR_COLUMNS, MAX_CORR_ROWS } from "../constants"
-import { computeCorrelation } from "../utils"
+import { computeCorrelation } from "../algorithms"
 import { EmptyState } from "../empty-state"
 
 export const CorrelationHeatmap = React.memo(function CorrelationHeatmap({
@@ -47,7 +47,7 @@ export const CorrelationHeatmap = React.memo(function CorrelationHeatmap({
           }
         }
         const corr = computeCorrelation(xArr, yArr, method)
-        matrix[i][j] = Math.round(corr * 100) / 100
+        matrix[i][j] = corr.value === null ? Number.NaN : Math.round(corr.value * 100) / 100
         matrix[j][i] = matrix[i][j]
       }
     }
@@ -134,7 +134,7 @@ export const CorrelationHeatmap = React.memo(function CorrelationHeatmap({
                   fontSize={9}
                   fill={Math.abs(val) > 0.5 ? "#fff" : "#374151"}
                 >
-                  {val.toFixed(2)}
+                  {Number.isFinite(val) ? val.toFixed(2) : "-"}
                 </text>
               </g>
             )),

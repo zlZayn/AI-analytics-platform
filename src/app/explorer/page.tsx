@@ -1,20 +1,19 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { useSearchParams, useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Search, RefreshCw, Key, Link2, Eye, Copy, Play, Database } from "lucide-react"
+import { Search, RefreshCw, Key, Link2, Eye, Play, Database } from "lucide-react"
 import type { SchemaTable, SchemaData } from "@/types"
-import { useToast } from "@/components/toast"
+import { ApiRequestError, fetchApi } from "@/lib/client-api"
 
 export default function ExplorerPage() {
   const searchParams = useSearchParams()
   const router = useRouter()
   const connectionId = searchParams.get("connection")
-  const { toast } = useToast()
 
   const [schema, setSchema] = useState<SchemaData | null>(null)
   const [loading, setLoading] = useState(false)
@@ -22,32 +21,52 @@ export default function ExplorerPage() {
   const [selected, setSelected] = useState<SchemaTable | null>(null)
   const [preview, setPreview] = useState<Record<string, unknown>[] | null>(null)
   const [previewLoading, setPreviewLoading] = useState(false)
+  const [error, setError] = useState("")
+  const previewController = useRef<AbortController | null>(null)
 
   useEffect(() => {
-    if (connectionId) fetchSchema()
+    if (!connectionId) return
+    const controller = new AbortController()
+    fetchSchema(false, controller.signal)
+    return () => controller.abort()
+    // The request is intentionally scoped to the selected connection.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [connectionId])
 
-  async function fetchSchema(refresh = false) {
+  async function fetchSchema(refresh = false, signal?: AbortSignal) {
     if (!connectionId) return
     setLoading(true)
-    const res = await fetch(`/api/schema/${connectionId}${refresh ? "?refresh=true" : ""}`)
-    const data = await res.json()
-    if (data.success) setSchema({ tables: data.data.tables || [], relations: data.data.relations || [], version: data.data.version })
-    setLoading(false)
+    setError("")
+    try {
+      const data = await fetchApi<{ success: boolean; data?: SchemaData; error?: string }>(`/api/schema/${connectionId}${refresh ? "?refresh=true" : ""}`, { signal })
+      if (data.success && data.data) setSchema({ tables: data.data.tables || [], relations: data.data.relations || [], version: data.data.version })
+    } catch (requestError) {
+      if (!(requestError instanceof DOMException && requestError.name === "AbortError")) setError(requestError instanceof ApiRequestError ? requestError.message : "Schema 加载失败")
+    } finally {
+      if (!signal?.aborted) setLoading(false)
+    }
   }
 
   async function previewTable(name: string) {
     if (!connectionId) return
     setPreviewLoading(true)
     setPreview(null)
-    const res = await fetch("/api/query", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ connectionId, sql: `SELECT * FROM ${name} LIMIT 20` }),
-    })
-    const data = await res.json()
-    setPreview(data.success ? data.data.rows : null)
-    setPreviewLoading(false)
+    previewController.current?.abort()
+    const controller = new AbortController()
+    previewController.current = controller
+    try {
+      const data = await fetchApi<{ success: boolean; data?: { rows: Record<string, unknown>[] } }>("/api/query", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ connectionId, sql: `SELECT * FROM \"${name.replaceAll('"', '""')}\"` }),
+        signal: controller.signal,
+      })
+      setPreview(data.success ? data.data?.rows || [] : null)
+    } catch (requestError) {
+      if (!(requestError instanceof DOMException && requestError.name === "AbortError")) setError(requestError instanceof ApiRequestError ? requestError.message : "预览加载失败")
+    } finally {
+      if (!controller.signal.aborted) setPreviewLoading(false)
+    }
   }
 
   function selectTable(t: SchemaTable) {
@@ -68,7 +87,7 @@ export default function ExplorerPage() {
   }
 
   return (
-    <div className="p-4 h-[calc(100vh-2rem)] flex flex-col">
+    <div className="flex h-full min-h-0 flex-col p-3 sm:p-4">
       {/* Header */}
       <div className="flex items-center justify-between mb-3">
         <h1 className="text-sm font-semibold text-[var(--foreground)]">数据探索</h1>
@@ -79,10 +98,11 @@ export default function ExplorerPage() {
           </Button>
         </div>
       </div>
+      {error && <div className="mb-3 flex items-center justify-between rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-700"><span>{error}</span><Button variant="ghost" size="sm" className="h-6 text-xs" onClick={() => fetchSchema(true)}>重试</Button></div>}
 
-      <div className="flex-1 flex gap-3 min-h-0">
+      <div className="flex min-h-0 flex-1 flex-col gap-3 lg:flex-row">
         {/* Table List */}
-        <div className="w-64 flex flex-col min-h-0 border rounded-lg">
+        <div className="flex max-h-[34vh] min-h-[180px] w-full flex-col rounded-lg border lg:max-h-none lg:w-64">
           <div className="p-2 border-b">
             <div className="relative">
               <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[var(--muted-foreground)]" />

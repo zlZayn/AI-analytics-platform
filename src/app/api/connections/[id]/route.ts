@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { encrypt } from '@/lib/encryption'
+import { invalidatePool } from '@/lib/query-engine'
+import { apiFailure } from '@/lib/api-response'
 
 // 获取连接详情
 export async function GET(
@@ -39,10 +41,8 @@ export async function GET(
 
     return NextResponse.json({ success: true, data: connection })
   } catch (error) {
-    return NextResponse.json(
-      { success: false, error: error instanceof Error ? error.message : '获取连接详情失败' },
-      { status: 500 }
-    )
+    console.error('获取连接详情失败', error)
+    return apiFailure('获取连接详情失败，请稍后重试', 500, 'CONNECTION_READ_FAILED', true)
   }
 }
 
@@ -84,12 +84,12 @@ export async function PUT(
       data: updateData
     })
 
+    await invalidatePool(id)
+
     return NextResponse.json({ success: true, data: connection })
   } catch (error) {
-    return NextResponse.json(
-      { success: false, error: error instanceof Error ? error.message : '更新连接失败' },
-      { status: 500 }
-    )
+    console.error('更新连接失败', error)
+    return apiFailure('更新连接失败，请稍后重试', 500, 'CONNECTION_UPDATE_FAILED', true)
   }
 }
 
@@ -115,11 +115,11 @@ export async function DELETE(
       where: { id }
     })
 
+    await invalidatePool(id)
+
     return NextResponse.json({ success: true, message: '删除成功' })
   } catch (error) {
-    return NextResponse.json(
-      { success: false, error: error instanceof Error ? error.message : '删除连接失败' },
-      { status: 500 }
-    )
+    console.error('删除连接失败', error)
+    return apiFailure('删除连接失败，请稍后重试', 500, 'CONNECTION_DELETE_FAILED', true)
   }
 }

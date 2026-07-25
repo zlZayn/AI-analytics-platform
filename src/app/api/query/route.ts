@@ -1,19 +1,22 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 import { executeQuery } from '@/lib/query-engine'
 import { prisma } from '@/lib/prisma'
+import { apiFailure, apiSuccess, requestId, safeQueryError } from '@/lib/api-response'
 
 // 执行 SQL 查询
 export async function POST(request: NextRequest) {
+  const id = requestId()
+  let connectionId: string | undefined
+  let sql = ""
   try {
     const body = await request.json()
-    const { connectionId, sql, timeout } = body
+    connectionId = body.connectionId
+    sql = typeof body.sql === 'string' ? body.sql : ''
+    const timeout = body.timeout
 
     // 验证必填字段
     if (!connectionId || !sql) {
-      return NextResponse.json(
-        { success: false, error: '缺少必填字段: connectionId, sql' },
-        { status: 400 }
-      )
+      return apiFailure('缺少必填字段: connectionId, sql', 400, 'INVALID_REQUEST', false, id)
     }
 
     // 执行查询
@@ -36,19 +39,20 @@ export async function POST(request: NextRequest) {
       console.error('保存查询历史失败:', e)
     }
 
-    return NextResponse.json({
-      success: true,
-      data: {
+    return apiSuccess({
         columns: result.columns,
         rows: result.rows,
         rowCount: result.rowCount,
-        executionTimeMs: result.executionTimeMs
-      }
-    })
+        returnedRowCount: result.returnedRowCount,
+        truncated: result.truncated,
+        rowLimit: result.rowLimit,
+        executionTimeMs: result.executionTimeMs,
+      }, undefined, id)
   } catch (error) {
-    return NextResponse.json(
-      { success: false, error: error instanceof Error ? error.message : '查询执行失败' },
-      { status: 500 }
-    )
+    const safe = safeQueryError(error)
+    if (connectionId && sql) {
+      await prisma.queryHistory.create({ data: { userId: 'default-user', connectionId, sqlContent: sql, status: 'error', errorMessage: safe.message } }).catch(() => undefined)
+    }
+    return apiFailure(safe.message, safe.code === 'INVALID_QUERY' ? 400 : 500, safe.code, safe.retryable, id)
   }
 }

@@ -13,6 +13,8 @@ import { BoxPlotView } from "./views/box-plot"
 import { HeatmapView } from "./views/heatmap"
 import { CorrelationHeatmap } from "./views/correlation-heatmap"
 import { TableView } from "./views/table-view"
+import { HistogramView } from "./views/histogram"
+import { KpiView } from "./views/kpi"
 
 export type { ChartMapping, ChartType, ChartProps } from "./types"
 
@@ -112,6 +114,16 @@ function ChartInner({ mapping, data, showLegend = true }: ChartProps) {
           <CorrelationHeatmap data={data} method={mapping.method} />
         </ChartErrorBoundary>
       )
+    case "histogram": {
+      const err = validateMapping(mapping, ["value"])
+      if (err) return <EmptyState message={err} />
+      return <ChartErrorBoundary chartType="直方图"><HistogramView data={data} valueKey={mapping.value!} /></ChartErrorBoundary>
+    }
+    case "kpi": {
+      const err = validateMapping(mapping, ["value"])
+      if (err) return <EmptyState message={err} />
+      return <ChartErrorBoundary chartType="指标卡"><KpiView data={data} valueKey={mapping.value!} labelKey={mapping.label} comparisonKey={mapping.comparison} /></ChartErrorBoundary>
+    }
     case "table":
     default: {
       const columns = Object.keys(data[0] || {})

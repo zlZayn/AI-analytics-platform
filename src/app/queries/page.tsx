@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useToast } from "@/components/toast"
+import { ApiRequestError, fetchApi } from "@/lib/client-api"
 import type { QueryHistoryItem, SavedQuery } from "@/types"
 import { Play, Trash2, Copy, Search, Bookmark, Clock } from "lucide-react"
 
@@ -20,16 +21,29 @@ export default function QueriesPage() {
   const [queryHistory, setQueryHistory] = useState<QueryHistoryItem[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState("")
+  const [error, setError] = useState("")
 
   useEffect(() => {
-    if (!connectionId) { setLoading(false); return }
-    Promise.all([
-      fetch(`/api/query/saved?connectionId=${connectionId}`).then(r => r.json()),
-      fetch(`/api/query/history?connectionId=${connectionId}`).then(r => r.json()),
-    ]).then(([saved, history]) => {
-      if (saved.success) setSavedQueries(saved.data)
-      if (history.success) setQueryHistory(history.data)
-    }).finally(() => setLoading(false))
+    if (!connectionId) return
+    let active = true
+    async function loadQueries() {
+      setLoading(true)
+      setError("")
+      try {
+        const [saved, history] = await Promise.all([
+          fetchApi<{ success: boolean; data?: SavedQuery[] }>(`/api/query/saved?connectionId=${connectionId}`),
+          fetchApi<{ success: boolean; data?: QueryHistoryItem[] }>(`/api/query/history?connectionId=${connectionId}`),
+        ])
+        if (active && saved.success && saved.data) setSavedQueries(saved.data)
+        if (active && history.success && history.data) setQueryHistory(history.data)
+      } catch (requestError) {
+        if (active) setError(requestError instanceof ApiRequestError ? requestError.message : "查询列表加载失败")
+      } finally {
+        if (active) setLoading(false)
+      }
+    }
+    void loadQueries()
+    return () => { active = false }
   }, [connectionId])
 
   function goToWorkspace(sql: string) {
@@ -37,9 +51,13 @@ export default function QueriesPage() {
   }
 
   async function deleteSaved(id: string) {
-    await fetch(`/api/query/saved?id=${id}`, { method: "DELETE" })
-    setSavedQueries((prev) => prev.filter((q) => q.id !== id))
-    toast("已删除", "info")
+    try {
+      await fetchApi(`/api/query/saved?id=${id}`, { method: "DELETE" })
+      setSavedQueries((prev) => prev.filter((q) => q.id !== id))
+      toast("已删除", "info")
+    } catch (requestError) {
+      toast(requestError instanceof ApiRequestError ? requestError.message : "删除失败，请重试", "error")
+    }
   }
 
   function copySql(sql: string) {
@@ -66,6 +84,7 @@ export default function QueriesPage() {
           {savedQueries.length} 收藏 · {queryHistory.length} 历史
         </span>
       </div>
+      {error && <div className="mb-3 rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-700">{error}</div>}
 
       <div className="relative mb-3">
         <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[var(--muted-foreground)]" />
