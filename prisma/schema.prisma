@@ -1,6 +1,6 @@
 // AI Data Analytics Platform - Prisma Schema
-// 版本: 1.1.0
-// 更新时间: 2026-06-22
+// 版本: 1.24.0
+// 更新时间: 2026-07-25
 
 generator client {
   provider = "prisma-client"
