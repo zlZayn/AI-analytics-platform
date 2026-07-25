@@ -26,6 +26,9 @@ __pycache__/
 # production
 /build
 
+# opencode worktree
+.omo/
+
 # misc
 .DS_Store
 *.pem
