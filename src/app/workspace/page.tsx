@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useRef, Suspense } from "react"
+import { useState, useRef, Suspense } from "react"
 import { useSearchParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -10,7 +10,7 @@ import { ResultPanel } from "@/components/dashboard/result-panel"
 import { InsightCard, type InsightItem } from "@/components/insight-card"
 import { type ChartMapping } from "@/components/chart"
 import { useToast } from "@/components/toast"
-import type { QueryResult } from "@/types"
+import type { ApiResponse, QueryResult } from "@/types"
 import { Play, Trash2, Save, Loader2, Send, ChevronDown, ChevronUp } from "lucide-react"
 import dynamic from "next/dynamic"
 import { fetchApi, ApiRequestError } from "@/lib/client-api"
@@ -20,11 +20,7 @@ const MonacoEditor = dynamic(() => import("@monaco-editor/react"), {
   loading: () => <div className="h-full bg-[var(--muted)] animate-pulse rounded-lg" />,
 })
 
-function WorkspaceContent() {
-  const searchParams = useSearchParams()
-  const connectionId = searchParams.get("connection")
-  const initialSql = searchParams.get("sql") || ""
-
+function WorkspaceContent({ connectionId, initialSql }: { connectionId: string | null; initialSql: string }) {
   const [sql, setSql] = useState(initialSql)
   const [result, setResult] = useState<QueryResult | null>(null)
   const [loading, setLoading] = useState(false)
@@ -51,14 +47,6 @@ function WorkspaceContent() {
 
   const { toast } = useToast()
 
-  // Load SQL from URL param
-  useEffect(() => {
-    if (initialSql) {
-      setSql(initialSql)
-      setEditorExpanded(true)
-    }
-  }, [initialSql])
-
   async function execute(targetSql?: string) {
     const q = targetSql || sql
     if (!connectionId || !q.trim()) return
@@ -68,19 +56,17 @@ function WorkspaceContent() {
     const controller = new AbortController()
     queryController.current = controller
     try {
-      const data = await fetchApi<{ success: boolean; data?: QueryResult; error?: string }>("/api/query", {
+      const data = await fetchApi<ApiResponse<QueryResult>>("/api/query", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ connectionId, sql: q }),
         signal: controller.signal,
       })
-      if (data.success && data.data) {
+      if (data.success) {
         setResult(data.data)
         setSql(q)
         setEditorExpanded(false)
         toast(`查询完成: ${data.data.rowCount} 行, ${data.data.executionTimeMs}ms`, "success")
-      } else {
-        setError(data.error || "查询执行失败")
       }
     } catch (error) {
       if (!(error instanceof DOMException && error.name === "AbortError")) setError(error instanceof ApiRequestError ? error.message : "查询执行失败")
@@ -99,15 +85,15 @@ function WorkspaceContent() {
     const controller = new AbortController()
     aiController.current = controller
     try {
-      const data = await fetchApi<{ success: boolean; data?: { items?: InsightItem[] }; error?: string }>("/api/ai", {
+      const data = await fetchApi<ApiResponse<{ items: InsightItem[] }>>("/api/ai", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ connectionId, message: msg }),
         signal: controller.signal,
       })
-      if (data.success && data.data) {
+      if (data.success) {
         setAiUnavailable(false)
-        const items = data.data.items || []
+        const items = data.data.items
         if (items.length > 0) {
           setAiHistory((prev) => [...prev, {
             role: "ai",
@@ -118,16 +104,16 @@ function WorkspaceContent() {
         } else {
           setAiHistory((prev) => [...prev, { role: "ai", content: "未生成有效结果" }])
         }
-      } else {
-        setAiHistory((prev) => [...prev, { role: "ai", content: `错误: ${data.error}` }])
-        // 检测 AI 未配置的情况，弹出醒目提示
-        if (data.error?.includes("未配置") || data.error?.includes("API Key")) {
+      }
+    } catch (error) {
+      if (!(error instanceof DOMException && error.name === "AbortError")) {
+        const message = error instanceof ApiRequestError ? error.message : "请求失败"
+        setAiHistory((prev) => [...prev, { role: "ai", content: message }])
+        if (error instanceof ApiRequestError && error.code === "AI_NOT_CONFIGURED") {
           setAiUnavailable(true)
           toast("AI 服务未配置，请在 .env 文件中设置 AI_API_KEY", "warning")
         }
       }
-    } catch (error) {
-      if (!(error instanceof DOMException && error.name === "AbortError")) setAiHistory((prev) => [...prev, { role: "ai", content: error instanceof ApiRequestError ? error.message : "请求失败" }])
     } finally {
       setAiLoading(false)
     }
@@ -139,12 +125,12 @@ function WorkspaceContent() {
     setLoading(true)
     setError("")
     try {
-      const data = await fetchApi<{ success: boolean; data?: QueryResult; error?: string }>("/api/query", {
+      const data = await fetchApi<ApiResponse<QueryResult>>("/api/query", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ connectionId, sql }),
       })
-      if (data.success && data.data) {
+      if (data.success) {
         setResult(data.data)
         setSql(sql)
 
@@ -157,8 +143,6 @@ function WorkspaceContent() {
 
         setEditorExpanded(false)
         toast(`洞察执行完成: ${data.data.rowCount} 行`, "success")
-      } else {
-        setError(data.error || "洞察执行失败")
       }
     } catch (error) {
       setError(error instanceof ApiRequestError ? error.message : "洞察执行失败")
@@ -364,10 +348,17 @@ function WorkspaceContent() {
   )
 }
 
+function WorkspaceRoute() {
+  const searchParams = useSearchParams()
+  const connectionId = searchParams.get("connection")
+  const initialSql = searchParams.get("sql") || ""
+  return <WorkspaceContent key={`${connectionId ?? ""}:${initialSql}`} connectionId={connectionId} initialSql={initialSql} />
+}
+
 export default function WorkspacePage() {
   return (
     <Suspense fallback={<div className="p-6 text-[var(--muted-foreground)] text-xs">加载中...</div>}>
-      <WorkspaceContent />
+      <WorkspaceRoute />
     </Suspense>
   )
 }

@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useToast } from "@/components/toast"
 import { ApiRequestError, fetchApi } from "@/lib/client-api"
-import type { QueryHistoryItem, SavedQuery } from "@/types"
+import type { ApiResponse, QueryHistoryItem, SavedQuery } from "@/types"
 import { Play, Trash2, Copy, Search, Bookmark, Clock } from "lucide-react"
 
 export default function QueriesPage() {
@@ -31,11 +31,11 @@ export default function QueriesPage() {
       setError("")
       try {
         const [saved, history] = await Promise.all([
-          fetchApi<{ success: boolean; data?: SavedQuery[] }>(`/api/query/saved?connectionId=${connectionId}`),
-          fetchApi<{ success: boolean; data?: QueryHistoryItem[] }>(`/api/query/history?connectionId=${connectionId}`),
+          fetchApi<ApiResponse<SavedQuery[]>>(`/api/query/saved?connectionId=${connectionId}`),
+          fetchApi<ApiResponse<QueryHistoryItem[]>>(`/api/query/history?connectionId=${connectionId}`),
         ])
-        if (active && saved.success && saved.data) setSavedQueries(saved.data)
-        if (active && history.success && history.data) setQueryHistory(history.data)
+        if (active && saved.success) setSavedQueries(saved.data)
+        if (active && history.success) setQueryHistory(history.data)
       } catch (requestError) {
         if (active) setError(requestError instanceof ApiRequestError ? requestError.message : "查询列表加载失败")
       } finally {

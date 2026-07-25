@@ -162,6 +162,7 @@ model QueryHistory {
   executionTimeMs Int?      @map("execution_time_ms")
   rowCount        Int?      @map("row_count")
   errorMessage    String?   @map("error_message")
+  errorCode       String?   @map("error_code")
 
   // 结果
   resultSummary   String?   @map("result_summary")

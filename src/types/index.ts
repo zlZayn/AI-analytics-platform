@@ -18,9 +18,9 @@ export interface QueryResult {
   rows: Record<string, unknown>[]
   rowCount: number
   executionTimeMs: number
-  returnedRowCount?: number
-  truncated?: boolean
-  rowLimit?: number
+  returnedRowCount: number
+  truncated: boolean
+  rowLimit: number
 }
 
 export interface SchemaColumn {
@@ -58,6 +58,7 @@ export interface QueryHistoryItem {
   rowCount: number
   executionTimeMs: number
   status: string
+  errorCode?: string | null
   createdAt: string
 }
 
@@ -69,8 +70,12 @@ export interface SavedQuery {
   createdAt: string
 }
 
-export interface ApiResponse<T = unknown> {
-  success: boolean
-  data?: T
-  error?: string
+export interface ApiError {
+  code: string
+  message: string
+  retryable: boolean
 }
+
+export type ApiResponse<T, TMeta = Record<string, unknown>> =
+  | { success: true; data: T; meta?: TMeta; requestId: string }
+  | { success: false; error: ApiError; requestId: string }

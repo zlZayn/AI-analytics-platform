@@ -1,5 +1,6 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { apiFailure, apiSuccess } from '@/lib/api-response'
 
 // 保存查询
 export async function POST(request: NextRequest) {
@@ -8,10 +9,7 @@ export async function POST(request: NextRequest) {
     const { connectionId, name, sql } = body
 
     if (!connectionId || !name || !sql) {
-      return NextResponse.json(
-        { success: false, error: '缺少必填字段' },
-        { status: 400 }
-      )
+      return apiFailure({ code: 'INVALID_REQUEST', message: '缺少必填字段', retryable: false }, 400)
     }
 
     const saved = await prisma.savedQuery.create({
@@ -23,12 +21,10 @@ export async function POST(request: NextRequest) {
       }
     })
 
-    return NextResponse.json({ success: true, data: saved })
+    return apiSuccess(saved)
   } catch (error) {
-    return NextResponse.json(
-      { success: false, error: error instanceof Error ? error.message : '保存失败' },
-      { status: 500 }
-    )
+    console.error('保存查询失败', error)
+    return apiFailure({ code: 'SAVED_QUERY_CREATE_FAILED', message: '保存查询失败，请稍后重试', retryable: true })
   }
 }
 
@@ -39,20 +35,15 @@ export async function DELETE(request: NextRequest) {
     const id = searchParams.get('id')
 
     if (!id) {
-      return NextResponse.json(
-        { success: false, error: '缺少 id' },
-        { status: 400 }
-      )
+      return apiFailure({ code: 'INVALID_REQUEST', message: '缺少 id', retryable: false }, 400)
     }
 
     await prisma.savedQuery.delete({ where: { id } })
 
-    return NextResponse.json({ success: true })
+    return apiSuccess({ deleted: true })
   } catch (error) {
-    return NextResponse.json(
-      { success: false, error: error instanceof Error ? error.message : '删除失败' },
-      { status: 500 }
-    )
+    console.error('删除保存查询失败', error)
+    return apiFailure({ code: 'SAVED_QUERY_DELETE_FAILED', message: '删除保存查询失败，请稍后重试', retryable: true })
   }
 }
 
@@ -63,10 +54,7 @@ export async function GET(request: NextRequest) {
     const connectionId = searchParams.get('connectionId')
 
     if (!connectionId) {
-      return NextResponse.json(
-        { success: false, error: '缺少 connectionId' },
-        { status: 400 }
-      )
+      return apiFailure({ code: 'INVALID_REQUEST', message: '缺少 connectionId', retryable: false }, 400)
     }
 
     const queries = await prisma.savedQuery.findMany({
@@ -81,19 +69,14 @@ export async function GET(request: NextRequest) {
       }
     })
 
-    return NextResponse.json({
-      success: true,
-      data: queries.map(q => ({
+    return apiSuccess(queries.map(q => ({
         id: q.id,
         name: q.name,
         sql: q.sqlContent,
         createdAt: q.createdAt
-      }))
-    })
+      })))
   } catch (error) {
-    return NextResponse.json(
-      { success: false, error: error instanceof Error ? error.message : '获取保存查询失败' },
-      { status: 500 }
-    )
+    console.error('获取保存查询失败', error)
+    return apiFailure({ code: 'SAVED_QUERY_LIST_FAILED', message: '获取保存查询失败，请稍后重试', retryable: true })
   }
 }

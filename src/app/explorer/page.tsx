@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Search, RefreshCw, Key, Link2, Eye, Play, Database } from "lucide-react"
-import type { SchemaTable, SchemaData } from "@/types"
+import type { ApiResponse, SchemaTable, SchemaData } from "@/types"
 import { ApiRequestError, fetchApi } from "@/lib/client-api"
 
 export default function ExplorerPage() {
@@ -38,8 +38,8 @@ export default function ExplorerPage() {
     setLoading(true)
     setError("")
     try {
-      const data = await fetchApi<{ success: boolean; data?: SchemaData; error?: string }>(`/api/schema/${connectionId}${refresh ? "?refresh=true" : ""}`, { signal })
-      if (data.success && data.data) setSchema({ tables: data.data.tables || [], relations: data.data.relations || [], version: data.data.version })
+      const data = await fetchApi<ApiResponse<SchemaData>>(`/api/schema/${connectionId}${refresh ? "?refresh=true" : ""}`, { signal })
+      if (data.success) setSchema({ tables: data.data.tables || [], relations: data.data.relations || [], version: data.data.version })
     } catch (requestError) {
       if (!(requestError instanceof DOMException && requestError.name === "AbortError")) setError(requestError instanceof ApiRequestError ? requestError.message : "Schema 加载失败")
     } finally {
@@ -55,13 +55,13 @@ export default function ExplorerPage() {
     const controller = new AbortController()
     previewController.current = controller
     try {
-      const data = await fetchApi<{ success: boolean; data?: { rows: Record<string, unknown>[] } }>("/api/query", {
+      const data = await fetchApi<ApiResponse<{ rows: Record<string, unknown>[] }>>("/api/query", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ connectionId, sql: `SELECT * FROM \"${name.replaceAll('"', '""')}\"` }),
         signal: controller.signal,
       })
-      setPreview(data.success ? data.data?.rows || [] : null)
+      setPreview(data.success ? data.data.rows : null)
     } catch (requestError) {
       if (!(requestError instanceof DOMException && requestError.name === "AbortError")) setError(requestError instanceof ApiRequestError ? requestError.message : "预览加载失败")
     } finally {

@@ -1,11 +1,9 @@
 import { randomUUID } from "node:crypto"
 import { NextResponse } from "next/server"
+import type { ApiError, ApiResponse } from "@/types"
 
-export interface ApiErrorInfo {
-  code: string
-  message: string
-  retryable: boolean
-}
+export type ApiErrorInfo = ApiError
+export type { ApiResponse }
 
 export function requestId(): string {
   return randomUUID()
@@ -15,13 +13,13 @@ export function apiSuccess<T>(data: T, meta?: Record<string, unknown>, id = requ
   return NextResponse.json({ success: true, data, ...(meta ? { meta } : {}), requestId: id })
 }
 
-export function apiFailure(message: string, status = 500, code = "INTERNAL_ERROR", retryable = false, id = requestId()) {
-  const error: ApiErrorInfo = { code, message, retryable }
-  return NextResponse.json({ success: false, error: message, errorInfo: error, requestId: id }, { status })
+export function apiFailure(error: ApiErrorInfo, status = 500, id = requestId()) {
+  return NextResponse.json({ success: false, error, requestId: id }, { status })
 }
 
 export function safeQueryError(error: unknown): ApiErrorInfo {
   const message = error instanceof Error ? error.message : "查询执行失败"
+  if ((typeof error === "object" && error !== null && "code" in error && error.code === "QUERY_CANCELLED") || (error instanceof DOMException && error.name === "AbortError")) return { code: "QUERY_CANCELLED", message: "查询已取消", retryable: true }
   if (/超时|statement timeout/i.test(message)) return { code: "QUERY_TIMEOUT", message: "查询超过允许时间，请缩小数据范围后重试", retryable: true }
   if (/只允许|不能修改|不能为空|括号|一条/i.test(message)) return { code: "INVALID_QUERY", message, retryable: false }
   if (/连接不存在/i.test(message)) return { code: "CONNECTION_NOT_FOUND", message, retryable: false }

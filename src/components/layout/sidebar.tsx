@@ -17,7 +17,7 @@ import {
   Circle,
   X,
 } from "lucide-react"
-import type { Connection } from "@/types"
+import type { ApiResponse, Connection } from "@/types"
 import { fetchApi } from "@/lib/client-api"
 
 const navItems = [
@@ -41,8 +41,8 @@ export function Sidebar({ mobileOpen = false, onClose }: { mobileOpen?: boolean;
     setLoading(true)
     setConnectionError(false)
     try {
-      const response = await fetchApi<{ success: boolean; data?: Connection[] }>("/api/connections")
-      if (response.success) setConnections(response.data ?? [])
+      const response = await fetchApi<ApiResponse<Connection[]>>("/api/connections")
+      if (response.success) setConnections(response.data)
     } catch {
       setConnectionError(true)
     } finally {

@@ -1,8 +1,8 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { encrypt } from '@/lib/encryption'
 import { invalidatePool } from '@/lib/query-engine'
-import { apiFailure } from '@/lib/api-response'
+import { apiFailure, apiSuccess } from '@/lib/api-response'
 
 // 获取连接详情
 export async function GET(
@@ -33,16 +33,13 @@ export async function GET(
     })
 
     if (!connection) {
-      return NextResponse.json(
-        { success: false, error: '连接不存在' },
-        { status: 404 }
-      )
+      return apiFailure({ code: 'CONNECTION_NOT_FOUND', message: '连接不存在', retryable: false }, 404)
     }
 
-    return NextResponse.json({ success: true, data: connection })
+    return apiSuccess(connection)
   } catch (error) {
     console.error('获取连接详情失败', error)
-    return apiFailure('获取连接详情失败，请稍后重试', 500, 'CONNECTION_READ_FAILED', true)
+    return apiFailure({ code: 'CONNECTION_READ_FAILED', message: '获取连接详情失败，请稍后重试', retryable: true })
   }
 }
 
@@ -62,10 +59,7 @@ export async function PUT(
     })
 
     if (!existing) {
-      return NextResponse.json(
-        { success: false, error: '连接不存在' },
-        { status: 404 }
-      )
+      return apiFailure({ code: 'CONNECTION_NOT_FOUND', message: '连接不存在', retryable: false }, 404)
     }
 
     // 更新数据
@@ -86,10 +80,10 @@ export async function PUT(
 
     await invalidatePool(id)
 
-    return NextResponse.json({ success: true, data: connection })
+    return apiSuccess(connection)
   } catch (error) {
     console.error('更新连接失败', error)
-    return apiFailure('更新连接失败，请稍后重试', 500, 'CONNECTION_UPDATE_FAILED', true)
+    return apiFailure({ code: 'CONNECTION_UPDATE_FAILED', message: '更新连接失败，请稍后重试', retryable: true })
   }
 }
 
@@ -105,10 +99,7 @@ export async function DELETE(
     })
 
     if (!connection) {
-      return NextResponse.json(
-        { success: false, error: '连接不存在' },
-        { status: 404 }
-      )
+      return apiFailure({ code: 'CONNECTION_NOT_FOUND', message: '连接不存在', retryable: false }, 404)
     }
 
     await prisma.connection.delete({
@@ -117,9 +108,9 @@ export async function DELETE(
 
     await invalidatePool(id)
 
-    return NextResponse.json({ success: true, message: '删除成功' })
+    return apiSuccess({ deleted: true })
   } catch (error) {
     console.error('删除连接失败', error)
-    return apiFailure('删除连接失败，请稍后重试', 500, 'CONNECTION_DELETE_FAILED', true)
+    return apiFailure({ code: 'CONNECTION_DELETE_FAILED', message: '删除连接失败，请稍后重试', retryable: true })
   }
 }
