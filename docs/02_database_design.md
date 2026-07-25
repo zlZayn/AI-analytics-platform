@@ -741,5 +741,5 @@ SEED_DATABASE_URL="postgresql://seed_user:replace-me@localhost:5432/ai_analytics
 
 ---
 
-*文档版本: v1.23.0*
-*最后更新: 2026-06-22*
+*文档版本: v1.24.0*
+*最后更新: 2026-07-25*

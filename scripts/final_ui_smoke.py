@@ -1,3 +1,4 @@
+import json
 import os
 from pathlib import Path
 
@@ -5,7 +6,9 @@ from playwright.sync_api import sync_playwright
 
 
 BASE_URL = os.environ.get("BASE_URL", "http://localhost:4321")
-OUTPUT_DIR = Path(__file__).resolve().parents[1] / ".artifacts" / "ui-smoke"
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+OUTPUT_DIR = PROJECT_ROOT / ".artifacts" / "ui-smoke"
+APP_VERSION = json.loads((PROJECT_ROOT / "package.json").read_text(encoding="utf-8"))["version"]
 VIEWPORTS = {
     "mobile": (360, 800),
     "tablet": (768, 900),
@@ -33,6 +36,7 @@ def main() -> None:
             page.on("response", lambda response: error_responses.append(f"{response.status} {response.url}") if response.status >= 400 else None)
             page.goto(BASE_URL, wait_until="domcontentloaded")
             page.locator("body").wait_for(state="visible")
+            page.get_by_text(f"v{APP_VERSION}", exact=True).wait_for(state="visible", timeout=15000)
             theme_toggle_count = page.get_by_role("button", name="切换深色主题").count()
             if theme_toggle_count:
                 failures.append(f"{name}: dark-theme toggle is still rendered")
