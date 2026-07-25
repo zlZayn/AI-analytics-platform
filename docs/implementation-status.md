@@ -7,7 +7,9 @@
 - 当前分支：`main`
 - 合并提交：`34a9651 merge: complete analytics workbench refactor`
 - 功能提交：`b5aa748 feat: complete query lifecycle and API contracts`、`49b1477 feat: complete chart pipeline and offline AI contracts`
+- 收尾实现提交：`9779185 chore: finalize workbench hardening`
 - 原开发工作树：`E:\新下载\ai-data-analytics\.worktrees\complete-analytics-refactor`（最终验证后已删除并 prune）
+- Codex 可视化目录中的旧 `analytics-workbench-refactor` 工作树由宿主环境管理，不是当前续作入口；所有有效状态和文档以本项目目录及 `main` 为准。
 - 合并功能分支时原有 `package-lock.json` 未被覆盖；最终收尾只把纯类型包 `@types/pg` 从运行时依赖归入开发依赖并同步 lockfile。`.omo/` 保持未跟踪且未修改。
 
 ### 收尾验证说明
