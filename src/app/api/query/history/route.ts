@@ -1,5 +1,6 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { apiFailure, apiSuccess } from '@/lib/api-response'
 
 // 获取查询历史
 export async function GET(request: NextRequest) {
@@ -8,10 +9,7 @@ export async function GET(request: NextRequest) {
     const connectionId = searchParams.get('connectionId')
 
     if (!connectionId) {
-      return NextResponse.json(
-        { success: false, error: '缺少 connectionId' },
-        { status: 400 }
-      )
+      return apiFailure({ code: 'INVALID_REQUEST', message: '缺少 connectionId', retryable: false }, 400)
     }
 
     const history = await prisma.queryHistory.findMany({
@@ -24,25 +22,22 @@ export async function GET(request: NextRequest) {
         rowCount: true,
         executionTimeMs: true,
         status: true,
+        errorCode: true,
         createdAt: true
       }
     })
 
-    return NextResponse.json({
-      success: true,
-      data: history.map(h => ({
+    return apiSuccess(history.map(h => ({
         id: h.id,
         sql: h.sqlContent,
         rowCount: h.rowCount || 0,
         executionTimeMs: h.executionTimeMs || 0,
         status: h.status,
+        errorCode: h.errorCode,
         createdAt: h.createdAt
-      }))
-    })
+      })))
   } catch (error) {
-    return NextResponse.json(
-      { success: false, error: error instanceof Error ? error.message : '获取历史失败' },
-      { status: 500 }
-    )
+    console.error('获取查询历史失败', error)
+    return apiFailure({ code: 'QUERY_HISTORY_FAILED', message: '获取查询历史失败，请稍后重试', retryable: true })
   }
 }

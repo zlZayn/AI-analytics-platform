@@ -16,7 +16,7 @@ AI Data Analytics Platform
 2. **AI 驱动分析** - 自然语言输入，智能生成 SQL 和图表
 3. **AI 洞察推荐** - 自动生成业务洞察，一键执行并可视化
 4. **安全可控** - 所有 SQL 经过白名单校验，只允许 SELECT 查询
-5. **可视化丰富** - 8 种图表类型，用户自由选择列映射
+5. **可视化丰富** - 10 种基础图表视图，用户主动选择并控制列映射
 6. **通用性强** - 可接入任意 PostgreSQL 数据库
 
 ---
@@ -68,7 +68,7 @@ AI Data Analytics Platform
 | SQL Validator | `lib/sql-validator.ts` | SQL 安全校验 (白名单) |
 | Variable Types | `lib/variable-types.ts` | 图表类型定义 + 映射槽位 |
 | Encryption | `lib/encryption.ts` | AES-256 密码加密/解密 |
-| Chart System | `components/charts/` | 8 种图表视图 + 工具函数 |
+| Chart System | `components/charts/` | 10 种图表视图 + 纯算法/变换管线 |
 | Chart Config | `components/chart-config-panel.tsx` | 图表类型选择 + 列映射面板 |
 | Insight Card | `components/insight-card.tsx` | AI 洞察卡片组件 |
 | Result Panel | `components/dashboard/result-panel.tsx` | 查询结果展示 |

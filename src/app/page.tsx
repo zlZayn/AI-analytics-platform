@@ -15,7 +15,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog"
 import { Database, Plus, Pencil, Trash2, ArrowRight } from "lucide-react"
-import type { Connection } from "@/types"
+import type { ApiResponse, Connection } from "@/types"
 import { ApiRequestError, fetchApi } from "@/lib/client-api"
 
 const defaultForm = {
@@ -44,8 +44,8 @@ export default function Home() {
 
   useEffect(() => {
     const controller = new AbortController()
-    fetchApi<{ success: boolean; data?: Connection[] }>("/api/connections", { signal: controller.signal }, 8000)
-      .then((d) => { if (d.success && d.data) setConnections(d.data) })
+    fetchApi<ApiResponse<Connection[]>>("/api/connections", { signal: controller.signal }, 8000)
+      .then((d) => { if (d.success) setConnections(d.data) })
       .catch((requestError) => { if (!(requestError instanceof DOMException && requestError.name === "AbortError")) setListError(requestError instanceof ApiRequestError ? requestError.message : "连接列表加载失败") })
       .finally(() => { if (!controller.signal.aborted) setLoading(false) })
     return () => controller.abort()
@@ -57,22 +57,19 @@ export default function Home() {
     try {
       const url = editingId ? `/api/connections/${editingId}` : "/api/connections"
       const method = editingId ? "PUT" : "POST"
-      const res = await fetch(url, {
+      const data = await fetchApi<ApiResponse<Connection>>(url, {
         method,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(form),
       })
-      const data = await res.json()
       if (data.success) {
         setDialogOpen(false)
         setForm(defaultForm)
         setEditingId(null)
         refresh()
-      } else {
-        setError(data.error || "操作失败")
       }
-    } catch {
-      setError("操作失败")
+    } catch (requestError) {
+      setError(requestError instanceof ApiRequestError ? requestError.message : "操作失败")
     } finally {
       setSubmitting(false)
     }
@@ -80,15 +77,18 @@ export default function Home() {
 
   async function handleDelete(id: string) {
     if (!confirm("确定删除？")) return
-    const res = await fetch(`/api/connections/${id}`, { method: "DELETE" })
-    const data = await res.json()
-    if (data.success) refresh()
+    try {
+      const data = await fetchApi<ApiResponse<{ deleted: boolean }>>(`/api/connections/${id}`, { method: "DELETE" })
+      if (data.success) refresh()
+    } catch (requestError) {
+      setListError(requestError instanceof ApiRequestError ? requestError.message : "删除连接失败")
+    }
   }
 
   function refresh() {
     setListError("")
-    fetchApi<{ success: boolean; data?: Connection[] }>("/api/connections", {}, 8000)
-      .then((d) => { if (d.success && d.data) setConnections(d.data) })
+    fetchApi<ApiResponse<Connection[]>>("/api/connections", {}, 8000)
+      .then((d) => { if (d.success) setConnections(d.data) })
       .catch((requestError) => setListError(requestError instanceof ApiRequestError ? requestError.message : "连接列表加载失败"))
   }
 

@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useState, useEffect, type ReactNode } from "react"
 import { useSearchParams } from "next/navigation"
-import type { Connection } from "@/types"
+import type { ApiResponse, Connection } from "@/types"
 import { fetchApi } from "@/lib/client-api"
 
 interface ConnectionContextType {
@@ -34,10 +34,10 @@ export function ConnectionProvider({ children }: { children: ReactNode }) {
     if (!connectionId) return
 
     const controller = new AbortController()
-    fetchApi<{ success: boolean; data?: Connection }>(`/api/connections/${connectionId}`, {
+    fetchApi<ApiResponse<Connection>>(`/api/connections/${connectionId}`, {
       signal: controller.signal,
     })
-      .then((data) => setResolved({ id: connectionId, connection: data.success ? data.data ?? null : null }))
+      .then((data) => setResolved({ id: connectionId, connection: data.success ? data.data : null }))
       .catch((error: unknown) => {
         if (!(error instanceof DOMException && error.name === "AbortError")) {
           setResolved({ id: connectionId, connection: null })

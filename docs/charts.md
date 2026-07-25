@@ -2,7 +2,7 @@
 
 ## 数据管线
 
-`profileData -> recommendCharts -> validateChartMapping -> transform -> render`。
+`profileData -> recommendCharts -> validateChartMapping -> transformForChart -> renderChart`。
 
 画像扫描全部返回行，识别数据库类型、数值/时间/类别语义、有效值、空值、无效值、唯一值、范围和排序。建议只返回图表类型、映射、原因和分数，不修改用户数据。
 
@@ -11,9 +11,15 @@
 - 直方图使用 Freedman–Diaconis 分箱，IQR 为零时回退 Sturges，箱数限制 5–50。
 - 箱线图使用 Hyndman–Fan Type 7 四分位数，须线是 1.5×IQR 范围内的实际最远值。
 - Pearson、Spearman 和 Kendall tau-b 对每一对列成对删除缺失值；常量列和样本不足返回不可计算。
+- Spearman 对并列值使用平均秩；Kendall tau-b 使用 Fenwick Tree，时间复杂度 `O(n log n)`。相关矩阵在 Web Worker 执行，每格显示有效样本数 `n`，输入变化会终止旧 Worker。
 - 折线图重复 `x + group`、热力图重复坐标必须由 SQL 先聚合，渲染器不覆盖数据。
+- 折线时间轴按解析时间排序且 `connectNulls=false`；普通类别保留输入顺序。
+- 柱状图的 grouped、stacked、normalized 只能由用户显式选择，不按组数自动变化。
+- 热力图缺失单元格使用独立 token，数值零仍参与色阶；全非负使用顺序色阶，含负值使用发散色阶。
 - 图表颜色使用离散色板、顺序色阶或以零为中心的发散色阶；所有颜色统一引用 `src/app/globals.css` 的图表语义 token，组件不得硬编码界面颜色。
 
 ## 显示边界
 
 查询默认最多返回 5,000 行。散点图超过 2,000 点时使用确定性采样并显示提示；相关矩阵最多 20 个数值列；饼图默认最多 8 类，剩余类别必须明确标记为“其他”。
+
+结果表不截断浏览器已收到的数据，使用 32px 固定行高窗口化渲染最多 5,000 行。列宽限制为 96–360px 并本地持久化。

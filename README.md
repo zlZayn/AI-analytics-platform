@@ -22,7 +22,7 @@
 | 可视化 | Recharts + 自绘 SVG (箱线图/热力图/相关矩阵) |
 | 后端 | Next.js Route Handlers, Prisma 7, pg |
 | 数据库 | PostgreSQL |
-| AI | OpenAI Compatible SDK (MiMo) |
+| AI | OpenAI Compatible SDK + JSON Schema structured output |
 
 ## 快速开始
 
@@ -76,6 +76,8 @@ npm test
 npm run build
 ```
 
+AI 合同测试全部使用注入的 fake provider，不调用真实模型 API。浏览器脚本见 `docs/testing.md`。
+
 设计原则、图表算法、API 约定、测试和运维说明位于 `docs/`。
 
 ## 项目结构
@@ -101,12 +103,13 @@ src/
 │   ├── dashboard/                # 共享子组件
 │   │   └── result-panel.tsx      # 结果面板
 │   ├── charts/                   # 图表系统
-│   │   ├── views/                # 8 种图表视图
+│   │   ├── views/                # 10 种基础图表视图
 │   │   ├── hooks/                # 自定义 hooks
 │   │   ├── chart-icons.tsx       # SVG 图标映射
 │   │   ├── types.ts              # 图表类型定义
 │   │   ├── constants.ts          # 颜色/坐标轴配置
-│   │   ├── utils.ts              # 统计计算工具
+│   │   ├── algorithms.ts         # 固定统计算法
+│   │   ├── transform.ts          # 确定性展示变换
 │   │   ├── empty-state.tsx       # 空状态组件
 │   │   └── error-boundary.tsx    # 图表错误边界
 │   ├── chart-config-panel.tsx    # 图表配置面板
@@ -116,6 +119,7 @@ src/
 │   └── ui/                       # 基础 UI 组件 (Base UI + TailwindCSS)
 ├── lib/                          # 核心库
 │   ├── ai-service.ts             # AI 服务 (SQL生成 + 洞察推荐)
+│   ├── ai-contract.ts            # 提示词、JSON Schema 与运行时校验
 │   ├── query-engine.ts           # 查询引擎
 │   ├── schema-service.ts         # Schema 扫描
 │   ├── sql-validator.ts          # SQL 安全校验
@@ -150,6 +154,7 @@ scripts/
 | GET/PUT/DELETE | `/api/connections/[id]` | 连接详情/更新/删除 |
 | GET | `/api/schema/[connectionId]` | Schema 扫描/缓存 |
 | POST | `/api/query` | 执行 SQL |
+| POST | `/api/query/preview` | 安全表预览（schema/table 标识符） |
 | GET | `/api/query/history` | 查询历史 |
 | GET/POST | `/api/query/saved` | 保存的查询 |
 | POST | `/api/ai` | AI 分析 (结构化 JSON 输出) |
@@ -167,6 +172,8 @@ scripts/
 | 热力图 | 矩阵分析 |
 | 相关系数矩阵 | 变量相关性 |
 | 数据表格 | 原始数据 |
+| KPI 指标卡 | 单值与可选对比 |
+| 直方图 | 连续变量分布 |
 
 ## 文档
 

@@ -12,7 +12,8 @@ import {
   CHART_TYPE_SLOTS,
   CHART_TYPE_INFO,
 } from "@/lib/variable-types"
-import { profileData, recommendCharts, validateChartMapping } from "@/components/charts/pipeline"
+import { createMappingForChart, profileData, recommendCharts, validateChartMapping } from "@/components/charts/pipeline"
+import { getMappingSlot, isChartMappingSlot, setMappingSlot, type ChartMappingSlot } from "@/components/charts/mapping"
 import { Eye, EyeOff } from "lucide-react"
 
 interface ChartConfigPanelProps {
@@ -31,7 +32,7 @@ const CORRELATION_METHODS: { value: CorrelationMethod; label: string }[] = [
 const GROUP_WARN_THRESHOLD = 20
 
 export function ChartConfigPanel({ columns, data, mapping, onChange }: ChartConfigPanelProps) {
-  const chartType = (mapping.chartType as ChartType) || "table"
+  const chartType = mapping.chartType
   const slots = CHART_TYPE_SLOTS[chartType] || {}
   const profile = useMemo(() => profileData(columns, data), [columns, data])
   const recommendations = useMemo(() => recommendCharts(profile).slice(0, 2), [profile])
@@ -52,15 +53,11 @@ export function ChartConfigPanel({ columns, data, mapping, onChange }: ChartConf
   })
 
   function handleChartTypeChange(newType: ChartType) {
-    const newMapping: ChartMapping = { chartType: newType }
-    if (newType === "correlation") {
-      newMapping.method = "pearson"
-    }
-    onChange(newMapping)
+    onChange(createMappingForChart(newType, profile))
   }
 
-  function handleSlotChange(slot: string, value: string) {
-    const newMapping = { ...mapping, [slot]: value || undefined }
+  function handleSlotChange(slot: ChartMappingSlot, value: string) {
+    const newMapping = setMappingSlot(mapping, slot, value)
 
     // 只对分组/分类槽位做检查
     const isGroupSlot = slot === "color" || slot === "fill" || slot === "category"
@@ -134,7 +131,7 @@ export function ChartConfigPanel({ columns, data, mapping, onChange }: ChartConf
       </div>
 
       {/* 相关系数方法 */}
-      {chartType === "correlation" && (
+      {mapping.chartType === "correlation" && (
         <div className="flex gap-1.5">
           {CORRELATION_METHODS.map((m) => (
             <button
@@ -151,13 +148,32 @@ export function ChartConfigPanel({ columns, data, mapping, onChange }: ChartConf
           ))}
         </div>
       )}
+      {mapping.chartType === "bar" && mapping.fill && (
+        <div className="flex gap-1.5" aria-label="柱状图排列方式">
+          {([
+            ["grouped", "分组"],
+            ["stacked", "堆叠"],
+            ["normalized", "百分比"],
+          ] as const).map(([mode, label]) => (
+            <button
+              key={mode}
+              type="button"
+              onClick={() => onChange({ ...mapping, mode })}
+              className={`rounded-md px-2.5 py-1 text-[11px] ${mapping.mode === mode ? "bg-[var(--foreground)] text-[var(--background)]" : "bg-[var(--muted)] text-[var(--muted-foreground)] hover:bg-[var(--accent)]"}`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* 列映射槽位 */}
       {Object.keys(slots).length > 0 && (
         <div className="flex gap-2 flex-wrap">
           {Object.entries(slots).map(([slot, slotDef]) => {
             if (chartType === "correlation" && slot === "columns") return null
-            const currentValue = mapping[slot] as string | undefined
+            if (!isChartMappingSlot(slot)) return null
+            const currentValue = getMappingSlot(mapping, slot)
             const isGroupSlot = slot === "color" || slot === "fill"
 
             return (

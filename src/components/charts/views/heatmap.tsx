@@ -3,6 +3,8 @@
 import React, { useMemo } from "react"
 import { MAX_HEATMAP_ENTRIES } from "../constants"
 import { EmptyState } from "../empty-state"
+import { buildHeatmap } from "../transform"
+import { ChartNotice } from "../chart-notice"
 
 export const HeatmapView = React.memo(function HeatmapView({
   data,
@@ -17,42 +19,16 @@ export const HeatmapView = React.memo(function HeatmapView({
 }) {
   const valueKey = fillKey || yKey
 
-  const { matrix, xLabels, yLabels, truncated } = useMemo(() => {
-    const xSet = new Set<string>()
-    const ySet = new Set<string>()
-    data.forEach((d) => {
-      xSet.add(String(d[xKey] ?? ""))
-      ySet.add(String(d[yKey] ?? ""))
-    })
+  const transformed = useMemo(
+    () => buildHeatmap(data, xKey, yKey, valueKey, MAX_HEATMAP_ENTRIES),
+    [data, xKey, yKey, valueKey],
+  )
 
-    const xLabels = Array.from(xSet).slice(0, MAX_HEATMAP_ENTRIES)
-    const yLabels = Array.from(ySet).slice(0, MAX_HEATMAP_ENTRIES)
-    const truncated =
-      xSet.size > MAX_HEATMAP_ENTRIES || ySet.size > MAX_HEATMAP_ENTRIES
-
-    // Build index for O(1) lookup
-    const index = new Map<string, unknown>()
-    for (const d of data) {
-      const key = String(d[xKey]) + "|" + String(d[yKey])
-      index.set(key, d[valueKey])
-    }
-
-    const matrix = yLabels.map((yVal) =>
-      xLabels.map((xVal) => {
-        const val = index.get(xVal + "|" + yVal)
-        return val !== undefined ? Number(val) : 0
-      }),
-    )
-
-    return { matrix, xLabels, yLabels, truncated }
-  }, [data, xKey, yKey, valueKey])
-
+  if (!transformed.ok) return <EmptyState message={transformed.message} />
+  const { matrix, xLabels, yLabels, truncated, min: minVal, max: maxVal, scale } = transformed
   if (matrix.length === 0) return <EmptyState />
 
-  const allValues = matrix.flat()
-  const minVal = Math.min(...allValues)
-  const maxVal = Math.max(...allValues)
-  const range = maxVal - minVal || 1
+  const range = scale === "diverging" ? Math.max(Math.abs(minVal), Math.abs(maxVal)) || 1 : maxVal - minVal || 1
 
   const cellW = Math.max(40, Math.min(60, 600 / xLabels.length))
   const cellH = 32
@@ -62,15 +38,15 @@ export const HeatmapView = React.memo(function HeatmapView({
   return (
     <div>
       {truncated && (
-        <div className="mb-2 rounded border border-[var(--warning-border)] bg-[var(--warning-surface)] px-3 py-1.5 text-xs text-[var(--warning)]">
+        <ChartNotice>
           数据已截断: 仅显示前 {MAX_HEATMAP_ENTRIES} 个唯一值
-        </div>
+        </ChartNotice>
       )}
       <div className="overflow-auto">
         <svg
           width={marginLeft + cellW * xLabels.length}
           height={marginTop + cellH * yLabels.length + 10}
-          style={{ display: "block" }}
+          className="mx-auto block"
         >
           {xLabels.map((x, i) => (
             <text
@@ -98,10 +74,16 @@ export const HeatmapView = React.memo(function HeatmapView({
               </text>
               {xLabels.map((_, col) => {
                 const val = matrix[row][col]
-                const norm = (val - minVal) / range
-                const color = `color-mix(in srgb, var(--chart-sequential-low) ${Math.round((1 - norm) * 100)}%, var(--chart-sequential-high))`
+                const norm = val === null ? 0 : scale === "diverging" ? (val / range + 1) / 2 : (val - minVal) / range
+                const intensity = val === null ? 0 : scale === "diverging" ? Math.abs(val) / range : norm
+                const color = val === null
+                  ? "var(--chart-missing)"
+                  : scale === "diverging"
+                    ? `color-mix(in srgb, var(--chart-diverging-neutral) ${Math.round((1 - Math.abs(val) / range) * 100)}%, ${val < 0 ? "var(--chart-diverging-negative)" : "var(--chart-diverging-positive)"})`
+                    : `color-mix(in srgb, var(--chart-sequential-low) ${Math.round((1 - norm) * 100)}%, var(--chart-sequential-high))`
                 return (
                   <g key={col}>
+                    <title>{`${xLabels[col]} / ${y}: ${val === null ? "缺失" : val}`}</title>
                     <rect
                       x={marginLeft + col * cellW + 1}
                       y={marginTop + row * cellH + 1}
@@ -115,9 +97,9 @@ export const HeatmapView = React.memo(function HeatmapView({
                       y={marginTop + row * cellH + cellH / 2 + 3}
                       textAnchor="middle"
                       fontSize={9}
-                      fill={norm > 0.6 ? "var(--chart-cell-text-strong)" : "var(--chart-cell-text-muted)"}
+                      fill={intensity > 0.6 ? "var(--chart-cell-text-strong)" : "var(--chart-cell-text-muted)"}
                     >
-                      {typeof val === "number" ? val.toFixed(0) : String(val)}
+                      {val === null ? "缺失" : val.toFixed(0)}
                     </text>
                   </g>
                 )

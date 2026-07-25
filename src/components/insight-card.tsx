@@ -3,16 +3,9 @@
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { ChevronDown, ChevronRight, Play, Loader2 } from "lucide-react"
+import type { InsightItem } from "@/lib/ai-contract"
 
-export interface InsightItem {
-  title: string
-  insight: string
-  sql: string
-  chart: {
-    type: string
-    mapping: Record<string, string>
-  }
-}
+export type { InsightItem } from "@/lib/ai-contract"
 
 interface InsightCardProps {
   index: number
@@ -75,7 +68,7 @@ export function InsightCard({ index, item, onExecute, loading }: InsightCardProp
           </pre>
           <div className="mt-1.5 flex items-center gap-2">
             <span className="text-[9px] text-[var(--muted-foreground)]">
-              图表: {item.chart.type} | 映射: {Object.entries(item.chart.mapping).map(([k, v]) => `${k}=${v}`).join(", ")}
+              图表: {item.chart.chartType} | 映射: {Object.entries(item.chart).filter(([key]) => key !== "chartType").map(([key, value]) => `${key}=${Array.isArray(value) ? value.join("/") : value}`).join(", ") || "无"}
             </span>
           </div>
         </div>

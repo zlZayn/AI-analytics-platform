@@ -1,169 +1,32 @@
-# 模块设计文档
+# 模块设计
 
-## 一、模块总览
+## 服务边界
 
-| 模块 | 文件 | 职责 |
-| :--- | :--- | :--- |
-| AI Service | `lib/ai-service.ts` | 自然语言 -> SQL 生成 + 洞察推荐 |
-| Query Engine | `lib/query-engine.ts` | 连接池管理 + SQL 执行 |
-| Schema Service | `lib/schema-service.ts` | 数据库结构扫描 + AI 上下文构建 |
-| SQL Validator | `lib/sql-validator.ts` | SQL 安全校验 (白名单) |
-| Variable Types | `lib/variable-types.ts` | 图表类型定义 + 映射槽位 |
-| Encryption | `lib/encryption.ts` | AES-256 密码加密/解密 |
-| Prisma Client | `lib/prisma.ts` | Prisma 单例客户端 |
-| Chart System | `components/charts/` | 8 种图表视图 + 工具函数 |
-| Chart Config | `components/chart-config-panel.tsx` | 图表类型选择 + 列映射面板 |
-| Insight Card | `components/insight-card.tsx` | AI 洞察卡片组件 |
-| Result Panel | `components/dashboard/result-panel.tsx` | 查询结果展示 |
-| Toast | `components/toast.tsx` | 操作反馈通知 |
-| Layout | `components/layout/` | 侧边栏 + 连接上下文 |
-| Shared Types | `types/index.ts` | TypeScript 类型定义 |
-
----
-
-## 二、核心库
-
-### AI Service (`lib/ai-service.ts`)
-
-调用 OpenAI 兼容 API，将自然语言转换为结构化分析结果。
-
-- 统一输出格式: JSON 数组 `[{title, insight, sql, chart}]`
-- 支持多轮对话历史
-- SQL 列名使用 AS 别名，图表自动匹配
-
-### Query Engine (`lib/query-engine.ts`)
-
-管理数据库连接池，执行 SQL 查询。
-
-- 连接池按 connectionId 缓存
-- 密码解密后创建连接
-- 超时控制 (默认 30s)
-- PG 类型 OID 映射
-
-### Schema Service (`lib/schema-service.ts`)
-
-扫描 PostgreSQL 数据库结构，缓存 Schema 快照。
-
-- 查询 information_schema 获取表/列/外键
-- 排除平台元数据表
-- Schema 快照缓存到 SchemaSnapshot 表
-- buildSchemaContext 生成 AI 上下文文本
-
-### SQL Validator (`lib/sql-validator.ts`)
-
-校验 SQL 安全性，防止危险操作。
-
-- 只允许: SELECT, WITH, EXPLAIN, ANALYZE
-- 禁止: DROP, DELETE, UPDATE, INSERT, ALTER, CREATE
-- 自动添加 LIMIT 1000
-
-### Variable Types (`lib/variable-types.ts`)
-
-图表类型定义和映射槽位。
-
-- 图表类型: line, bar, pie, scatter, boxplot, heatmap, correlation, table
-- 映射槽位: 每种图表声明需要的列 (required/optional)
-- 自动填充: 根据列名关键字匹配，不做智能推断
-
-### Encryption (`lib/encryption.ts`)
-
-AES-256-GCM 加密/解密数据库连接密码。
-
----
-
-## 三、组件
-
-### Chart System (`components/charts/`)
-
-8 种图表类型，模块化设计。图表只负责接收数据并绘制，不做复杂推断。
-
-| 类型 | 组件 | 说明 |
-| :--- | :--- | :--- |
-| line | LineChartView | 折线图 |
-| bar | BarChartView | 柱状图 |
-| pie | PieChartView | 饼图 (分组聚合) |
-| scatter | ScatterChartView | 散点图 |
-| boxplot | BoxPlotView | 箱线图 (自绘 SVG) |
-| heatmap | HeatmapView | 热力图 (自绘 SVG) |
-| correlation | CorrelationHeatmap | 相关系数矩阵 |
-| table | TableView | 数据表格 |
-
-### Chart Config Panel (`components/chart-config-panel.tsx`)
-
-图表类型选择 + 列映射面板。
-
-- 图表类型选择器 (SVG 图标，8 种)
-- 图例开关 (Eye/EyeOff 图标)
-- 映射槽位下拉选择 (自定义 DropdownSelect)
-- 必填项提示
-- 分组列选择: 唯一值 >20 时弹窗确认
-- 图表渲染
-
-### Insight Card (`components/insight-card.tsx`)
-
-AI 洞察卡片组件。
-
-- 显示洞察标题和说明
-- 展开查看 SQL 详情
-- 执行按钮: 自动运行 SQL + 设置图表类型和列映射
-- 支持多条洞察卡片
-
-### Chart Utils (`components/charts/utils.ts`)
-
-固定统计算法和工具函数。
-
-- 计算箱线图统计量 (computeBoxStats)
-- Pearson / Spearman / Kendall 相关系数 (联合过滤 NaN，处理并列值)
-- 数字格式化 (formatNumber)
-- 颜色配置 (getColor)
-
-### Result Panel (`components/dashboard/result-panel.tsx`)
-
-查询结果展示面板。
-
-- 状态栏 (行数/耗时/列数/复制 SQL)
-- 内嵌 ChartConfigPanel
-
-### Toast (`components/toast.tsx`)
-
-操作反馈通知系统。
-
-- Context Provider + useToast hook
-- 3 种类型: success / error / info
-- 3 秒自动消失
-
----
-
-## 四、布局
-
-### AppShell (`components/layout/app-shell.tsx`)
-
-顶层布局: Suspense + ToastProvider + ConnectionProvider + Sidebar + Main。
-
-### Sidebar (`components/layout/sidebar.tsx`)
-
-左侧导航: Logo + 连接信息 + 3 个导航项 + 版本号。
-
-### ConnectionProvider (`components/layout/connection-context.tsx`)
-
-React Context: 从 URL 读取 `?connection=xxx`，加载连接信息。
-
----
-
-## 五、类型定义 (`types/index.ts`)
-
-| 类型 | 说明 |
+| 模块 | 职责 |
 | :--- | :--- |
-| Connection | 数据库连接 |
-| QueryResult | 查询结果 (columns/rows/rowCount/executionTimeMs) |
-| SchemaTable | 表结构 (name/columns/rowEstimate) |
-| SchemaRelation | 表关联 (fromTable/fromColumn/toTable/toColumn) |
-| SchemaData | Schema 数据 (tables/relations/version) |
-| QueryHistoryItem | 查询历史 |
-| SavedQuery | 保存的查询 |
-| ApiResponse | API 响应 (success/data/error) |
+| `query-engine.ts` | 只读事务、超时、取消、5,000 行边界和 PG 类型映射 |
+| `pool-registry.ts` | 有限容量、创建去重、闲置/LRU 回收和连接池失效 |
+| `schema-service.ts` | Schema 扫描、事务快照与 AI 上下文 |
+| `api-response.ts` / `client-api.ts` | 统一服务端响应与客户端错误/取消处理 |
+| `ai-contract.ts` / `ai-service.ts` | 领域中立提示词、structured output、运行时合同和 provider |
+| `sql-validator.ts` | 单条 `SELECT/WITH` 保守预检；数据库只读事务是最终边界 |
 
----
+## 图表五层管线
 
-*文档版本: v1.23.0*
-*最后更新: 2026-06-26*
+`profileData -> recommendCharts -> validateChartMapping -> transformForChart -> renderChart`。
+
+- `types.ts` 是判别联合映射的单一类型源，不含字符串兜底或索引签名。
+- `mapping.ts` 集中创建和更新合法槽位。
+- `pipeline.ts` 扫描完整返回结果、提供可解释推荐和用户主动选择后的默认映射。
+- `algorithms.ts` 保存箱线、直方和相关系数纯函数。
+- `transform.ts` 保存散点抽样、饼图合并、分组序列和热力图变换。
+- `correlation.worker.ts` 在 Web Worker 计算最多 20 列的相关矩阵，配置变化会终止旧 Worker。
+- `views/` 只渲染变换结果和明确的过滤、采样、合并或错误提示。
+
+支持 10 种基础视图：表格、KPI、折线、柱状、饼/环、散点、直方、箱线、热力和相关矩阵。
+
+## UI 状态
+
+工作台的查询和 AI 请求分别持有 AbortController，只有最新 controller 可以写结果或结束 loading。重新执行保留最后一次成功结果。探索预览只传 schema/table 标识符，并阻止旧响应覆盖新表。
+
+表格使用固定行高窗口化，只挂载可见行与 overscan；列宽按列集合保存在 localStorage，支持拖拽、键盘调整、粘性表头、NULL 标记和键盘滚动。

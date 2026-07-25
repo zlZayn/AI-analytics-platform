@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useMemo } from "react"
+import React from "react"
 import {
   BarChart,
   Bar,
@@ -14,6 +14,7 @@ import {
 import { useGroupedData } from "../hooks/use-grouped-data"
 import { AXIS_CONFIG, GRID_CONFIG } from "../constants"
 import { getColor, formatNumber, TooltipFormatter } from "../utils"
+import { EmptyState } from "../empty-state"
 
 export const BarChartView = React.memo(function BarChartView({
   data,
@@ -21,28 +22,20 @@ export const BarChartView = React.memo(function BarChartView({
   yKey,
   fillKey,
   showLegend = true,
+  mode = "grouped",
 }: {
   data: Record<string, unknown>[]
   xKey: string
   yKey: string
   fillKey?: string
   showLegend?: boolean
+  mode?: "grouped" | "stacked" | "normalized"
 }) {
-  const { groups, wideData } = useGroupedData(data, xKey, yKey, fillKey)
+  const transformed = useGroupedData(data, xKey, yKey, fillKey, { rejectDuplicates: true })
+  if (!transformed.ok) return <EmptyState message={transformed.message} />
+  const { groups, wideData } = transformed
 
-  // 动态计算柱子宽度
-  const barLayout = useMemo(() => {
-    const categoryCount = wideData.length
-    const groupCount = groups.length || 1
-
-    // 分组多时用堆叠，避免柱子太细
-    const useStack = groupCount > 3
-
-    // 动态柱子宽度
-    const maxBarSize = categoryCount <= 5 ? 50 : categoryCount <= 10 ? 35 : 25
-
-    return { useStack, maxBarSize }
-  }, [wideData.length, groups.length])
+  const maxBarSize = wideData.length <= 5 ? 50 : wideData.length <= 10 ? 35 : 25
 
   // X轴标签角度
   const xAxisAngle = wideData.length > 6 ? -45 : 0
@@ -55,6 +48,7 @@ export const BarChartView = React.memo(function BarChartView({
         margin={{ top: 5, right: 20, bottom: xAxisHeight, left: 10 }}
         barCategoryGap="15%"
         barGap={2}
+        stackOffset={mode === "normalized" ? "expand" : "none"}
       >
         <CartesianGrid {...GRID_CONFIG} />
         <XAxis
@@ -73,9 +67,9 @@ export const BarChartView = React.memo(function BarChartView({
               key={g}
               dataKey={g}
               fill={getColor(i)}
-              radius={barLayout.useStack ? (i === groups.length - 1 ? [3, 3, 0, 0] : [0, 0, 0, 0]) : [3, 3, 0, 0]}
-              maxBarSize={barLayout.maxBarSize}
-              stackId={barLayout.useStack ? "stack" : undefined}
+              radius={mode !== "grouped" ? (i === groups.length - 1 ? [3, 3, 0, 0] : [0, 0, 0, 0]) : [3, 3, 0, 0]}
+              maxBarSize={maxBarSize}
+              stackId={mode === "grouped" ? undefined : "stack"}
             />
           ))
         ) : (
@@ -83,7 +77,7 @@ export const BarChartView = React.memo(function BarChartView({
             dataKey={yKey}
             fill={getColor(0)}
             radius={[3, 3, 0, 0]}
-            maxBarSize={barLayout.maxBarSize}
+            maxBarSize={maxBarSize}
           />
         )}
         {groups.length > 0 && showLegend && (

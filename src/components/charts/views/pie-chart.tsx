@@ -9,32 +9,34 @@ import {
   ResponsiveContainer,
 } from "recharts"
 import { getColor, formatNumber } from "../utils"
+import { groupPieData } from "../transform"
+import { ChartNotice } from "../chart-notice"
+import { EmptyState } from "../empty-state"
 
 export const PieChartView = React.memo(function PieChartView({
   data,
   nameKey,
   valueKey,
+  categoryLimit,
 }: {
   data: Record<string, unknown>[]
   nameKey: string
   valueKey: string
+  categoryLimit?: number
 }) {
-  // 按分类字段分组，聚合数值字段
-  const chartData = useMemo(() => {
-    const grouped = new Map<string, number>()
-    for (const d of data) {
-      const name = String(d[nameKey] ?? "未知")
-      const val = Number(d[valueKey]) || 0
-      grouped.set(name, (grouped.get(name) || 0) + val)
-    }
-    return Array.from(grouped.entries())
-      .map(([name, value]) => ({ name, value }))
-      .sort((a, b) => b.value - a.value)
-      .slice(0, 20) // 最多 20 个扇区
-  }, [data, nameKey, valueKey])
+  const transformed = useMemo(() => groupPieData(data, nameKey, valueKey, categoryLimit), [data, nameKey, valueKey, categoryLimit])
+
+  if (!transformed.ok) return <EmptyState message={transformed.message} />
+  const chartData = transformed.slices
 
   return (
-    <ResponsiveContainer width="100%" height={320}>
+    <div>
+      {transformed.mergedCategoryCount > 0 && (
+        <ChartNotice tone="muted">
+          默认显示前 {transformed.categoryLimit} 类，其余 {transformed.mergedCategoryCount} 类已合并为“其他”。
+        </ChartNotice>
+      )}
+      <ResponsiveContainer width="100%" height={320}>
       <PieChart>
         <Pie
           data={chartData}
@@ -55,6 +57,7 @@ export const PieChartView = React.memo(function PieChartView({
         </Pie>
         <Tooltip formatter={(value: unknown) => formatNumber(value)} />
       </PieChart>
-    </ResponsiveContainer>
+      </ResponsiveContainer>
+    </div>
   )
 })

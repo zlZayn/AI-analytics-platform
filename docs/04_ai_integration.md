@@ -1,145 +1,33 @@
-# AI 集成文档
+# AI 集成
 
-## 一、架构
+## 边界
 
-用户输入自然语言，通过 API Layer 调用 Schema Service 获取数据库结构上下文，再由 AI Service (OpenAI Compatible SDK) 生成结构化分析结果，最后前端执行 SQL 并可视化。
+AI 根据当前连接扫描出的 Schema 建议 SQL 和图表映射，不直接访问数据库。提示词不包含行业模型、固定表名或业务样例。SQL/AI 负责聚合和数据整形；图表只执行固定展示算法。首次查询结果保持表格，AI 推荐只有在用户执行洞察后才应用。
 
----
+## 模块
 
-## 二、AI Service
+- `src/lib/ai-contract.ts`：图表合同、提示词构建、供应商 JSON Schema、SQL 和映射运行时校验。
+- `src/lib/ai-service.ts`：可注入的 `AICompletionProvider` 和 OpenAI 兼容生产 provider。
+- `src/lib/schema-service.ts`：生成当前连接 Schema 上下文。
 
-### 文件
+`generateSQL(message, schemaContext, history, provider?)` 返回 `{ items }`。测试注入内存 provider，不需要 API Key，也不会调用真实模型。
 
-`src/lib/ai-service.ts`
+## Structured Output
 
-### 接口
+生产 provider 使用 `response_format.type = json_schema`、`strict = true`。根对象是 `{ items: [...] }`，每项包含 `title`、`insight`、单条 `SELECT/WITH` 和 `{ type, mapping }`。支持 table、line、bar、pie、scatter、boxplot、heatmap、correlation、kpi、histogram。
 
-```typescript
-// 普通 SQL 生成
-generateSQL(
-  message: string,           // 用户输入
-  schemaContext: string,     // Schema 上下文
-  conversationHistory?: {    // 多轮对话历史
-    role: 'user' | 'assistant'
-    content: string
-  }[]
-): Promise<{
-  sql: string
-  explanation: string
-  insights?: InsightItem[]   // 洞察请求时返回
-}>
+运行时仍执行第二道校验：
 
-// 洞察推荐
-generateInsights(
-  message: string,
-  schemaContext: string
-): Promise<InsightItem[]>
-```
+1. JSON 必须严格可解析，不提取代码围栏或自由文本。
+2. SQL 通过与查询引擎一致的只读语法预检。
+3. 图表类型、必填槽位和可选槽位必须匹配合同。
+4. 映射列必须引用 SQL 中显式 `AS` 的输出别名。
+5. 任一步失败即丢弃该项；不把不可信文本转成可执行 SQL。
 
-### 洞察请求检测
+## 配置
 
-关键词匹配:
+`AI_API_BASE`、`AI_API_KEY`、`AI_MODEL` 控制生产 provider。未配置 Key 时 API 返回稳定的未配置错误，应用构建和离线测试不受影响。模型温度为 0.2，以减少同一请求的结构漂移。
 
-- 洞察
-- 分析推荐
-- 有什么数据
-- 帮我分析
-- 数据洞察
-- 分析机会
-- 推荐分析
+## 离线回归
 
-### 模型配置
-
-通过环境变量配置:
-
-| 变量 | 说明 |
-| :--- | :--- |
-| `AI_API_BASE` | API 地址 |
-| `AI_API_KEY` | API Key |
-| `AI_MODEL` | 模型名称 (默认 mimo-v2.5-pro) |
-
-支持任何 OpenAI 兼容 API (GPT-4o, Claude, DeepSeek, MiMo 等)。
-
----
-
-## 三、提示词设计
-
-### 普通 SQL 生成 Prompt
-
-1. **角色定义** - 你是 PostgreSQL SQL 专家
-2. **Schema 说明** - 星型模型结构 (维度表 + 事实表)
-3. **业务指标公式** - 销售额、客单价、复购率等
-4. **SQL 生成规则** - 只生成 SELECT、使用 JOIN
-5. **图表数据建议** - 为每种图表类型提供数据格式建议
-6. **输出格式** - 说明文字 + SQL (不要代码块)
-
-### 洞察推荐 Prompt
-
-1. **角色定义** - 数据分析助手
-2. **Schema 说明** - 完整表结构和字段
-3. **业务指标** - 销售额、订单数、客单价、退款率、复购率
-4. **图表映射规则** - 严格的 JSON 格式规范
-5. **输出格式** - JSON 数组，每条包含 title/insight/sql/chart
-
-### Schema 上下文
-
-由 `buildSchemaContext()` 生成，包含:
-
-- 表结构 (表名、字段、类型、注释)
-- 表关联 (外键关系)
-- 星型模型业务说明
-- 常用 JOIN 模式
-- 分析示例
-
----
-
-## 四、洞察输出格式
-
-### JSON 规范
-
-```json
-[
-  {
-    "title": "各门店销售额排名",
-    "insight": "旗舰店销量领先，但医院店客单价更高",
-    "sql": "SELECT p.name AS name, SUM(o.pay_amount) AS value FROM fact_orders o JOIN dim_pharmacy p ON o.pharmacy_id = p.id GROUP BY p.name ORDER BY value DESC",
-    "chart": {
-      "type": "bar",
-      "mapping": { "x": "name", "y": "value" }
-    }
-  }
-]
-```
-
-### 图表映射规则
-
-| type | mapping key | 说明 |
-| --- | --- | --- |
-| line | x, y | x=分类/时间列, y=数值列 |
-| bar | x, y | x=分类列, y=数值列 |
-| pie | name, value | name=分类列, value=数值列 |
-| scatter | x, y | x=数值列, y=数值列 |
-| boxplot | category, value | category=分类列, value=数值列 |
-| table | 无 | 直接显示数据 |
-| correlation | 无 | 自动计算相关系数 |
-
----
-
-## 五、SQL 提取
-
-从 AI 返回的文本中提取 SQL:
-
-1. 尝试匹配 ` ```sql ... ``` ` 代码块
-2. 逐行检测 SQL 关键字 (SELECT/WITH/EXPLAIN)
-3. 兜底: 将整个文本作为 SQL
-
----
-
-## 六、多轮对话
-
-前端维护消息历史，每次请求携带最近 10 条对话记录。AI 根据上下文生成更准确的 SQL。
-
----
-
-*文档版本: v1.23.0*
-*最后更新: 2026-06-26*
+`src/lib/__tests__/ai-contract.test.ts` 使用固定夹具覆盖提示词领域中立性、原生 Schema、未知图表、缺失映射、未知别名、非法 SQL、损坏 JSON 和 provider 注入。日常测试禁止使用真实 AI API。

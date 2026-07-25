@@ -32,7 +32,7 @@ src/types/ 存放共享类型定义，src/generated/prisma/ 是 Prisma 客户端
 
 | 任务 | 状态 |
 | :--- | :--- |
-| 图表可视化 (8 种类型) | 完成 |
+| 图表可视化 (10 种基础视图) | 完成 |
 | 图表用户映射 (列选择) | 完成 |
 | AI SQL 生成 (OpenAI Compatible) | 完成 |
 | AI 多轮对话 UI | 完成 |

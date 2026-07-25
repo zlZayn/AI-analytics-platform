@@ -556,7 +556,7 @@ INSERT INTO system_configs (key, value, description, category) VALUES
 ('ai.temperature', '0.7', '温度参数', 'ai'),
 ('security.sql_timeout', '10000', 'SQL 执行超时(ms)', 'security'),
 ('security.max_rows', '1000', '最大返回行数', 'security'),
-('security.allowed_operations', '["SELECT", "WITH", "EXPLAIN"]', '允许的 SQL 操作', 'security'),
+('security.allowed_operations', '["SELECT", "WITH"]', '允许的 SQL 操作', 'security'),
 ('performance.schema_cache_ttl', '86400', 'Schema 缓存 TTL(秒)', 'performance'),
 ('performance.query_cache_ttl', '300', '查询缓存 TTL(秒)', 'performance');
 ```

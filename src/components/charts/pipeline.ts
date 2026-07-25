@@ -1,9 +1,11 @@
-import type { ChartMapping } from "./types"
+import type { ChartMapping, ChartType } from "./types"
+import { getMappingSlot, type ChartMappingSlot } from "./mapping"
+import { createChartMapping } from "./mapping"
 
 export type SemanticType = "numeric" | "temporal" | "categorical" | "boolean" | "identifier" | "text" | "unknown"
 export interface ColumnProfile { name: string; databaseType: string; semanticType: SemanticType; validCount: number; nullCount: number; invalidCount: number; uniqueCount: number; min?: number | string; max?: number | string; sorted: "ascending" | "descending" | "none" }
 export interface DataProfile { rowCount: number; columns: ColumnProfile[] }
-export interface ChartRecommendation { chartType: string; mapping: ChartMapping; reason: string; score: number }
+export interface ChartRecommendation { chartType: ChartType; mapping: ChartMapping; reason: string; score: number }
 export interface MappingIssue { code: string; message: string; field?: string; severity: "error" | "warning" }
 export interface MappingValidation { valid: boolean; issues: MappingIssue[] }
 
@@ -52,11 +54,43 @@ export function recommendCharts(profile: DataProfile): ChartRecommendation[] {
   return recommendations.sort((a, b) => b.score - a.score)
 }
 
+export function createMappingForChart(chartType: ChartType, profile: DataProfile): ChartMapping {
+  const numeric = profile.columns.filter((column) => column.semanticType === "numeric").map((column) => column.name)
+  const temporal = profile.columns.filter((column) => column.semanticType === "temporal").map((column) => column.name)
+  const discrete = profile.columns
+    .filter((column) => column.semanticType === "categorical" || column.semanticType === "text")
+    .map((column) => column.name)
+  const categorical = [...discrete, ...temporal]
+  const category = categorical[0]
+
+  switch (chartType) {
+    case "line": return { chartType, x: temporal[0] ?? category, y: numeric[0] }
+    case "bar": return { chartType, x: category, y: numeric[0], mode: "grouped" }
+    case "pie": return { chartType, name: category, value: numeric[0] }
+    case "scatter": return { chartType, x: numeric[0], y: numeric[1] }
+    case "boxplot": return { chartType, category, value: numeric[0] }
+    case "heatmap": return { chartType, x: category, y: categorical.find((column) => column !== category), value: numeric[0] }
+    case "correlation": return { chartType, columns: numeric.slice(0, 20), method: "pearson" }
+    case "kpi": return { chartType, value: numeric[0] }
+    case "histogram": return { chartType, value: numeric[0] }
+    default: return createChartMapping(chartType)
+  }
+}
+
 export function validateChartMapping(mapping: ChartMapping, profile: DataProfile, rows: Record<string, unknown>[]): MappingValidation {
-  const required: Record<string, Array<[string, SemanticType[]]>> = { line: [["x", ["temporal", "categorical", "text"]], ["y", ["numeric"]]], bar: [["x", ["categorical", "temporal", "text"]], ["y", ["numeric"]]], scatter: [["x", ["numeric"]], ["y", ["numeric"]]], histogram: [["value", ["numeric"]]], kpi: [["value", ["numeric"]]] }
+  const required: Partial<Record<ChartType, Array<[ChartMappingSlot, SemanticType[]]>>> = {
+    line: [["x", ["temporal", "categorical", "text"]], ["y", ["numeric"]]],
+    bar: [["x", ["categorical", "temporal", "text"]], ["y", ["numeric"]]],
+    pie: [["name", ["categorical", "text", "temporal"]], ["value", ["numeric"]]],
+    scatter: [["x", ["numeric"]], ["y", ["numeric"]]],
+    boxplot: [["category", ["categorical", "text"]], ["value", ["numeric"]]],
+    heatmap: [["x", ["categorical", "text", "temporal"]], ["y", ["categorical", "text", "temporal"]], ["value", ["numeric"]]],
+    histogram: [["value", ["numeric"]]],
+    kpi: [["value", ["numeric"]]],
+  }
   const issues: MappingIssue[] = []
   for (const [field, allowed] of required[mapping.chartType] ?? []) {
-    const name = (mapping as unknown as Record<string, string | undefined>)[field]
+    const name = getMappingSlot(mapping, field)
     const column = profile.columns.find((candidate) => candidate.name === name)
     if (!name || !column) issues.push({ code: "MISSING_MAPPING", message: `请选择${field}字段`, field, severity: "error" })
     else if (!allowed.includes(column.semanticType)) issues.push({ code: "INCOMPATIBLE_TYPE", message: `${name} 不适用于 ${field}`, field, severity: "error" })
