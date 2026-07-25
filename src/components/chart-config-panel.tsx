@@ -200,7 +200,7 @@ export function ChartConfigPanel({ columns, data, mapping, onChange }: ChartConf
 
       {/* 必填项提示 */}
       {validation.issues.length > 0 && chartType !== "table" && chartType !== "correlation" && (
-        <div className="text-[11px] text-amber-600 bg-amber-50 border border-amber-200 rounded px-2 py-1">
+        <div className="rounded border border-[color-mix(in_srgb,var(--warning)_35%,transparent)] bg-[color-mix(in_srgb,var(--warning)_10%,transparent)] px-2 py-1 text-[11px] text-[var(--warning)]">
           {validation.issues[0].message}
         </div>
       )}
@@ -215,7 +215,7 @@ export function ChartConfigPanel({ columns, data, mapping, onChange }: ChartConf
       </div>
 
       {/* 图表渲染 */}
-      <div className="border rounded-lg overflow-hidden bg-white">
+      <div data-testid="chart-surface" className="overflow-hidden rounded-lg border border-[var(--border)] bg-[var(--card)] text-[var(--card-foreground)]">
         <Chart mapping={mapping} data={data} showLegend={showLegend} />
       </div>
 

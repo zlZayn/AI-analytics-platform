@@ -13,8 +13,10 @@ interface Props {
   initialMapping?: ChartMapping
 }
 
+const DEFAULT_MAPPING: ChartMapping = { chartType: "table" }
+
 export function ResultPanel({ result, onCopySql, initialMapping }: Props) {
-  const initial = initialMapping || { chartType: "table" }
+  const initial = initialMapping || DEFAULT_MAPPING
   const [chartState, setChartState] = useState<{ result: QueryResult; initial: ChartMapping; mapping: ChartMapping }>({
     result,
     initial,

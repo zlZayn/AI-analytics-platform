@@ -9,7 +9,7 @@ import { ToastProvider } from "@/components/toast"
 export function AppShell({ children }: { children: React.ReactNode }) {
   const [mobileOpen, setMobileOpen] = useState(false)
   return (
-    <Suspense fallback={<div className="flex h-screen items-center justify-center text-gray-400">加载中...</div>}>
+    <Suspense fallback={<div className="flex h-screen items-center justify-center bg-[var(--background)] text-[var(--muted-foreground)]">加载中...</div>}>
       <ToastProvider>
         <ConnectionProvider>
           <div className="flex h-screen min-h-0">

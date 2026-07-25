@@ -62,7 +62,7 @@ export const HeatmapView = React.memo(function HeatmapView({
   return (
     <div>
       {truncated && (
-        <div className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded px-3 py-1.5 mb-2">
+        <div className="mb-2 rounded border border-[color-mix(in_srgb,var(--warning)_35%,transparent)] bg-[color-mix(in_srgb,var(--warning)_10%,transparent)] px-3 py-1.5 text-xs text-[var(--warning)]">
           数据已截断: 仅显示前 {MAX_HEATMAP_ENTRIES} 个唯一值
         </div>
       )}
@@ -79,7 +79,7 @@ export const HeatmapView = React.memo(function HeatmapView({
               y={marginTop - 5}
               textAnchor="middle"
               fontSize={10}
-              fill="#6b7280"
+              fill="var(--chart-tick)"
               transform={`rotate(-30, ${marginLeft + i * cellW + cellW / 2}, ${marginTop - 5})`}
             >
               {x.length > 8 ? x.slice(0, 8) + ".." : x}
@@ -92,16 +92,14 @@ export const HeatmapView = React.memo(function HeatmapView({
                 y={marginTop + row * cellH + cellH / 2 + 4}
                 textAnchor="end"
                 fontSize={10}
-                fill="#6b7280"
+                fill="var(--chart-tick)"
               >
                 {y.length > 12 ? y.slice(0, 12) + ".." : y}
               </text>
               {xLabels.map((_, col) => {
                 const val = matrix[row][col]
                 const norm = (val - minVal) / range
-                const r = Math.round(239 + (59 - 239) * norm)
-                const g = Math.round(68 + (130 - 68) * norm)
-                const b = Math.round(68 + (246 - 68) * norm)
+                const color = `color-mix(in srgb, var(--chart-sequential-low) ${Math.round((1 - norm) * 100)}%, var(--chart-sequential-high))`
                 return (
                   <g key={col}>
                     <rect
@@ -109,7 +107,7 @@ export const HeatmapView = React.memo(function HeatmapView({
                       y={marginTop + row * cellH + 1}
                       width={cellW - 2}
                       height={cellH - 2}
-                      fill={`rgb(${r},${g},${b})`}
+                      fill={color}
                       rx={3}
                     />
                     <text
@@ -117,7 +115,7 @@ export const HeatmapView = React.memo(function HeatmapView({
                       y={marginTop + row * cellH + cellH / 2 + 3}
                       textAnchor="middle"
                       fontSize={9}
-                      fill={norm > 0.6 ? "#fff" : "#374151"}
+                      fill={norm > 0.6 ? "var(--chart-cell-text-strong)" : "var(--chart-cell-text-muted)"}
                     >
                       {typeof val === "number" ? val.toFixed(0) : String(val)}
                     </text>

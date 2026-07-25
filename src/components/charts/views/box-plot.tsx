@@ -78,7 +78,7 @@ export const BoxPlotView = React.memo(function BoxPlotView({
                 y1={y}
                 x2={width - margin.right}
                 y2={y}
-                stroke="#f0f0f0"
+                stroke="var(--chart-grid)"
                 strokeDasharray="3 3"
               />
               <text
@@ -86,7 +86,7 @@ export const BoxPlotView = React.memo(function BoxPlotView({
                 y={y + 4}
                 textAnchor="end"
                 fontSize={11}
-                fill="#6b7280"
+                fill="var(--chart-tick)"
               >
                 {formatNumber(tick)}
               </text>
@@ -107,7 +107,7 @@ export const BoxPlotView = React.memo(function BoxPlotView({
                 y1={margin.top + yScale(stats.whiskerHigh)}
                 x2={cx}
                 y2={margin.top + yScale(stats.whiskerLow)}
-                stroke="#94a3b8"
+                stroke="var(--chart-tick)"
                 strokeWidth={1}
               />
               <line
@@ -115,7 +115,7 @@ export const BoxPlotView = React.memo(function BoxPlotView({
                 y1={margin.top + yScale(stats.whiskerHigh)}
                 x2={cx + boxWidth * 0.3}
                 y2={margin.top + yScale(stats.whiskerHigh)}
-                stroke="#94a3b8"
+                stroke="var(--chart-tick)"
                 strokeWidth={1}
               />
               <line
@@ -123,7 +123,7 @@ export const BoxPlotView = React.memo(function BoxPlotView({
                 y1={margin.top + yScale(stats.whiskerLow)}
                 x2={cx + boxWidth * 0.3}
                 y2={margin.top + yScale(stats.whiskerLow)}
-                stroke="#94a3b8"
+                stroke="var(--chart-tick)"
                 strokeWidth={1}
               />
               <rect
@@ -161,7 +161,7 @@ export const BoxPlotView = React.memo(function BoxPlotView({
                 y={height - margin.bottom + 18}
                 textAnchor="middle"
                 fontSize={11}
-                fill="#6b7280"
+                fill="var(--chart-tick)"
               >
                 {g.name.length > 10 ? g.name.slice(0, 10) + "..." : g.name}
               </text>
@@ -170,7 +170,7 @@ export const BoxPlotView = React.memo(function BoxPlotView({
                 y={height - margin.bottom + 32}
                 textAnchor="middle"
                 fontSize={9}
-                fill="#9ca3af"
+                fill="var(--muted-foreground)"
               >
                 n={g.count}
               </text>

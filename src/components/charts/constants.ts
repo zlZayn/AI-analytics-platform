@@ -1,7 +1,6 @@
 export const COLORS = [
-  "#2563eb", "#0f766e", "#c2410c", "#7c3aed",
-  "#be123c", "#0369a1", "#15803d", "#a16207",
-  "#4338ca", "#0e7490", "#9f1239", "#4d7c0f",
+  "var(--chart-1)", "var(--chart-2)", "var(--chart-3)", "var(--chart-4)",
+  "var(--chart-5)", "var(--chart-accent)", "var(--chart-positive)", "var(--chart-negative)",
 ]
 
 export const AXIS_CONFIG = {

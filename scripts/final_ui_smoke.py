@@ -30,6 +30,7 @@ def main() -> None:
             page.on("requestfailed", lambda request: failed_requests.append(f"{request.url}: {request.failure}"))
             page.goto(BASE_URL, wait_until="domcontentloaded")
             page.locator("body").wait_for(state="visible")
+            light_background = page.locator("body").evaluate("element => getComputedStyle(element).backgroundColor")
 
             overflow = page.evaluate("document.documentElement.scrollWidth > document.documentElement.clientWidth")
             if overflow:
@@ -61,6 +62,9 @@ def main() -> None:
                 toggle = page.get_by_role("button", name="切换深色主题")
                 toggle.click()
                 page.locator("html.dark").wait_for(state="attached")
+                dark_background = page.locator("body").evaluate("element => getComputedStyle(element).backgroundColor")
+                if dark_background == light_background:
+                    failures.append(f"{name}: body background did not change in dark theme")
                 page.screenshot(path=str(OUTPUT_DIR / f"{name}-dark.png"), full_page=True)
 
             if console_errors:

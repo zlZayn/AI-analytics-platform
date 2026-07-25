@@ -40,10 +40,10 @@ export function ToastProvider({ children }: { children: ReactNode }) {
             key={t.id}
             className={`flex items-center gap-2 px-3 py-2 rounded-lg shadow-lg text-sm animate-in slide-in-from-bottom-2 ${
               t.type === "success"
-                ? "bg-gray-900 text-white"
+                ? "bg-[var(--foreground)] text-[var(--background)]"
                 : t.type === "error"
-                ? "bg-red-600 text-white"
-                : "bg-white border text-gray-700"
+                ? "bg-[var(--destructive)] text-white"
+                : "border border-[var(--border)] bg-[var(--popover)] text-[var(--popover-foreground)]"
             }`}
           >
             <span className="flex-1">{t.message}</span>

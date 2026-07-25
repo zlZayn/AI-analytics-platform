@@ -60,20 +60,17 @@ export const CorrelationHeatmap = React.memo(function CorrelationHeatmap({
   const marginLeft = 80
   const marginTop = 40
 
-  // 正相关蓝色，负相关红色，0 白色
+  // Correlation colors use theme tokens so the neutral midpoint remains readable.
   const valueToColor = (v: number) => {
-    if (v >= 0) {
-      const t = v
-      return `rgb(${Math.round(255 - 216 * t)},${Math.round(255 - 132 * t)},${Math.round(255 - 10 * t)})`
-    }
-    const t = -v
-    return `rgb(${Math.round(255 - 218 * t)},${Math.round(255 - 156 * t)},${Math.round(255 - 246 * t)})`
+    const strength = Math.round(Math.min(1, Math.abs(v)) * 100)
+    const endpoint = v >= 0 ? "var(--chart-diverging-positive)" : "var(--chart-diverging-negative)"
+    return `color-mix(in srgb, var(--chart-diverging-neutral) ${100 - strength}%, ${endpoint})`
   }
 
   return (
     <div>
       {truncated && (
-        <div className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded px-3 py-1.5 mb-2">
+        <div className="mb-2 rounded border border-[color-mix(in_srgb,var(--warning)_35%,transparent)] bg-[color-mix(in_srgb,var(--warning)_10%,transparent)] px-3 py-1.5 text-xs text-[var(--warning)]">
           仅显示前 {MAX_CORR_COLUMNS} 个数值列的相关性
         </div>
       )}
@@ -85,9 +82,9 @@ export const CorrelationHeatmap = React.memo(function CorrelationHeatmap({
         >
           <defs>
             <linearGradient id="corrGradient" x1="0" x2="1" y1="0" y2="0">
-              <stop offset="0%" stopColor="rgb(37,99,9)" />
-              <stop offset="50%" stopColor="rgb(255,255,255)" />
-              <stop offset="100%" stopColor="rgb(37,99,246)" />
+              <stop offset="0%" stopColor="var(--chart-diverging-negative)" />
+              <stop offset="50%" stopColor="var(--chart-diverging-neutral)" />
+              <stop offset="100%" stopColor="var(--chart-diverging-positive)" />
             </linearGradient>
           </defs>
 
@@ -98,7 +95,7 @@ export const CorrelationHeatmap = React.memo(function CorrelationHeatmap({
               y={marginTop - 8}
               textAnchor="start"
               fontSize={10}
-              fill="#6b7280"
+              fill="var(--chart-tick)"
               transform={`rotate(-40, ${marginLeft + i * size + size / 2}, ${marginTop - 8})`}
             >
               {label}
@@ -111,7 +108,7 @@ export const CorrelationHeatmap = React.memo(function CorrelationHeatmap({
               y={marginTop + i * size + size / 2 + 4}
               textAnchor="end"
               fontSize={10}
-              fill="#6b7280"
+              fill="var(--chart-tick)"
             >
               {label}
             </text>
@@ -132,7 +129,7 @@ export const CorrelationHeatmap = React.memo(function CorrelationHeatmap({
                   y={marginTop + i * size + size / 2 + 4}
                   textAnchor="middle"
                   fontSize={9}
-                  fill={Math.abs(val) > 0.5 ? "#fff" : "#374151"}
+                  fill={Math.abs(val) > 0.5 ? "var(--chart-cell-text-strong)" : "var(--chart-cell-text-muted)"}
                 >
                   {Number.isFinite(val) ? val.toFixed(2) : "-"}
                 </text>
@@ -151,7 +148,7 @@ export const CorrelationHeatmap = React.memo(function CorrelationHeatmap({
             x={marginLeft}
             y={marginTop + labels.length * size + 34}
             fontSize={9}
-            fill="#6b7280"
+            fill="var(--chart-tick)"
           >
             -1.0
           </text>
@@ -160,7 +157,7 @@ export const CorrelationHeatmap = React.memo(function CorrelationHeatmap({
             y={marginTop + labels.length * size + 34}
             textAnchor="end"
             fontSize={9}
-            fill="#6b7280"
+            fill="var(--chart-tick)"
           >
             +1.0
           </text>
@@ -169,7 +166,7 @@ export const CorrelationHeatmap = React.memo(function CorrelationHeatmap({
             y={marginTop + labels.length * size + 34}
             textAnchor="middle"
             fontSize={9}
-            fill="#6b7280"
+            fill="var(--chart-tick)"
           >
             0
           </text>
