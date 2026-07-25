@@ -256,7 +256,7 @@ function WorkspaceContent() {
               />
             </div>
             {error && (
-              <div className="mt-2 p-2 rounded bg-red-50 border border-red-200 text-xs text-red-600 font-mono">{error}</div>
+              <div className="mt-2 rounded border border-[var(--destructive-border)] bg-[var(--destructive-surface)] p-2 font-mono text-xs text-[var(--destructive)]">{error}</div>
             )}
           </div>
 

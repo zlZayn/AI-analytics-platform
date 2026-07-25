@@ -50,7 +50,7 @@ export function ResultPanel({ result, onCopySql, initialMapping }: Props) {
           className="h-6 gap-1 text-[11px] text-[var(--muted-foreground)]"
           onClick={handleCopy}
         >
-          {copied ? <Check className="w-3 h-3 text-green-500" /> : <Copy className="w-3 h-3" />}
+          {copied ? <Check className="h-3 w-3 text-[var(--success)]" /> : <Copy className="h-3 w-3" />}
           {copied ? "已复制" : "复制 SQL"}
         </Button>
       </div>

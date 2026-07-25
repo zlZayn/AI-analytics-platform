@@ -60,7 +60,7 @@ export const CorrelationHeatmap = React.memo(function CorrelationHeatmap({
   const marginLeft = 80
   const marginTop = 40
 
-  // Correlation colors use theme tokens so the neutral midpoint remains readable.
+  // Correlation colors use shared chart tokens so the neutral midpoint remains readable.
   const valueToColor = (v: number) => {
     const strength = Math.round(Math.min(1, Math.abs(v)) * 100)
     const endpoint = v >= 0 ? "var(--chart-diverging-positive)" : "var(--chart-diverging-negative)"
@@ -70,7 +70,7 @@ export const CorrelationHeatmap = React.memo(function CorrelationHeatmap({
   return (
     <div>
       {truncated && (
-        <div className="mb-2 rounded border border-[color-mix(in_srgb,var(--warning)_35%,transparent)] bg-[color-mix(in_srgb,var(--warning)_10%,transparent)] px-3 py-1.5 text-xs text-[var(--warning)]">
+        <div className="mb-2 rounded border border-[var(--warning-border)] bg-[var(--warning-surface)] px-3 py-1.5 text-xs text-[var(--warning)]">
           仅显示前 {MAX_CORR_COLUMNS} 个数值列的相关性
         </div>
       )}

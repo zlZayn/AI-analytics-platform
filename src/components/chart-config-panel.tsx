@@ -200,7 +200,7 @@ export function ChartConfigPanel({ columns, data, mapping, onChange }: ChartConf
 
       {/* 必填项提示 */}
       {validation.issues.length > 0 && chartType !== "table" && chartType !== "correlation" && (
-        <div className="rounded border border-[color-mix(in_srgb,var(--warning)_35%,transparent)] bg-[color-mix(in_srgb,var(--warning)_10%,transparent)] px-2 py-1 text-[11px] text-[var(--warning)]">
+        <div className="rounded border border-[var(--warning-border)] bg-[var(--warning-surface)] px-2 py-1 text-[11px] text-[var(--warning)]">
           {validation.issues[0].message}
         </div>
       )}

@@ -15,6 +15,13 @@ interface ToastContextType {
 
 const ToastContext = createContext<ToastContextType>({ toast: () => {} })
 
+const TOAST_STYLES: Record<Toast["type"], string> = {
+  success: "border-[var(--success-border)] bg-[var(--success-surface)] text-[var(--success)]",
+  error: "border-[var(--destructive-border)] bg-[var(--destructive-surface)] text-[var(--destructive)]",
+  warning: "border-[var(--warning-border)] bg-[var(--warning-surface)] text-[var(--warning)]",
+  info: "border-[var(--border)] bg-[var(--popover)] text-[var(--popover-foreground)]",
+}
+
 export function useToast() {
   return useContext(ToastContext)
 }
@@ -38,13 +45,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
         {toasts.map((t) => (
           <div
             key={t.id}
-            className={`flex items-center gap-2 px-3 py-2 rounded-lg shadow-lg text-sm animate-in slide-in-from-bottom-2 ${
-              t.type === "success"
-                ? "bg-[var(--foreground)] text-[var(--background)]"
-                : t.type === "error"
-                ? "bg-[var(--destructive)] text-white"
-                : "border border-[var(--border)] bg-[var(--popover)] text-[var(--popover-foreground)]"
-            }`}
+            className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-sm shadow-lg animate-in slide-in-from-bottom-2 ${TOAST_STYLES[t.type]}`}
           >
             <span className="flex-1">{t.message}</span>
             <button onClick={() => setToasts((prev) => prev.filter((x) => x.id !== t.id))}>

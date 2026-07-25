@@ -18,7 +18,6 @@ import {
   X,
 } from "lucide-react"
 import type { Connection } from "@/types"
-import { ThemeToggle } from "./theme-toggle"
 import { fetchApi } from "@/lib/client-api"
 
 const navItems = [
@@ -215,10 +214,7 @@ export function Sidebar({ mobileOpen = false, onClose }: { mobileOpen?: boolean;
 
       {/* Footer */}
       <div className="px-3 py-2 border-t border-[var(--sidebar-border)]">
-        <div className="flex items-center justify-between">
-          <span className="text-[10px] text-[var(--muted-foreground)]">v1.23.0</span>
-          <ThemeToggle />
-        </div>
+        <span className="text-[10px] text-[var(--muted-foreground)]">v1.23.0</span>
       </div>
     </aside>
   )

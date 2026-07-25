@@ -14,7 +14,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <ConnectionProvider>
           <div className="flex h-screen min-h-0">
             <Sidebar mobileOpen={mobileOpen} onClose={() => setMobileOpen(false)} />
-            {mobileOpen && <button className="fixed inset-0 z-40 bg-black/30 md:hidden" onClick={() => setMobileOpen(false)} aria-label="关闭导航" />}
+            {mobileOpen && <button className="fixed inset-0 z-40 bg-[var(--overlay-strong)] md:hidden" onClick={() => setMobileOpen(false)} aria-label="关闭导航" />}
             <div className="flex min-w-0 flex-1 flex-col">
               <div className="flex h-11 shrink-0 items-center border-b border-[var(--border)] bg-[var(--background)] px-3 md:hidden">
                 <button data-testid="mobile-nav-open" className="rounded p-1.5 hover:bg-[var(--muted)]" onClick={() => setMobileOpen(true)} aria-label="打开导航">

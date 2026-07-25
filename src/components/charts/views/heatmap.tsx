@@ -62,7 +62,7 @@ export const HeatmapView = React.memo(function HeatmapView({
   return (
     <div>
       {truncated && (
-        <div className="mb-2 rounded border border-[color-mix(in_srgb,var(--warning)_35%,transparent)] bg-[color-mix(in_srgb,var(--warning)_10%,transparent)] px-3 py-1.5 text-xs text-[var(--warning)]">
+        <div className="mb-2 rounded border border-[var(--warning-border)] bg-[var(--warning-surface)] px-3 py-1.5 text-xs text-[var(--warning)]">
           数据已截断: 仅显示前 {MAX_HEATMAP_ENTRIES} 个唯一值
         </div>
       )}

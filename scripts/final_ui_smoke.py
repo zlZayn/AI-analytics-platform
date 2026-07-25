@@ -30,13 +30,22 @@ def main() -> None:
             page.on("requestfailed", lambda request: failed_requests.append(f"{request.url}: {request.failure}"))
             page.goto(BASE_URL, wait_until="domcontentloaded")
             page.locator("body").wait_for(state="visible")
-            light_background = page.locator("body").evaluate("element => getComputedStyle(element).backgroundColor")
+            theme_toggle_count = page.get_by_role("button", name="切换深色主题").count()
+            if theme_toggle_count:
+                failures.append(f"{name}: dark-theme toggle is still rendered")
+            if page.locator("html").evaluate("element => element.classList.contains('dark')"):
+                failures.append(f"{name}: html still has the dark class")
+            color_scheme = page.locator("html").evaluate(
+                "element => getComputedStyle(element).colorScheme"
+            )
+            if color_scheme != "light":
+                failures.append(f"{name}: expected light color-scheme, got {color_scheme!r}")
 
             overflow = page.evaluate("document.documentElement.scrollWidth > document.documentElement.clientWidth")
             if overflow:
                 failures.append(f"{name}: page has horizontal overflow")
 
-            page.screenshot(path=str(OUTPUT_DIR / f"{name}-light.png"), full_page=True)
+            page.screenshot(path=str(OUTPUT_DIR / f"{name}.png"), full_page=True)
 
             if width < 768:
                 try:
@@ -59,13 +68,7 @@ def main() -> None:
             else:
                 page.get_by_role("button", name="选择连接").click()
                 page.get_by_role("link", name="管理连接").wait_for()
-                toggle = page.get_by_role("button", name="切换深色主题")
-                toggle.click()
-                page.locator("html.dark").wait_for(state="attached")
-                dark_background = page.locator("body").evaluate("element => getComputedStyle(element).backgroundColor")
-                if dark_background == light_background:
-                    failures.append(f"{name}: body background did not change in dark theme")
-                page.screenshot(path=str(OUTPUT_DIR / f"{name}-dark.png"), full_page=True)
+                page.screenshot(path=str(OUTPUT_DIR / f"{name}-connections.png"), full_page=True)
 
             if console_errors:
                 failures.append(f"{name}: console errors: {' | '.join(console_errors)}")

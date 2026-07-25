@@ -118,7 +118,7 @@ export default function Home() {
         <h1 className="text-base font-semibold text-[var(--foreground)]">连接管理</h1>
         <p className="mt-0.5 text-xs text-[var(--muted-foreground)]">选择或创建 PostgreSQL 数据库连接</p>
       </div>
-      {listError && <div className="mb-4 flex items-center justify-between rounded-md border border-[color-mix(in_srgb,var(--destructive)_35%,transparent)] bg-[color-mix(in_srgb,var(--destructive)_10%,transparent)] px-3 py-2 text-xs text-[var(--destructive)]"><span>{listError}</span><Button variant="ghost" size="sm" className="h-6 text-xs" onClick={refresh}>重试</Button></div>}
+      {listError && <div className="mb-4 flex items-center justify-between rounded-md border border-[var(--destructive-border)] bg-[var(--destructive-surface)] px-3 py-2 text-xs text-[var(--destructive)]"><span>{listError}</span><Button variant="ghost" size="sm" className="h-6 text-xs" onClick={refresh}>重试</Button></div>}
 
       {/* Connection List */}
       {loading ? (
@@ -152,7 +152,7 @@ export default function Home() {
                   <Field label="用户名" value={form.username} onChange={(v) => setForm({ ...form, username: v })} />
                   <Field label="密码" value={form.password} onChange={(v) => setForm({ ...form, password: v })} type="password" />
                 </div>
-                {error && <p className="text-xs text-red-500">{error}</p>}
+                {error && <p className="text-xs text-[var(--destructive)]">{error}</p>}
               </div>
               <DialogFooter>
                 <Button variant="outline" size="sm" onClick={() => setDialogOpen(false)}>取消</Button>

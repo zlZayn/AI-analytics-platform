@@ -84,7 +84,7 @@ export default function QueriesPage() {
           {savedQueries.length} 收藏 · {queryHistory.length} 历史
         </span>
       </div>
-      {error && <div className="mb-3 rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-700">{error}</div>}
+      {error && <div className="mb-3 rounded-md border border-[var(--destructive-border)] bg-[var(--destructive-surface)] px-3 py-2 text-xs text-[var(--destructive)]">{error}</div>}
 
       <div className="relative mb-3">
         <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[var(--muted-foreground)]" />

@@ -32,10 +32,10 @@ export class ChartErrorBoundary extends React.Component<
         : "图表"
       return (
         <div className="flex flex-col items-center justify-center h-[320px] text-center p-4">
-          <div className="text-red-400 text-sm font-medium mb-1">
+          <div className="mb-1 text-sm font-medium text-[var(--destructive)]">
             {label}渲染失败
           </div>
-          <div className="text-red-300 text-xs max-w-md break-all">
+          <div className="max-w-md break-all text-xs text-[var(--muted-foreground)]">
             {this.state.error}
           </div>
         </div>

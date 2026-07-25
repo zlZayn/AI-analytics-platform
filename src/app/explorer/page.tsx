@@ -98,7 +98,7 @@ export default function ExplorerPage() {
           </Button>
         </div>
       </div>
-      {error && <div className="mb-3 flex items-center justify-between rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-700"><span>{error}</span><Button variant="ghost" size="sm" className="h-6 text-xs" onClick={() => fetchSchema(true)}>重试</Button></div>}
+      {error && <div className="mb-3 flex items-center justify-between rounded-md border border-[var(--destructive-border)] bg-[var(--destructive-surface)] px-3 py-2 text-xs text-[var(--destructive)]"><span>{error}</span><Button variant="ghost" size="sm" className="h-6 text-xs" onClick={() => fetchSchema(true)}>重试</Button></div>}
 
       <div className="flex min-h-0 flex-1 flex-col gap-3 lg:flex-row">
         {/* Table List */}
@@ -191,7 +191,7 @@ export default function ExplorerPage() {
                       {selected.columns.map((c) => (
                         <tr key={c.name} className="border-b last:border-0 hover:bg-[var(--muted)]/50">
                           <td className="py-1.5 font-mono">
-                            {c.isPrimary && <Key className="w-2.5 h-2.5 text-yellow-500 inline mr-1" />}
+                            {c.isPrimary && <Key className="mr-1 inline h-2.5 w-2.5 text-[var(--warning)]" />}
                             {c.name}
                           </td>
                           <td className="py-1.5 text-[var(--muted-foreground)] font-mono">{c.type}</td>

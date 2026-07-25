@@ -17,12 +17,12 @@
 - 新增统一客户端请求封装，处理 HTTP 错误、非 JSON 响应、超时和 Abort；工作台、探索页、查询管理页和连接管理页已接入主要请求路径。
 - AI client 改为懒加载，未配置 `AI_API_KEY` 不会阻断生产构建；AI 输出增加运行时图表类型和字段结构校验。
 - 新增数据画像、图表推荐、字段映射校验、Type 7 箱线统计、Freedman-Diaconis/Sturges 直方图、常量列相关性保护和 Kendall tau-b 实现。
-- 新增 KPI 与直方图图表，相关矩阵和箱线图接入新算法；图表色板改为语义 token 并支持深色主题。
-- 工作台、探索页和侧栏增加窄屏布局；增加移动导航抽屉、主题切换和错误/重试状态。
+- 新增 KPI 与直方图图表，相关矩阵和箱线图接入新算法；图表色板改为集中管理的语义 token。
+- 工作台、探索页和侧栏增加窄屏布局；增加移动导航抽屉和错误/重试状态。
 - 新增设计哲学、图表算法、API、测试和运维文档。
-- 新增 Vitest 测试入口与 14 个测试。
+- 新增 Vitest 测试入口与 16 个测试。
 - 修复结果面板默认映射引用不稳定导致图表选择立即回退到表格的问题，并新增组件回归测试。
-- 清理根布局、连接页、结果表、图表画布、提示和手写 SVG 的固定亮色，统一接入亮暗主题 token；首屏在 hydration 前恢复本地或系统主题。
+- 根据产品决策彻底移除暗色模式、主题切换、持久化和首屏主题脚本；页面、状态和图表颜色收口到 `src/app/globals.css` 的唯一亮色语义 token，并增加静态契约测试防止暗色分支回流。
 
 ## 已验证
 
@@ -37,16 +37,16 @@ npm run build     passed
 
 移动端烟测验证了 390x844 导航抽屉、页面渲染和数据库连接失败提示。生产服务使用临时端口 4318，已停止。
 
-2026-07-25 在合并后的 `main` 再次完成：
+2026-07-25 在合并后的 `main` 完成本轮亮色收口后再次验证：
 
 ```text
-npm test          4 files / 13 tests passed
+npm test          6 files / 16 tests passed
 npm run typecheck passed
 npm run lint      passed（0 errors / 0 warnings）
 npm run build     passed（Next.js 16.2.9）
 ```
 
-项目内 `scripts/final_ui_smoke.py` 已在生产服务上覆盖 360、768、1280、1440 四种宽度，验证亮暗主题、移动导航抽屉、页面横向溢出和浏览器 Console。测试通过，临时服务已停止；截图输出到 Git 忽略的 `.artifacts/ui-smoke/`。真实数据库、查询取消、完整图表语义与键盘路径仍须按 `docs/manual-acceptance.md` 人工验收。
+项目内 `scripts/final_ui_smoke.py` 已在生产服务上覆盖 360、768、1280、1440 四种宽度，验证唯一亮色契约、移动导航抽屉、页面横向溢出和浏览器 Console，全部通过；截图输出到 Git 忽略的 `.artifacts/ui-smoke/`，临时 4321 服务已停止。真实数据库、查询取消、完整图表语义与键盘路径仍须按 `docs/manual-acceptance.md` 人工验收。
 
 ## 尚未完成的技术债务
 
@@ -56,7 +56,7 @@ npm run build     passed（Next.js 16.2.9）
 4. 散点确定性采样、饼图“其他”合并、热力图缺失单元格编码和相关矩阵 Web Worker 尚未完成。
 5. 结果表尚未做虚拟化、列宽持久化和完整键盘表格交互。
 6. Schema active 唯一约束和历史清理迁移尚未生成。
-7. 还缺少真实 PostgreSQL 集成测试、API 路由测试、Playwright 完整业务流程测试和多图表亮暗主题视觉回归。
+7. 还缺少真实 PostgreSQL 集成测试、API 路由测试、Playwright 完整业务流程测试和多图表亮色视觉回归。
 8. AI 提示词已移除药店业务假设，但 JSON Schema 尚未升级为供应商原生 structured output。
 
 ## 下一次建议顺序
@@ -64,7 +64,7 @@ npm run build     passed（Next.js 16.2.9）
 1. 先补 PostgreSQL 查询取消、连接池和 Schema 快照的集成测试。
 2. 清理重复图表算法与宽泛 `ChartMapping` 类型，固定统一数据合同。
 3. 完成结果表虚拟化、散点/饼图显示边界和热力图缺失值视觉编码。
-4. 加入 Playwright 桌面/移动/亮暗主题回归及 API 错误竞态测试。
+4. 加入 Playwright 桌面/移动亮色视觉回归及 API 错误竞态测试。
 5. 最后生成 Prisma migration，更新 README/API 文档，再决定合并或创建 PR。
 
 ## 人工验收入口
