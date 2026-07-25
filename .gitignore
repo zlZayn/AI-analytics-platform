@@ -13,6 +13,7 @@
 # testing
 /coverage
 /.artifacts/
+/.worktrees/
 
 # next.js
 /.next/
