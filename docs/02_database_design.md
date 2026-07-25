@@ -728,13 +728,13 @@ CREATE TABLE query_history_2024_02 PARTITION OF query_history
 - 主机: localhost
 - 端口: 5432
 - 数据库名: ai_analytics
-- 用户名: postgres
-- 密码: Lzy20050914
+- 用户名: 使用专用种子账号
+- 密码: 通过 `SEED_DATABASE_URL` 环境变量提供，禁止写入仓库
 
 ### 数据生成
 
 ```bash
-python scripts/seed.py
+SEED_DATABASE_URL="postgresql://seed_user:replace-me@localhost:5432/ai_analytics" python scripts/seed.py
 ```
 
 脚本位于 `scripts/seed.py`，使用 numpy 生成 Zipf 分布商品权重、指数分布购买间隔、节假日脉冲等真实数据分布。

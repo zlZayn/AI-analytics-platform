@@ -1,9 +1,10 @@
+import os
 from pathlib import Path
 
 from playwright.sync_api import sync_playwright
 
 
-BASE_URL = "http://127.0.0.1:4321"
+BASE_URL = os.environ.get("BASE_URL", "http://localhost:4321")
 OUTPUT_DIR = Path(__file__).resolve().parents[1] / ".artifacts" / "ui-smoke"
 VIEWPORTS = {
     "mobile": (360, 800),

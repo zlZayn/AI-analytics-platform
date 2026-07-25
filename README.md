@@ -38,9 +38,16 @@ npm install
 
 ```env
 DATABASE_URL="postgresql://postgres:password@localhost:5432/ai_analytics"
+ENCRYPTION_KEY=""
 AI_API_BASE="https://api.openai.com/v1"
 AI_API_KEY="your-api-key"
 AI_MODEL="gpt-4o"
+```
+
+`ENCRYPTION_KEY` 必须是至少 32 字符的应用专用随机值。生成后填入 `.env`，不要使用示例占位符，也不要在已经保存连接后更换：
+
+```bash
+node -e "console.log(require('node:crypto').randomBytes(32).toString('base64'))"
 ```
 
 ### 3. 初始化数据库
@@ -51,9 +58,14 @@ npx prisma db push
 
 ### 4. 生成测试数据 (可选)
 
-```bash
+种子脚本不读取或保存硬编码凭据。显式提供目标数据库连接串：
+
+```powershell
+$env:SEED_DATABASE_URL = "postgresql://seed_user:replace-me@localhost:5432/ai_analytics"
 python scripts/seed.py
 ```
+
+脚本只接受 `SEED_DATABASE_URL`，不会回退到应用的 `DATABASE_URL`，避免误向应用或生产数据库写入测试数据。
 
 ### 5. 启动开发服务器
 
@@ -77,6 +89,7 @@ npm run build
 ```
 
 AI 合同测试全部使用注入的 fake provider，不调用真实模型 API。浏览器脚本见 `docs/testing.md`。
+仓库不包含真实 AI 调用脚本或凭据；真实 provider 只用于人工验收，并应使用可轮换的受限密钥。
 
 设计原则、图表算法、API 约定、测试和运维说明位于 `docs/`。
 

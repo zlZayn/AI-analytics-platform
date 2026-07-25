@@ -11,19 +11,14 @@
 7. 消费水平分化 (80/20 法则)
 """
 
+import os
 import random
 from datetime import datetime, timedelta
 import psycopg2
 from psycopg2.extras import execute_values
 import numpy as np
 
-DB_CONFIG = {
-    "host": "localhost",
-    "port": 5432,
-    "database": "ai_analytics",
-    "user": "postgres",
-    "password": "Lzy20050914",
-}
+SEED_DATABASE_URL = os.environ.get("SEED_DATABASE_URL")
 
 # ============================================================================
 # 常量与配置
@@ -942,7 +937,10 @@ def generate_data():
     print("药店会员系统 - 模拟数据生成 v4 (真实分布)")
     print("=" * 50)
 
-    conn = psycopg2.connect(**DB_CONFIG)
+    if not SEED_DATABASE_URL:
+        raise RuntimeError("Set SEED_DATABASE_URL before running the seed script")
+
+    conn = psycopg2.connect(SEED_DATABASE_URL)
     cursor = conn.cursor()
 
     try:

@@ -72,7 +72,10 @@ AI_API_KEY="your-api-key"
 AI_MODEL="gpt-4o"
 
 # 安全
-ENCRYPTION_KEY="your-encryption-key"
+ENCRYPTION_KEY="" # 使用随机数生成器创建至少 32 字符的应用专用值
+
+# 可选测试数据目标；仅运行 scripts/seed.py 时需要
+SEED_DATABASE_URL="postgresql://seed_user:replace-me@localhost:5432/ai_analytics"
 ```
 
 ---

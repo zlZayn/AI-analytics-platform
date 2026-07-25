@@ -7,9 +7,9 @@ import {
 } from "./ai-contract"
 
 const AI_CONFIG = {
-  apiBase: process.env.AI_API_BASE || "https://token-plan-cn.xiaomimimo.com/v1",
+  apiBase: process.env.AI_API_BASE || "",
   apiKey: process.env.AI_API_KEY || "",
-  model: process.env.AI_MODEL || "mimo-v2.5-pro",
+  model: process.env.AI_MODEL || "",
 }
 
 export interface AIMessage {
@@ -46,8 +46,14 @@ export async function generateSQL(
 }
 
 function getDefaultProvider(): AICompletionProvider {
+  if (!AI_CONFIG.apiBase) {
+    throw new Error("AI 服务未配置：缺少 API Base。请在 .env 文件中设置 AI_API_BASE。")
+  }
   if (!AI_CONFIG.apiKey) {
     throw new Error("AI 服务未配置：缺少 API Key。请在 .env 文件中设置 AI_API_KEY。")
+  }
+  if (!AI_CONFIG.model) {
+    throw new Error("AI 服务未配置：缺少模型。请在 .env 文件中设置 AI_MODEL。")
   }
   if (!defaultProvider) defaultProvider = createOpenAIProvider()
   return defaultProvider
