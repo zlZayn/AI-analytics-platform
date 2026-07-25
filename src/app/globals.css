@@ -101,6 +101,7 @@
   --chart-diverging-negative: #be123c;
   --chart-diverging-neutral: #f8fafc;
   --chart-diverging-positive: #2563eb;
+  --chart-missing: #e5e7eb;
   --chart-cell-text-strong: #ffffff;
   --chart-cell-text-muted: #334155;
   --radius: 0.5rem;

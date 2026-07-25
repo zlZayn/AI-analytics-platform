@@ -25,9 +25,11 @@ def main() -> None:
             console_errors: list[str] = []
             page_errors: list[str] = []
             failed_requests: list[str] = []
+            error_responses: list[str] = []
             page.on("console", lambda message: console_errors.append(message.text) if message.type == "error" else None)
             page.on("pageerror", lambda error: page_errors.append(str(error)))
             page.on("requestfailed", lambda request: failed_requests.append(f"{request.url}: {request.failure}"))
+            page.on("response", lambda response: error_responses.append(f"{response.status} {response.url}") if response.status >= 400 else None)
             page.goto(BASE_URL, wait_until="domcontentloaded")
             page.locator("body").wait_for(state="visible")
             theme_toggle_count = page.get_by_role("button", name="切换深色主题").count()
@@ -63,6 +65,12 @@ def main() -> None:
                     raise RuntimeError(f"{name}: app shell did not render: {details}")
                 page.get_by_test_id("mobile-nav-open").click()
                 page.get_by_test_id("mobile-nav-close").wait_for(state="visible")
+                page.wait_for_function(
+                    """() => {
+                        const sidebar = document.querySelector('aside');
+                        return sidebar && sidebar.getBoundingClientRect().left >= 0;
+                    }"""
+                )
                 page.screenshot(path=str(OUTPUT_DIR / f"{name}-navigation.png"), full_page=True)
                 page.get_by_test_id("mobile-nav-close").click()
             else:
@@ -71,7 +79,20 @@ def main() -> None:
                 page.screenshot(path=str(OUTPUT_DIR / f"{name}-connections.png"), full_page=True)
 
             if console_errors:
-                failures.append(f"{name}: console errors: {' | '.join(console_errors)}")
+                expected_offline_responses = [
+                    response for response in error_responses
+                    if response.startswith("500 ") and response.endswith("/api/connections")
+                ]
+                generic_resource_errors = all("Failed to load resource" in error for error in console_errors)
+                offline_state_visible = "获取连接列表失败" in page.locator("body").inner_text()
+                if not (
+                    len(expected_offline_responses) == len(error_responses)
+                    and generic_resource_errors
+                    and offline_state_visible
+                ):
+                    failures.append(f"{name}: console errors: {' | '.join(console_errors)}; responses: {' | '.join(error_responses)}")
+            if page_errors or failed_requests:
+                failures.append(f"{name}: page errors: {' | '.join(page_errors)}; failed requests: {' | '.join(failed_requests)}")
             context.close()
 
         browser.close()

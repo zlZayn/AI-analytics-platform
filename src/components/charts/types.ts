@@ -2,25 +2,19 @@ import type { ChartType, CorrelationMethod } from "@/lib/variable-types"
 
 export type { ChartType, CorrelationMethod }
 
-export interface ChartMapping {
-  chartType: ChartType | string
-  x?: string
-  y?: string
-  color?: string
-  fill?: string
-  facet?: string
-  name?: string
-  value?: string
-  category?: string
-  valueKey?: string
-  method?: CorrelationMethod | string
-  label?: string
-  comparison?: string
-  columns?: string
-  mode?: "grouped" | "stacked" | "normalized"
-  showLegend?: boolean
-  [slot: string]: string | boolean | undefined
-}
+interface LegendOptions { showLegend?: boolean }
+
+export type ChartMapping =
+  | ({ chartType: "line"; x?: string; y?: string; color?: string } & LegendOptions)
+  | ({ chartType: "bar"; x?: string; y?: string; fill?: string; mode?: "grouped" | "stacked" | "normalized" } & LegendOptions)
+  | { chartType: "pie"; name?: string; value?: string; categoryLimit?: number }
+  | ({ chartType: "scatter"; x?: string; y?: string; color?: string; pointLimit?: number } & LegendOptions)
+  | { chartType: "boxplot"; category?: string; value?: string }
+  | { chartType: "heatmap"; x?: string; y?: string; value?: string }
+  | { chartType: "correlation"; columns?: string[]; method?: CorrelationMethod }
+  | { chartType: "kpi"; value?: string; label?: string; comparison?: string }
+  | { chartType: "histogram"; value?: string; color?: string }
+  | { chartType: "table" }
 
 export interface ChartProps {
   mapping: ChartMapping

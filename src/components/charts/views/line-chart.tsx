@@ -14,6 +14,7 @@ import {
 import { useGroupedData } from "../hooks/use-grouped-data"
 import { AXIS_CONFIG, GRID_CONFIG } from "../constants"
 import { getColor, formatNumber, TooltipFormatter } from "../utils"
+import { EmptyState } from "../empty-state"
 
 export const LineChartView = React.memo(function LineChartView({
   data,
@@ -28,7 +29,10 @@ export const LineChartView = React.memo(function LineChartView({
   colorKey?: string
   showLegend?: boolean
 }) {
-  const { groups, wideData } = useGroupedData(data, xKey, yKey, colorKey)
+  const sortTemporal = data.length > 0 && data.every((row) => row[xKey] == null || !Number.isNaN(Date.parse(String(row[xKey]))))
+  const transformed = useGroupedData(data, xKey, yKey, colorKey, { sortTemporal, rejectDuplicates: true })
+  if (!transformed.ok) return <EmptyState message={transformed.message} />
+  const { groups, wideData } = transformed
 
   return (
     <ResponsiveContainer width="100%" height={320}>
@@ -46,7 +50,7 @@ export const LineChartView = React.memo(function LineChartView({
               stroke={getColor(i)}
               strokeWidth={2}
               dot={{ r: 3, fill: getColor(i) }}
-              connectNulls
+              connectNulls={false}
             />
           ))
         ) : (
@@ -56,7 +60,7 @@ export const LineChartView = React.memo(function LineChartView({
             stroke={getColor(0)}
             strokeWidth={2}
             dot={{ r: 3, fill: getColor(0) }}
-            connectNulls
+            connectNulls={false}
           />
         )}
         {groups.length > 0 && showLegend && (

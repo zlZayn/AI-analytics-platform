@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Search, RefreshCw, Key, Link2, Eye, Play, Database } from "lucide-react"
-import type { ApiResponse, SchemaTable, SchemaData } from "@/types"
+import type { ApiResponse, QueryResult, SchemaTable, SchemaData } from "@/types"
 import { ApiRequestError, fetchApi } from "@/lib/client-api"
 
 export default function ExplorerPage() {
@@ -55,17 +55,17 @@ export default function ExplorerPage() {
     const controller = new AbortController()
     previewController.current = controller
     try {
-      const data = await fetchApi<ApiResponse<{ rows: Record<string, unknown>[] }>>("/api/query", {
+      const data = await fetchApi<ApiResponse<QueryResult>>("/api/query/preview", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ connectionId, sql: `SELECT * FROM \"${name.replaceAll('"', '""')}\"` }),
+        body: JSON.stringify({ connectionId, schema: "public", table: name }),
         signal: controller.signal,
       })
-      setPreview(data.success ? data.data.rows : null)
+      if (previewController.current === controller) setPreview(data.success ? data.data.rows : null)
     } catch (requestError) {
       if (!(requestError instanceof DOMException && requestError.name === "AbortError")) setError(requestError instanceof ApiRequestError ? requestError.message : "预览加载失败")
     } finally {
-      if (!controller.signal.aborted) setPreviewLoading(false)
+      if (previewController.current === controller) setPreviewLoading(false)
     }
   }
 

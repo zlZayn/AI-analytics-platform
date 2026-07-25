@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useRef, Suspense } from "react"
+import { useState, useRef, useEffect, Suspense } from "react"
 import { useSearchParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -47,11 +47,17 @@ function WorkspaceContent({ connectionId, initialSql }: { connectionId: string |
 
   const { toast } = useToast()
 
+  useEffect(() => () => {
+    queryController.current?.abort()
+    aiController.current?.abort()
+  }, [])
+
   async function execute(targetSql?: string) {
     const q = targetSql || sql
     if (!connectionId || !q.trim()) return
     setLoading(true)
     setError("")
+    setExecutingInsightIndex(null)
     queryController.current?.abort()
     const controller = new AbortController()
     queryController.current = controller
@@ -62,16 +68,18 @@ function WorkspaceContent({ connectionId, initialSql }: { connectionId: string |
         body: JSON.stringify({ connectionId, sql: q }),
         signal: controller.signal,
       })
-      if (data.success) {
+      if (data.success && queryController.current === controller) {
         setResult(data.data)
         setSql(q)
         setEditorExpanded(false)
         toast(`查询完成: ${data.data.rowCount} 行, ${data.data.executionTimeMs}ms`, "success")
       }
     } catch (error) {
-      if (!(error instanceof DOMException && error.name === "AbortError")) setError(error instanceof ApiRequestError ? error.message : "查询执行失败")
+      if (!(error instanceof DOMException && error.name === "AbortError") && queryController.current === controller) {
+        setError(error instanceof ApiRequestError ? error.message : "查询执行失败")
+      }
     } finally {
-      setLoading(false)
+      if (queryController.current === controller) setLoading(false)
     }
   }
 
@@ -91,7 +99,7 @@ function WorkspaceContent({ connectionId, initialSql }: { connectionId: string |
         body: JSON.stringify({ connectionId, message: msg }),
         signal: controller.signal,
       })
-      if (data.success) {
+      if (data.success && aiController.current === controller) {
         setAiUnavailable(false)
         const items = data.data.items
         if (items.length > 0) {
@@ -106,7 +114,7 @@ function WorkspaceContent({ connectionId, initialSql }: { connectionId: string |
         }
       }
     } catch (error) {
-      if (!(error instanceof DOMException && error.name === "AbortError")) {
+      if (!(error instanceof DOMException && error.name === "AbortError") && aiController.current === controller) {
         const message = error instanceof ApiRequestError ? error.message : "请求失败"
         setAiHistory((prev) => [...prev, { role: "ai", content: message }])
         if (error instanceof ApiRequestError && error.code === "AI_NOT_CONFIGURED") {
@@ -115,7 +123,7 @@ function WorkspaceContent({ connectionId, initialSql }: { connectionId: string |
         }
       }
     } finally {
-      setAiLoading(false)
+      if (aiController.current === controller) setAiLoading(false)
     }
   }
 
@@ -124,31 +132,34 @@ function WorkspaceContent({ connectionId, initialSql }: { connectionId: string |
     setExecutingInsightIndex(index)
     setLoading(true)
     setError("")
+    queryController.current?.abort()
+    const controller = new AbortController()
+    queryController.current = controller
     try {
       const data = await fetchApi<ApiResponse<QueryResult>>("/api/query", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ connectionId, sql }),
+        signal: controller.signal,
       })
-      if (data.success) {
+      if (data.success && queryController.current === controller) {
         setResult(data.data)
         setSql(sql)
 
-        // 构建图表映射
-        const mapping: ChartMapping = {
-          chartType: chart.type,
-          ...chart.mapping,
-        }
-        setPendingChartMapping(mapping)
+        setPendingChartMapping(chart)
 
         setEditorExpanded(false)
         toast(`洞察执行完成: ${data.data.rowCount} 行`, "success")
       }
     } catch (error) {
-      setError(error instanceof ApiRequestError ? error.message : "洞察执行失败")
+      if (!(error instanceof DOMException && error.name === "AbortError") && queryController.current === controller) {
+        setError(error instanceof ApiRequestError ? error.message : "洞察执行失败")
+      }
     } finally {
-      setLoading(false)
-      setExecutingInsightIndex(null)
+      if (queryController.current === controller) {
+        setLoading(false)
+        setExecutingInsightIndex(null)
+      }
     }
   }
 
@@ -335,7 +346,7 @@ function WorkspaceContent({ connectionId, initialSql }: { connectionId: string |
           <div className="space-y-3 py-2">
             <div className="space-y-1">
               <Label className="text-xs">名称</Label>
-              <Input value={saveName} onChange={(e) => setSaveName(e.target.value)} placeholder="例如：各药店会员统计" className="h-8 text-sm" autoFocus />
+              <Input value={saveName} onChange={(e) => setSaveName(e.target.value)} placeholder="例如：月度销售趋势" className="h-8 text-sm" autoFocus />
             </div>
           </div>
           <DialogFooter>
