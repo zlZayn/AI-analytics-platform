@@ -1,13 +1,14 @@
 # 实现状态与续作上下文
 
-更新时间：2026-07-22
+更新时间：2026-07-25
 
 ## 当前分支
 
-- 分支：`codex/analytics-workbench-refactor`
-- 基线：从 `main` 的 `7683996 fix: AI 未配置时给出友好提示` 创建
-- 工作区：Codex 全局隔离 worktree
-- 当前未合并到 `main`
+- 当前主分支：`main`
+- 合并提交：`fa96687 merge: analytics workbench refactor`
+- 功能提交：`2cbea30 feat: harden analytics workbench and chart pipeline`
+- 原实现曾在 Codex 隔离 worktree 完成，现已合并回项目目录 `E:\新下载\ai-data-analytics`
+- 未跟踪的 `.omo/` 是主项目原有工作区文件，本次未修改
 
 ## 本次已完成
 
@@ -34,6 +35,17 @@ npm run build     passed
 
 移动端烟测验证了 390x844 导航抽屉、页面渲染和数据库连接失败提示。生产服务使用临时端口 4318，已停止。
 
+2026-07-25 在合并后的 `main` 再次完成：
+
+```text
+npm test          4 files / 13 tests passed
+npm run typecheck passed
+npm run lint      passed（0 errors / 0 warnings）
+npm run build     passed（Next.js 16.2.9）
+```
+
+项目内 `scripts/final_ui_smoke.py` 已在生产服务上覆盖 360、768、1280、1440 四种宽度，验证亮暗主题、移动导航抽屉、页面横向溢出和浏览器 Console。测试通过，临时服务已停止；截图输出到 Git 忽略的 `.artifacts/ui-smoke/`。真实数据库、查询取消、完整图表语义与键盘路径仍须按 `docs/manual-acceptance.md` 人工验收。
+
 ## 尚未完成的技术债务
 
 1. 服务器端尚未把 Request disconnect 绑定到 PostgreSQL 主动 cancel，目前依靠数据库 statement timeout。
@@ -53,14 +65,19 @@ npm run build     passed
 4. 加入 Playwright 桌面/移动/亮暗主题回归及 API 错误竞态测试。
 5. 最后生成 Prisma migration，更新 README/API 文档，再决定合并或创建 PR。
 
+## 人工验收入口
+
+- 完整步骤：`docs/manual-acceptance.md`
+- 自动布局烟测：`python scripts/final_ui_smoke.py`（需先在 4321 端口启动生产服务）
+
 ## 继续开发命令
 
 ```powershell
-Set-Location 'C:\Users\speak\.codex\visualizations\2026\07\22\019f88a5-63c7-7a01-b77a-8e7163f8749a\analytics-workbench-refactor'
+Set-Location 'E:\新下载\ai-data-analytics'
 npm test
 npm run typecheck
 npm run lint
 npm run build
 ```
 
-不要在 `main` 上继续开发；本分支完成审查后再合并。
+后续开发请从 `main` 创建新的 `codex/...` 分支；不要直接把未验证的改动提交到 `main`。

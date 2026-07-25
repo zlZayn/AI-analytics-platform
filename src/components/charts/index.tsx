@@ -1,7 +1,7 @@
 "use client"
 
 import React from "react"
-import type { ChartMapping, ChartProps } from "./types"
+import type { ChartProps } from "./types"
 import { validateMapping } from "./utils"
 import { EmptyState } from "./empty-state"
 import { ChartErrorBoundary } from "./error-boundary"

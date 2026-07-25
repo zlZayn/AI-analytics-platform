@@ -1,4 +1,4 @@
-import { Pool, PoolClient } from 'pg'
+import { Pool } from 'pg'
 import { decrypt } from './encryption'
 import { prisma } from './prisma'
 import { validateSQL } from './sql-validator'

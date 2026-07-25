@@ -19,6 +19,7 @@ import {
 } from "lucide-react"
 import type { Connection } from "@/types"
 import { ThemeToggle } from "./theme-toggle"
+import { fetchApi } from "@/lib/client-api"
 
 const navItems = [
   { href: "/workspace", label: "数据工作台", icon: Terminal },
@@ -33,18 +34,28 @@ export function Sidebar({ mobileOpen = false, onClose }: { mobileOpen?: boolean;
   const [dropdownOpen, setDropdownOpen] = useState(false)
   const [connections, setConnections] = useState<Connection[]>([])
   const [loading, setLoading] = useState(false)
+  const [connectionError, setConnectionError] = useState(false)
   const dropdownRef = useRef<HTMLDivElement>(null)
 
-  // Fetch connections when dropdown opens
-  useEffect(() => {
-    if (dropdownOpen && connections.length === 0) {
-      setLoading(true)
-      fetch("/api/connections")
-        .then((r) => r.json())
-        .then((d) => d.success && setConnections(d.data))
-        .finally(() => setLoading(false))
+  async function loadConnections() {
+    if (loading) return
+    setLoading(true)
+    setConnectionError(false)
+    try {
+      const response = await fetchApi<{ success: boolean; data?: Connection[] }>("/api/connections")
+      if (response.success) setConnections(response.data ?? [])
+    } catch {
+      setConnectionError(true)
+    } finally {
+      setLoading(false)
     }
-  }, [dropdownOpen, connections.length])
+  }
+
+  function toggleConnectionMenu() {
+    const opening = !dropdownOpen
+    setDropdownOpen(opening)
+    if (opening && connections.length === 0) void loadConnections()
+  }
 
   // Close dropdown on outside click
   useEffect(() => {
@@ -87,7 +98,7 @@ export function Sidebar({ mobileOpen = false, onClose }: { mobileOpen?: boolean;
       <div className="px-2 py-2 border-b border-[var(--sidebar-border)]" ref={dropdownRef}>
         <div className="relative">
           <button
-            onClick={() => setDropdownOpen(!dropdownOpen)}
+            onClick={toggleConnectionMenu}
             className={cn(
               "w-full flex items-center gap-1.5 px-2 py-1.5 rounded-md text-[11px] transition-colors",
               connection
@@ -112,6 +123,10 @@ export function Sidebar({ mobileOpen = false, onClose }: { mobileOpen?: boolean;
                 <div className="px-3 py-2 text-[10px] text-[var(--muted-foreground)]">
                   加载中...
                 </div>
+              ) : connectionError ? (
+                <button type="button" className="w-full px-3 py-2 text-left text-[10px] text-[var(--destructive)] hover:bg-[var(--accent)]" onClick={() => void loadConnections()}>
+                  连接加载失败，点击重试
+                </button>
               ) : connections.length === 0 ? (
                 <div className="px-3 py-2 text-[10px] text-[var(--muted-foreground)]">
                   暂无连接

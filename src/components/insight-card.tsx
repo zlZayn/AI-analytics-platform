@@ -132,7 +132,7 @@ export function InsightPanel({
       <div className="p-2 space-y-1.5 max-h-[300px] overflow-auto">
         {insights.length === 0 && !loading && (
           <div className="text-center py-6 text-[var(--muted-foreground)] text-xs">
-            点击"获取洞察"生成分析推荐
+            点击“获取洞察”生成分析推荐
           </div>
         )}
 

@@ -102,10 +102,6 @@ export function ChartConfigPanel({ columns, data, mapping, onChange }: ChartConf
     setConfirmDialog({ open: false, message: "", pendingMapping: null })
   }
 
-  // 必填槽位检查
-  const requiredSlots = Object.entries(slots).filter(([, s]) => s.required)
-  const missingRequired = requiredSlots.filter(([key]) => !mapping[key])
-
   return (
     <div className="space-y-3">
       {/* 图表类型选择 */}

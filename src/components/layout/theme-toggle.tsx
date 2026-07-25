@@ -1,25 +1,18 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useSyncExternalStore } from "react"
 import { Moon, Sun } from "lucide-react"
 
 type Theme = "light" | "dark"
 
 export function ThemeToggle() {
-  const [theme, setTheme] = useState<Theme>("light")
-
-  useEffect(() => {
-    const stored = window.localStorage.getItem("analytics-theme") as Theme | null
-    const initial = stored || (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light")
-    setTheme(initial)
-    document.documentElement.classList.toggle("dark", initial === "dark")
-  }, [])
+  const theme = useSyncExternalStore(subscribeToTheme, getTheme, () => "light")
 
   function toggleTheme() {
     const next = theme === "dark" ? "light" : "dark"
-    setTheme(next)
     window.localStorage.setItem("analytics-theme", next)
     document.documentElement.classList.toggle("dark", next === "dark")
+    window.dispatchEvent(new Event("analytics-theme-change"))
   }
 
   return (
@@ -27,4 +20,24 @@ export function ThemeToggle() {
       {theme === "dark" ? <Sun className="h-3.5 w-3.5" /> : <Moon className="h-3.5 w-3.5" />}
     </button>
   )
+}
+
+function getTheme(): Theme {
+  const stored = window.localStorage.getItem("analytics-theme")
+  if (stored === "light" || stored === "dark") return stored
+  return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light"
+}
+
+function subscribeToTheme(onChange: () => void) {
+  const media = window.matchMedia("(prefers-color-scheme: dark)")
+  window.addEventListener("storage", onChange)
+  window.addEventListener("analytics-theme-change", onChange)
+  media.addEventListener("change", onChange)
+  document.documentElement.classList.toggle("dark", getTheme() === "dark")
+
+  return () => {
+    window.removeEventListener("storage", onChange)
+    window.removeEventListener("analytics-theme-change", onChange)
+    media.removeEventListener("change", onChange)
+  }
 }

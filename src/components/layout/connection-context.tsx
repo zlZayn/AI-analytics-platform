@@ -3,6 +3,7 @@
 import { createContext, useContext, useState, useEffect, type ReactNode } from "react"
 import { useSearchParams } from "next/navigation"
 import type { Connection } from "@/types"
+import { fetchApi } from "@/lib/client-api"
 
 interface ConnectionContextType {
   connection: Connection | null
@@ -24,24 +25,30 @@ export function ConnectionProvider({ children }: { children: ReactNode }) {
   const searchParams = useSearchParams()
   const connectionId = searchParams.get("connection")
 
-  const [connection, setConnection] = useState<Connection | null>(null)
-  const [loading, setLoading] = useState(false)
+  const [resolved, setResolved] = useState<{ id: string | null; connection: Connection | null }>({
+    id: null,
+    connection: null,
+  })
 
   useEffect(() => {
-    if (connectionId) {
-      setLoading(true)
-      fetch(`/api/connections/${connectionId}`)
-        .then((res) => res.json())
-        .then((data) => {
-          if (data.success) setConnection(data.data)
-          else setConnection(null)
-        })
-        .catch(() => setConnection(null))
-        .finally(() => setLoading(false))
-    } else {
-      setConnection(null)
-    }
+    if (!connectionId) return
+
+    const controller = new AbortController()
+    fetchApi<{ success: boolean; data?: Connection }>(`/api/connections/${connectionId}`, {
+      signal: controller.signal,
+    })
+      .then((data) => setResolved({ id: connectionId, connection: data.success ? data.data ?? null : null }))
+      .catch((error: unknown) => {
+        if (!(error instanceof DOMException && error.name === "AbortError")) {
+          setResolved({ id: connectionId, connection: null })
+        }
+      })
+
+    return () => controller.abort()
   }, [connectionId])
+
+  const connection = resolved.id === connectionId ? resolved.connection : null
+  const loading = connectionId !== null && resolved.id !== connectionId
 
   return (
     <ConnectionContext.Provider value={{ connection, connectionId, loading }}>

@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest"
 
-import { ApiRequestError, fetchApi } from "../client-api"
+import { fetchApi } from "../client-api"
 
 describe("fetchApi", () => {
   it("normalizes non-json HTTP failures into a retryable request error", async () => {

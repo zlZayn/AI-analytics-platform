@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { ChartConfigPanel } from "@/components/chart-config-panel"
 import { type ChartMapping } from "@/components/chart"
@@ -14,15 +14,16 @@ interface Props {
 }
 
 export function ResultPanel({ result, onCopySql, initialMapping }: Props) {
-  const [chartMapping, setChartMapping] = useState<ChartMapping>(initialMapping || { chartType: "table" })
+  const initial = initialMapping || { chartType: "table" }
+  const [chartState, setChartState] = useState<{ result: QueryResult; initial: ChartMapping; mapping: ChartMapping }>({
+    result,
+    initial,
+    mapping: initial,
+  })
   const [copied, setCopied] = useState(false)
-
-  // 当 initialMapping 变化时更新图表配置
-  useEffect(() => {
-    if (initialMapping) {
-      setChartMapping(initialMapping)
-    }
-  }, [initialMapping, result])
+  const chartMapping = chartState.result === result && chartState.initial === initial
+    ? chartState.mapping
+    : initial
 
   function handleCopy() {
     onCopySql()
@@ -58,7 +59,7 @@ export function ResultPanel({ result, onCopySql, initialMapping }: Props) {
           columns={result.columns}
           data={result.rows}
           mapping={chartMapping}
-          onChange={setChartMapping}
+          onChange={(mapping) => setChartState({ result, initial, mapping })}
         />
       </div>
     </div>
