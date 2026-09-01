@@ -9,7 +9,7 @@
 
 | 阶段 | 状态 | 开始日期 | 完成日期 | 备注 |
 |------|------|---------|---------|------|
-| 阶段一：建立新层 | ⬜ 待开始 | | | 类型定义 + 编译器 + 校验器 + Schema 扩展 |
+| 阶段一：建立新层 | ✅ 已完成 | 2026-09-02 | 2026-09-02 | 类型定义 + 编译器 + 校验器 + Schema 扩展（已推送） |
 | 阶段二：接入状态 | ⬜ 待开始 | | | useSession + workspace 接入 + API 传 history |
 | 阶段三：切换 AI 输出 | ⬜ 待开始 | | | AI 同时输出 sql + querySpec，优先 querySpec |
 | 阶段四：数据流转改造 | ⬜ 待开始 | | | SemanticDataset + render-binder + 图表展示 warnings |
@@ -22,40 +22,40 @@
 
 ### 任务清单
 
-- [ ] 1.1 创建 `src/types/session.ts`
-  - [ ] AnalysisSession 接口
-  - [ ] QuerySpec / Measure / Filter / Join / Expression 接口
-  - [ ] SemanticDataset / SemanticColumn 接口
-  - [ ] DisplayConfig 接口
-  - [ ] ConversationMessage 接口
-  - [ ] TypeScript 编译通过
+- [x] 1.1 创建 `src/types/session.ts`
+  - [x] AnalysisSession 接口
+  - [x] QuerySpec / Measure / Filter / Join / Expression 接口
+  - [x] SemanticDataset / SemanticColumn 接口
+  - [x] DisplayConfig 接口
+  - [x] ConversationMessage 接口
+  - [x] TypeScript 编译通过
 
-- [ ] 1.2 创建 `src/types/actions.ts`
-  - [ ] SessionAction 联合类型（覆盖第八部分所有 Action）
+- [x] 1.2 创建 `src/types/actions.ts`
+  - [x] SessionAction 联合类型（19 种 Action + SessionDispatch）
 
-- [ ] 1.3 创建 `src/lib/query-compiler.ts`
-  - [ ] compileQuerySpec(querySpec, schema) → { sql, params }
-  - [ ] 支持 dimensions / measures / filters / having / sort / limit / joins
-  - [ ] 参数化查询（防注入）
-  - [ ] 单元测试覆盖
+- [x] 1.3 创建 `src/lib/query-compiler.ts`
+  - [x] compileQuerySpec(querySpec, schema) → { sql, params }
+  - [x] 支持 dimensions / measures / filters / having / sort / limit / joins
+  - [x] 参数化查询（防注入，标识符分段引号）
+  - [x] 单元测试覆盖（JOIN / HAVING / Expression / 注入用例）
 
-- [ ] 1.4 创建 `src/lib/validators.ts`
-  - [ ] validateDisplayConfig(config, context, mode)
-  - [ ] schema-based 模式：字段存在 + 类型匹配
-  - [ ] data-based 模式：上述 + 重复坐标 + 无效数值 + 唯一值过多
-  - [ ] ValidationResult / ValidationIssue 接口
-  - [ ] 单元测试覆盖
+- [x] 1.4 创建 `src/lib/validators.ts`
+  - [x] validateDisplayConfig(config, context)
+  - [x] schema-based 模式：字段存在 + 类型匹配（含 boolean 支持）
+  - [x] data-based 模式：上述 + 重复坐标 + 无效数值 + 高基数
+  - [x] ValidationResult / ValidationIssue 接口
+  - [x] 单元测试覆盖（双模式 error / warning 场景）
 
-- [ ] 1.5 扩展 `src/lib/schema-service.ts`
-  - [ ] 数据轮廓扫描：唯一值数、NULL 率、样本值
-  - [ ] buildDataProfile(schemaContext) → Prompt 可用的文本
+- [x] 1.5 扩展 `src/lib/schema-service.ts`
+  - [x] 数据轮廓扫描：唯一值数、NULL 数、min/max、样本值（scanDataProfile / scanAllDataProfiles）
+  - [x] buildDataProfileText(profiles) → Prompt 可用的 Markdown 文本
 
 ### 验收标准
 
-- [ ] 所有新文件 TypeScript 编译通过
-- [ ] query-compiler 单元测试通过（含 JOIN / HAVING / Expression 用例）
-- [ ] validators 单元测试通过（双模式各覆盖 error / warning 场景）
-- [ ] 旧代码未修改，可直接删除新文件回滚
+- [x] 所有新文件 TypeScript 编译通过（`npm run typecheck` 0 错误）
+- [x] query-compiler 单元测试通过（含 JOIN / HAVING / Expression 用例）
+- [x] validators 单元测试通过（双模式各覆盖 error / warning 场景）
+- [x] 旧代码未修改（schema-service.ts 为追加，可删除新文件回滚）
 
 ---
 
@@ -172,6 +172,7 @@
 
 | 日期 | 版本 | 变更内容 | 提交者 |
 |------|------|---------|--------|
+| 2026-09-02 | v4.1 | 阶段一完成：实现 session/actions 类型、query-compiler、validators、schema-service 数据轮廓；新增 19 个单元测试；typecheck 通过 | zlZayn |
 | 2026-09-02 | v4.0 | 初始方案提交，融合代码诊断 + 架构方案 + 审核反馈 | zlZayn |
 
 ---
