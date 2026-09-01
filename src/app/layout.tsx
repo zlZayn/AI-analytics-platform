@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "AI Data Analytics Platform",
+  title: "AI Analytics Platform",
   description: "通用型 AI 数据分析平台，支持 PostgreSQL 数据库接入",
 };
 
