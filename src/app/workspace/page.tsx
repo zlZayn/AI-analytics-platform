@@ -39,6 +39,8 @@ function WorkspaceContent({ connectionId, initialSql }: { connectionId: string |
   // Insight execution state
   const [executingInsightIndex, setExecutingInsightIndex] = useState<number | null>(null)
   const [pendingChartMapping, setPendingChartMapping] = useState<ChartMapping | null>(null)
+  // 卡片级执行错误（阶段四：InsightCard 展示 error 状态）
+  const [insightErrors, setInsightErrors] = useState<Record<number, string>>({})
 
   // Save dialog
   const [saveDialogOpen, setSaveDialogOpen] = useState(false)
@@ -150,11 +152,14 @@ function WorkspaceContent({ connectionId, initialSql }: { connectionId: string |
         setPendingChartMapping(chart)
 
         setEditorExpanded(false)
+        setInsightErrors((prev) => ({ ...prev, [index]: "" }))
         toast(`洞察执行完成: ${data.data.rowCount} 行`, "success")
       }
     } catch (error) {
       if (!(error instanceof DOMException && error.name === "AbortError") && queryController.current === controller) {
-        setError(error instanceof ApiRequestError ? error.message : "洞察执行失败")
+        const message = error instanceof ApiRequestError ? error.message : "洞察执行失败"
+        setError(message)
+        setInsightErrors((prev) => ({ ...prev, [index]: message }))
       }
     } finally {
       if (queryController.current === controller) {
@@ -294,6 +299,7 @@ function WorkspaceContent({ connectionId, initialSql }: { connectionId: string |
                               item={item}
                               onExecute={(sql, chart) => executeInsight(sql, chart, j)}
                               loading={executingInsightIndex === j}
+                              error={insightErrors[j]}
                             />
                           ))}
                         </div>

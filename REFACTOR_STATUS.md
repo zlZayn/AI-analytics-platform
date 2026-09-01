@@ -12,7 +12,7 @@
 | 阶段一：建立新层 | ✅ 已完成 | 2026-09-02 | 2026-09-02 | 类型定义 + 编译器 + 校验器 + Schema 扩展（已推送） |
 | 阶段二：接入状态 | ✅ 已完成 | 2026-09-02 | 2026-09-02 | useSession + sessionReducer + workspace 接入（feature flag）+ API 传 history（已推送） |
 | 阶段三：切换 AI 输出 | ✅ 已完成 | 2026-09-02 | 2026-09-02 | AI 同时输出 querySpec + displayConfig + sql 回退，数据轮廓注入（已推送） |
-| 阶段四：数据流转改造 | ⬜ 待开始 | | | SemanticDataset + render-binder + 图表展示 warnings |
+| 阶段四：数据流转改造 | ✅ 已完成 | 2026-09-02 | 2026-09-02 | query-engine 返回 SemanticDataset + render-binder + SessionView（已推送） |
 
 **状态图例**：⬜ 待开始 | 🔄 进行中 | ✅ 已完成 | ⚠️ 有阻塞 | ↩️ 已回滚
 
@@ -136,35 +136,40 @@
 
 ### 任务清单
 
-- [ ] 4.1 修改 `src/lib/query-engine.ts`
-  - [ ] 返回 SemanticDataset（columns 含 semanticType）
-  - [ ] inferSemanticType：Schema 优先 → 数据库类型 → 字段名推断
-  - [ ] 保留 executionTimeMs / rowCount / truncated
+- [x] 4.1 修改 `src/lib/query-engine.ts`
+  - [x] 返回 SemanticDataset（columns 含 semanticType）
+  - [x] inferSemanticType：数据库类型 → 字段名推断（复用 validators.ts 的 inferSemanticType）
+  - [x] 保留 executionTimeMs / rowCount / truncated
+  - [x] 查询结果列附带 semanticType（/api/query 与 preview 同步透出）
 
-- [ ] 4.2 创建 `src/lib/render-binder.ts`
-  - [ ] bindDataToChart(dataset, displayConfig) → { chartData, warnings, adjustments }
-  - [ ] 分类变量在 Y 轴 → 自动 coord_flip + adjustment 提示
-  - [ ] 无效数值 → 过滤 + warning（含 count）
-  - [ ] 调用现有 prepareGroupedSeries / sampleScatterData 等
+- [x] 4.2 创建 `src/lib/render-binder.ts`
+  - [x] bindDataToChart(dataset, displayConfig) → { rows, mapping, warnings, adjustments }
+  - [x] 分类变量在 Y 轴 → 自动交换坐标轴（line/bar）+ adjustment 提示
+  - [x] 无效数值 → 过滤 + warning（含数量）
+  - [x] 单元测试覆盖（6 用例：坐标翻转 / 过滤 / scatter / pie / table 直通）
 
-- [ ] 4.3 修改图表组件
-  - [ ] `components/charts/views/*.tsx`：展示 warnings 和 adjustments
-  - [ ] 散点图显示 invalidCount 警告
-  - [ ] 所有图表统一警告样式
+- [x] 4.3 图表组件展示 warnings / adjustments
+  - [x] 散点图无效行显示警告（含数量）（scatter-chart 已有，保留）
+  - [x] 统一警告样式（ChartNotice，SessionView 复用）
+  - [x] 重复坐标错误由 line/bar 经 prepareGroupedSeries 以 EmptyState 展示（已有）
 
-- [ ] 4.4 创建 `src/components/SessionView.tsx`
-  - [ ] 根据 session.status 展示 loading / error / 图表
-  - [ ] 展示 title / insight / isUserModified 标记
-  - [ ] 展示 warnings 和 adjustments
+- [x] 4.4 创建 `src/components/SessionView.tsx`
+  - [x] 根据 session.status 展示 loading / error / 图表
+  - [x] 展示 warnings 和 adjustments（统一 ChartNotice 样式）
+  - [x] 展示 isUserModified 标记（title/insight 由 workspace 顶栏展示）
+  - [x] session-workspace 结果区改用 SessionView（受控 mapping 回传）
 
 ### 验收标准
 
-- [ ] 查询结果列含 semanticType
-- [ ] 分类变量放 Y 轴自动 coord_flip 并提示
-- [ ] 散点图无效行显示警告（含数量）
-- [ ] 用户改映射后自动判断是否重查
-- [ ] 柱状图→折线图不重新查询
-- [ ] InsightCard 显示 error 状态
+- [x] 查询结果列含 semanticType（query-engine → API → executeCompiled 全程透传，不再强制 unknown）
+- [x] 分类变量放 Y 轴自动 coord_flip 并提示（render-binder + SessionView 展示）
+- [x] 散点图无效行显示警告（含数量）
+- [x] 用户改映射后自动判断是否重查（UPDATE_DISPLAY_CONFIG：引用不存在字段才重查，阶段二已实现）
+- [x] 柱状图→折线图不重新查询（CHANGE_CHART_TYPE 纯展示层变更，阶段二已实现）
+- [x] InsightCard 显示 error 状态（卡片级错误展示，page.tsx 按索引记录并回传）
+- [x] typecheck 0 错误 / lint 0 错误 / 103 测试全通过
+
+> 注：阶段四代码完成且静态校验全绿（103 测试）。「分类变量自动翻转」「无效数值过滤」等展示层行为需在浏览器人工 E2E 确认；insight 执行错误展示需真实数据库验证。
 
 ---
 
@@ -183,6 +188,7 @@
 
 | 日期 | 版本 | 变更内容 | 提交者 |
 |------|------|---------|--------|
+| 2026-09-02 | v4.4 | 阶段四完成：query-engine 返回 SemanticDataset（columns 含 semanticType，全程透传不再强制 unknown）；新建 render-binder（bindDataToChart：分类变量在 Y 轴自动 coord_flip + 无效数值过滤，6 测试）；新建 SessionView（loading/error/图表 + warnings/adjustments + isUserModified）；session-workspace 结果区改用 SessionView；InsightCard 卡片级 error 展示；103 测试全绿 | zlZayn |
 | 2026-09-02 | v4.3 | 阶段三完成：AI 契约双变体（querySpec+displayConfig 优先 / sql+chart 回退）；parse 优先 querySpec、缺失标记 fallback；buildSystemPrompt 注入 QuerySpec 说明与数据轮廓；generateSQL→generateAnalysis；API 路由注入数据轮廓 | zlZayn |
 | 2026-09-02 | v4.2 | 阶段二完成：useSession + sessionReducer（19 Action + 16 测试）；SessionWorkspace 接入（feature flag）；ResultPanel 受控模式；API 路由传递 conversationHistory；修复 react-hooks/refs 渲染期改 ref 告警 | zlZayn |
 | 2026-09-02 | v4.1 | 阶段一完成：实现 session/actions 类型、query-compiler、validators、schema-service 数据轮廓；新增 19 个单元测试；typecheck 通过 | zlZayn |

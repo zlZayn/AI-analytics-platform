@@ -12,9 +12,11 @@ interface InsightCardProps {
   item: InsightItem
   onExecute: (sql: string, chart: InsightItem["chart"]) => void
   loading?: boolean
+  /** 执行失败时的错误信息（阶段四：卡片级错误展示） */
+  error?: string | null
 }
 
-export function InsightCard({ index, item, onExecute, loading }: InsightCardProps) {
+export function InsightCard({ index, item, onExecute, loading, error }: InsightCardProps) {
   const [expanded, setExpanded] = useState(false)
 
   return (
@@ -59,6 +61,15 @@ export function InsightCard({ index, item, onExecute, loading }: InsightCardProp
       <div className="px-3 pb-2">
         <p className="text-[11px] text-[var(--muted-foreground)]">{item.insight}</p>
       </div>
+
+      {/* 执行错误（卡片级） */}
+      {error && (
+        <div className="px-3 pb-2">
+          <div className="rounded border border-[var(--destructive-border)] bg-[var(--destructive-surface)] px-2 py-1.5 text-[11px] text-[var(--destructive)]">
+            {error}
+          </div>
+        </div>
+      )}
 
       {/* SQL 展开 */}
       {expanded && (

@@ -12,12 +12,12 @@ import { useEffect, useMemo, useState } from "react"
 import dynamic from "next/dynamic"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { ResultPanel } from "@/components/dashboard/result-panel"
+import { SessionView } from "@/components/SessionView"
 import type { InsightItem } from "@/components/insight-card"
 import { useToast } from "@/components/toast"
 import { fetchApi, ApiRequestError } from "@/lib/client-api"
 import { useSession } from "@/hooks/useSession"
-import type { ApiResponse, QueryResult, SchemaData } from "@/types"
+import type { ApiResponse, SchemaData } from "@/types"
 import type { CompiledSql, ConversationMessage, SemanticDataset } from "@/types/session"
 import type { ChartMapping } from "@/components/chart"
 import { Play, Loader2, Send } from "lucide-react"
@@ -60,11 +60,11 @@ export function SessionWorkspace({ connectionId, initialSql }: SessionWorkspaceP
     }
   }, [connectionId])
 
-  // 执行编译后的 SQL：过渡期将 QueryResult 转成 SemanticDataset（阶段四由 query-engine 直接返回）
+  // 执行编译后的 SQL：阶段四起 query-engine 直接返回带 semanticType 的 SemanticDataset
   const executeCompiled = useMemo(
     () =>
       async (compiled: CompiledSql, cid: string): Promise<SemanticDataset> => {
-        const data = await fetchApi<ApiResponse<QueryResult>>("/api/query", {
+        const data = await fetchApi<ApiResponse<SemanticDataset>>("/api/query", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ connectionId: cid, sql: compiled.sql }),
@@ -72,10 +72,7 @@ export function SessionWorkspace({ connectionId, initialSql }: SessionWorkspaceP
         if (!data.success) {
           throw new Error(data.error.message || "查询执行失败")
         }
-        return {
-          ...data.data,
-          columns: data.data.columns.map((c) => ({ ...c, semanticType: "unknown" as const })),
-        }
+        return data.data
       },
     [],
   )
@@ -86,7 +83,7 @@ export function SessionWorkspace({ connectionId, initialSql }: SessionWorkspaceP
     executeCompiled,
   })
 
-  const { status, result, compiledSql, displayConfig, conversationHistory, error, title, insight } = session
+  const { status, compiledSql, displayConfig, conversationHistory, error, title, insight } = session
   const busy = status === "compiling" || status === "executing"
 
   async function sendAi() {
@@ -287,28 +284,18 @@ export function SessionWorkspace({ connectionId, initialSql }: SessionWorkspaceP
           </div>
         </div>
 
-        {/* 结果 */}
+        {/* 结果（阶段四：SessionView 按状态渲染 loading / error / 图表，并展示警告与调整） */}
         <div className="flex min-h-0 min-w-0 flex-1 flex-col lg:flex-[3]">
-          {busy && !result && (
-            <div className="flex items-center justify-center min-h-[200px] rounded-lg border text-xs text-[var(--muted-foreground)]">
-              <Loader2 className="w-4 h-4 animate-spin mr-2" /> 查询执行中...
-            </div>
-          )}
-          {result && (
-            <div className="min-h-0 overflow-auto rounded-lg border">
-              <ResultPanel
-                result={result}
-                onCopySql={() => {
-                  if (compiledSql?.sql) {
-                    navigator.clipboard.writeText(compiledSql.sql)
-                    toast("SQL 已复制", "success")
-                  }
-                }}
-                mapping={displayConfig.mapping}
-                onMappingChange={handleMappingChange}
-              />
-            </div>
-          )}
+          <SessionView
+            session={session}
+            onMappingChange={handleMappingChange}
+            onCopySql={() => {
+              if (compiledSql?.sql) {
+                navigator.clipboard.writeText(compiledSql.sql)
+                toast("SQL 已复制", "success")
+              }
+            }}
+          />
         </div>
       </div>
     </div>

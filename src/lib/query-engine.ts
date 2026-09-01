@@ -4,9 +4,13 @@ import { prisma } from "./prisma"
 import { PoolRegistry } from "./pool-registry"
 import { executeCancelable } from "./query-cancellation"
 import { validateSQL } from "./sql-validator"
+import { inferSemanticType } from "./validators"
+import type { SemanticType } from "@/types/session"
 
+// 阶段四：查询结果列附带语义类型（SemanticDataset 的数据来源）。
+// semanticType 供 render-binder / validators(data-based) 使用，不再盲猜。
 export interface QueryResult {
-  columns: { name: string; type: string }[]
+  columns: { name: string; type: string; semanticType: SemanticType }[]
   rows: Record<string, unknown>[]
   rowCount: number
   executionTimeMs: number
@@ -80,7 +84,10 @@ export async function executeQuery(
     const truncated = result.rows.length > MAX_RETURNED_ROWS
     const rows = truncated ? result.rows.slice(0, MAX_RETURNED_ROWS) : result.rows
     return {
-      columns: result.fields.map((field) => ({ name: field.name, type: mapPGType(field.dataTypeID) })),
+      columns: result.fields.map((field) => {
+        const type = mapPGType(field.dataTypeID)
+        return { name: field.name, type, semanticType: inferSemanticType(field.name, type) }
+      }),
       rows,
       rowCount: rows.length,
       executionTimeMs: Date.now() - startTime,
