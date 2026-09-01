@@ -4,7 +4,7 @@
 
 ### 项目名称
 
-AI Data Analytics Platform
+AI Analytics Platform
 
 ### 项目目标
 

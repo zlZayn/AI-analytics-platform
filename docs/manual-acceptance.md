@@ -5,7 +5,7 @@
 ## 启动
 
 ```powershell
-Set-Location 'E:\新下载\ai-data-analytics'
+# 在项目根目录执行
 npm ci
 npx prisma generate
 npm run dev

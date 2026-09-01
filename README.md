@@ -1,4 +1,4 @@
-# AI Data Analytics Platform
+# AI Analytics Platform
 
 通用型 AI 数据分析平台，支持 PostgreSQL 数据库接入，通过自然语言进行数据分析和可视化。
 
@@ -190,6 +190,7 @@ scripts/
 
 ## 文档
 
+- [架构说明](docs/ARCHITECTURE.md)
 - [项目概述](docs/01_project_overview.md)
 - [数据库设计](docs/02_database_design.md)
 - [API 设计](docs/03_api_design.md)
@@ -198,3 +199,4 @@ scripts/
 - [开发计划](docs/06_development_plan.md)
 - [页面结构](docs/07_page_structure.md)
 - [变更日志](docs/CHANGELOG.md)
+- 维护者索引与规则：[AGENTS.md](AGENTS.md)
