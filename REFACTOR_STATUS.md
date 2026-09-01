@@ -11,7 +11,7 @@
 |------|------|---------|---------|------|
 | 阶段一：建立新层 | ✅ 已完成 | 2026-09-02 | 2026-09-02 | 类型定义 + 编译器 + 校验器 + Schema 扩展（已推送） |
 | 阶段二：接入状态 | ✅ 已完成 | 2026-09-02 | 2026-09-02 | useSession + sessionReducer + workspace 接入（feature flag）+ API 传 history（已推送） |
-| 阶段三：切换 AI 输出 | ⬜ 待开始 | | | AI 同时输出 sql + querySpec，优先 querySpec |
+| 阶段三：切换 AI 输出 | ✅ 已完成 | 2026-09-02 | 2026-09-02 | AI 同时输出 querySpec + displayConfig + sql 回退，数据轮廓注入（已推送） |
 | 阶段四：数据流转改造 | ⬜ 待开始 | | | SemanticDataset + render-binder + 图表展示 warnings |
 
 **状态图例**：⬜ 待开始 | 🔄 进行中 | ✅ 已完成 | ⚠️ 有阻塞 | ↩️ 已回滚
@@ -103,26 +103,32 @@
 
 ### 任务清单
 
-- [ ] 3.1 修改 `src/lib/ai-contract.ts`
-  - [ ] AI_RESPONSE_JSON_SCHEMA 增加 querySpec 和 displayConfig
-  - [ ] sql 字段保留为 optional（过渡期回退）
-  - [ ] buildSystemPrompt 增加 QuerySpec 输出说明
-  - [ ] buildSystemPrompt 注入数据轮廓（buildDataProfile）
+- [x] 3.1 修改 `src/lib/ai-contract.ts`
+  - [x] AI_RESPONSE_JSON_SCHEMA 增加 querySpec 和 displayConfig（item 拆为新/旧双变体 anyOf）
+  - [x] sql 字段保留为 optional（过渡期回退，仅旧变体必填）
+  - [x] buildSystemPrompt 增加 QuerySpec 输出说明
+  - [x] buildSystemPrompt 注入数据轮廓（dataProfileText 参数；API 路由经 buildDataProfileText 注入）
+  - [x] 单元测试覆盖（新格式优先 / sql 回退 / 无效 querySpec 回退 / 数据轮廓注入）
 
-- [ ] 3.2 修改 parse 逻辑
-  - [ ] parseAnalysisItems：优先解析 querySpec，回退到 sql
-  - [ ] 回退路径：sql 存在但 querySpec 缺失时，标记为 fallback 模式
+- [x] 3.2 修改 parse 逻辑
+  - [x] parseInsightItems：优先解析 querySpec + displayConfig，回退到 sql
+  - [x] 回退路径：sql 存在但 querySpec 缺失时，标记 fallback=true
+  - [x] 旧客户端兼容：querySpec 项仍透传 sql（若 AI 同时输出），InsightCard 对 sql 可选容错
 
-- [ ] 3.3 修改 `src/lib/ai-service.ts`
-  - [ ] generateSQL → generateAnalysis
-  - [ ] 接收并传递 conversationHistory
+- [x] 3.3 修改 `src/lib/ai-service.ts`
+  - [x] generateSQL → generateAnalysis（保留 generateSQL 过渡别名）
+  - [x] 接收并传递 conversationHistory
+  - [x] API 路由（/api/ai、/api/ai/insights）改用 generateAnalysis 并注入数据轮廓
 
 ### 验收标准
 
-- [ ] AI 同时输出 sql + querySpec + displayConfig
-- [ ] querySpec 存在时优先使用，编译通过
-- [ ] querySpec 缺失时回退到 sql，功能正常
-- [ ] 新旧客户端都能解析响应
+- [x] AI 同时输出 sql + querySpec + displayConfig（schema 双变体）
+- [x] querySpec 存在时优先使用，编译通过（INIT_FROM_AI → querySpec → 编译管线）
+- [x] querySpec 缺失时回退到 sql，功能正常（fallback 标记 + 直通 SET_COMPILED_SQL）
+- [x] 新旧客户端都能解析响应
+- [x] typecheck 0 错误 / lint 0 错误 / 97 测试全通过
+
+> 注：数据轮廓扫描（scanAllDataProfiles，最多 6 表）在每次 AI 请求时执行，失败不阻断主流程；若延迟成为问题，后续可加预计算缓存（风险 R2）。
 
 ---
 
@@ -177,6 +183,7 @@
 
 | 日期 | 版本 | 变更内容 | 提交者 |
 |------|------|---------|--------|
+| 2026-09-02 | v4.3 | 阶段三完成：AI 契约双变体（querySpec+displayConfig 优先 / sql+chart 回退）；parse 优先 querySpec、缺失标记 fallback；buildSystemPrompt 注入 QuerySpec 说明与数据轮廓；generateSQL→generateAnalysis；API 路由注入数据轮廓 | zlZayn |
 | 2026-09-02 | v4.2 | 阶段二完成：useSession + sessionReducer（19 Action + 16 测试）；SessionWorkspace 接入（feature flag）；ResultPanel 受控模式；API 路由传递 conversationHistory；修复 react-hooks/refs 渲染期改 ref 告警 | zlZayn |
 | 2026-09-02 | v4.1 | 阶段一完成：实现 session/actions 类型、query-compiler、validators、schema-service 数据轮廓；新增 19 个单元测试；typecheck 通过 | zlZayn |
 | 2026-09-02 | v4.0 | 初始方案提交，融合代码诊断 + 架构方案 + 审核反馈 | zlZayn |

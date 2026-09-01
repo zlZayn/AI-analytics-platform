@@ -30,20 +30,24 @@ export interface AIServiceResult {
 
 let defaultProvider: AICompletionProvider | null = null
 
-export async function generateSQL(
+export async function generateAnalysis(
   message: string,
   schemaContext: string,
   conversationHistory: { role: "user" | "assistant"; content: string }[] = [],
   provider: AICompletionProvider = getDefaultProvider(),
+  dataProfileText = "",
 ): Promise<AIServiceResult> {
   const messages: AIMessage[] = [
-    { role: "system", content: buildSystemPrompt(schemaContext) },
+    { role: "system", content: buildSystemPrompt(schemaContext, dataProfileText) },
     ...conversationHistory,
     { role: "user", content: message },
   ]
   const content = await provider.complete({ messages, responseSchema: AI_RESPONSE_JSON_SCHEMA })
   return { items: parseInsightItems(content) }
 }
+
+/** 过渡别名：阶段三前旧调用方使用 generateSQL，保留以兼容（新代码请用 generateAnalysis） */
+export const generateSQL = generateAnalysis
 
 function getDefaultProvider(): AICompletionProvider {
   if (!AI_CONFIG.apiBase) {

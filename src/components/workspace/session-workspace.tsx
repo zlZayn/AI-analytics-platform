@@ -120,20 +120,23 @@ export function SessionWorkspace({ connectionId, initialSql }: SessionWorkspaceP
           question: msg,
           title: item.title,
           insight: item.insight,
-          // 阶段二过渡：AI 仅返回 sql，querySpec 留占位；阶段三 AI 输出 querySpec 后填充
-          querySpec: { table: "" },
-          displayConfig: { chartType: item.chart.chartType, mapping: item.chart },
+          // 阶段三：AI 输出 querySpec + displayConfig 时由编译管线接管；
+          // 回退（AI 仅输出 sql）时 querySpec 留空占位，走下方 sql 直通。
+          querySpec: item.querySpec ?? { table: "" },
+          displayConfig: item.displayConfig ?? { chartType: item.chart.chartType, mapping: item.chart },
         },
       })
-      dispatch({
-        type: "SET_COMPILED_SQL",
-        compiledSql: { sql: item.sql, params: [] },
-      })
+      if (item.fallback || !item.querySpec) {
+        // 回退路径：AI 未输出 querySpec，直接注入 AI 生成的 SQL 触发执行
+        if (item.sql) {
+          dispatch({ type: "SET_COMPILED_SQL", compiledSql: { sql: item.sql, params: [] } })
+          setSqlDraft(item.sql)
+        }
+      }
       dispatch({
         type: "ADD_CONVERSATION",
         message: assistantMessage(item.insight || item.title),
       })
-      setSqlDraft(item.sql)
       toast(`已生成 ${items.length} 条分析，执行第 1 条`, "success")
     } catch (e) {
       const message = e instanceof ApiRequestError ? e.message : "请求失败"

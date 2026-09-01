@@ -1,6 +1,6 @@
 import { NextRequest } from 'next/server'
-import { generateSQL } from '@/lib/ai-service'
-import { buildSchemaContext, scanSchema } from '@/lib/schema-service'
+import { generateAnalysis } from '@/lib/ai-service'
+import { buildDataProfileText, buildSchemaContext, scanAllDataProfiles, scanSchema } from '@/lib/schema-service'
 import { prisma } from '@/lib/prisma'
 import { apiFailure, apiSuccess } from '@/lib/api-response'
 
@@ -42,11 +42,22 @@ export async function POST(request: NextRequest) {
     // 构建 Schema 上下文
     const schemaContext = buildSchemaContext(schema)
 
+    // 数据轮廓（辅助 AI 判断字段类型与基数；失败不阻断主流程）
+    let dataProfileText = ''
+    try {
+      const profiles = await scanAllDataProfiles(connectionId, 6)
+      dataProfileText = buildDataProfileText(profiles)
+    } catch {
+      dataProfileText = ''
+    }
+
     // 生成分析（携带前端会话上下文，实现多轮对话）
-    const result = await generateSQL(
+    const result = await generateAnalysis(
       message,
       schemaContext,
       Array.isArray(conversationHistory) ? conversationHistory : undefined,
+      undefined,
+      dataProfileText,
     )
 
     return apiSuccess({ items: result.items })

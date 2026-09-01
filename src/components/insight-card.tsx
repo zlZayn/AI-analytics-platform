@@ -42,7 +42,7 @@ export function InsightCard({ index, item, onExecute, loading }: InsightCardProp
             size="sm"
             variant="ghost"
             className="h-6 gap-1 text-[10px] text-[var(--muted-foreground)]"
-            onClick={() => onExecute(item.sql, item.chart)}
+            onClick={() => onExecute(item.sql ?? "", item.chart)}
             disabled={loading}
           >
             {loading ? (
@@ -64,7 +64,7 @@ export function InsightCard({ index, item, onExecute, loading }: InsightCardProp
       {expanded && (
         <div className="border-t bg-[var(--muted)] px-3 py-2">
           <pre className="text-[10px] font-mono text-[var(--foreground)] whitespace-pre-wrap overflow-x-auto">
-            {item.sql}
+            {item.sql ?? ""}
           </pre>
           <div className="mt-1.5 flex items-center gap-2">
             <span className="text-[9px] text-[var(--muted-foreground)]">
