@@ -1,0 +1,39 @@
+# AI Analytics Platform 架构说明
+
+## 定位
+
+通用型 AI 数据分析平台：接入任意 PostgreSQL，自然语言 → SQL → 可视化。
+
+## 设计哲学
+
+- 边界：SQL/AI 负责业务语义与聚合，图表只做确定、可测试、可解释的展示变换
+- 稳定性：接口必须提供加载、成功、空、失败、取消、重试状态，截断/采样显式提示，不允许静默丢失
+- 视觉：唯一专业亮色体系，颜色全部由 `src/app/globals.css` 语义 token 管理，组件不维护第二套颜色
+- 哲学细节：见 [design-philosophy.md](design-philosophy.md)
+
+## 核心流程
+
+用户输入 → AI 生成 SQL → 安全校验 → 执行查询 → 用户选择图表类型 + 列映射 → 可视化
+
+## 不变决策
+
+- 查询只允许单条 SELECT/WITH，在 PostgreSQL 只读事务 + statement timeout 内执行，默认上限 5,000 行
+- 平台元数据表（Prisma）与用户业务表分离；数据库名 `ai_analytics` 保持，见 [决策记录](../.agents/notes/2026-09-01-keep-database-name-ai-analytics.md)
+- AI 输出使用供应商原生 strict JSON Schema + 运行时校验；SQL 只引用当前 Schema 与显式输出别名
+- 连接密码 AES-256 加密（每条随机盐）；AI 与数据库凭据只从环境变量读取，不落库
+- API 统一 `ApiResponse<T>` + requestId；客户端统一处理 HTTP、非 JSON、超时、Abort
+- 图表变换全部确定性；统计计算（相关矩阵、直方图分箱）在可取消 Worker 中执行
+
+## 防错清单
+
+- 颜色唯一来源是 globals.css 语义 token，组件不得自建颜色常量
+- 结果表窗口化渲染、粘性表头、NULL 标记、列宽持久化、键盘滚动
+- 图表错误边界自动重置 + 手动重试，保留上一次成功结果
+- 连接池：有限 PoolRegistry、并发创建去重、闲置/LRU 回收、认证错误失效
+- 每次文档同步后跑链接校验（check-links.py），引用不写死本机路径
+
+## 文档约定
+
+- 分层：README=用法，AGENTS.md=维护索引，本文件=设计决策，.agents/notes/=决策记录
+- 详细接口：见 [api.md](api.md)；图表算法：[charts.md](charts.md)；AI 合同：[04_ai_integration.md](04_ai_integration.md)
+- 项目结构、页面与 API 路由清单：见 [README.md](../README.md)
