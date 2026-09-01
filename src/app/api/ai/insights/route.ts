@@ -8,7 +8,7 @@ import { apiFailure, apiSuccess } from '@/lib/api-response'
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { connectionId, message } = body
+    const { connectionId, message, conversationHistory } = body
 
     if (!connectionId || !message) {
       return apiFailure({ code: 'INVALID_REQUEST', message: '缺少必填字段: connectionId, message', retryable: false }, 400)
@@ -42,8 +42,12 @@ export async function POST(request: NextRequest) {
     // 构建 Schema 上下文
     const schemaContext = buildSchemaContext(schema)
 
-    // 生成分析
-    const result = await generateSQL(message, schemaContext)
+    // 生成分析（携带前端会话上下文，实现多轮对话）
+    const result = await generateSQL(
+      message,
+      schemaContext,
+      Array.isArray(conversationHistory) ? conversationHistory : undefined,
+    )
 
     return apiSuccess({ items: result.items })
   } catch (error) {

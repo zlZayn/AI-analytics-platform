@@ -14,6 +14,7 @@ import type { ApiResponse, QueryResult } from "@/types"
 import { Play, Trash2, Save, Loader2, Send, ChevronDown, ChevronUp } from "lucide-react"
 import dynamic from "next/dynamic"
 import { fetchApi, ApiRequestError } from "@/lib/client-api"
+import { SessionWorkspace } from "@/components/workspace/session-workspace"
 
 const MonacoEditor = dynamic(() => import("@monaco-editor/react"), {
   ssr: false,
@@ -363,6 +364,17 @@ function WorkspaceRoute() {
   const searchParams = useSearchParams()
   const connectionId = searchParams.get("connection")
   const initialSql = searchParams.get("sql") || ""
+  // feature flag：`?session=1` 或 NEXT_PUBLIC_SESSION_STATE=1 时启用会话状态工作台（阶段二），否则走旧版
+  const useSessionState = searchParams.get("session") === "1" || process.env.NEXT_PUBLIC_SESSION_STATE === "1"
+  if (useSessionState) {
+    return (
+      <SessionWorkspace
+        key={`${connectionId ?? ""}:${initialSql}`}
+        connectionId={connectionId}
+        initialSql={initialSql}
+      />
+    )
+  }
   return <WorkspaceContent key={`${connectionId ?? ""}:${initialSql}`} connectionId={connectionId} initialSql={initialSql} />
 }
 

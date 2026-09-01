@@ -135,8 +135,8 @@ describe("validateDisplayConfig（data 模式）", () => {
       mode: "data",
       dataset: {
         columns: [
-          { name: "customer_name", type: "text", semanticType: "categorical" },
-          { name: "amount", type: "numeric", semanticType: "numeric" },
+          { name: "customer_name", semanticType: "categorical" },
+          { name: "amount", semanticType: "numeric" },
         ],
         rows: manyRows,
       },

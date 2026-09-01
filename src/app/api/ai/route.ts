@@ -8,7 +8,7 @@ import { apiFailure, apiSuccess } from '@/lib/api-response'
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { connectionId, message, conversationId } = body
+    const { connectionId, message, conversationId, conversationHistory: bodyHistory } = body
 
     // 验证必填字段
     if (!connectionId || !message) {
@@ -43,9 +43,11 @@ export async function POST(request: NextRequest) {
     // 构建 Schema 上下文
     const schemaContext = buildSchemaContext(schema)
 
-    // 获取对话历史
+    // 获取对话历史：优先使用前端会话传入的历史（含最新问题上下文），否则按 conversationId 从库中加载
     let conversationHistory: { role: 'user' | 'assistant'; content: string }[] = []
-    if (conversationId) {
+    if (Array.isArray(bodyHistory) && bodyHistory.length > 0) {
+      conversationHistory = bodyHistory
+    } else if (conversationId) {
       const messages = await prisma.aIMessage.findMany({
         where: { conversationId },
         orderBy: { createdAt: 'asc' },

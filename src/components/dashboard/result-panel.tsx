@@ -11,11 +11,14 @@ interface Props {
   result: QueryResult
   onCopySql: () => void
   initialMapping?: ChartMapping
+  /** 受控模式：由父组件持有 mapping，变化时通过 onMappingChange 回传 */
+  mapping?: ChartMapping
+  onMappingChange?: (mapping: ChartMapping) => void
 }
 
 const DEFAULT_MAPPING: ChartMapping = { chartType: "table" }
 
-export function ResultPanel({ result, onCopySql, initialMapping }: Props) {
+export function ResultPanel({ result, onCopySql, initialMapping, mapping: controlledMapping, onMappingChange }: Props) {
   const initial = initialMapping || DEFAULT_MAPPING
   const [chartState, setChartState] = useState<{ result: QueryResult; initial: ChartMapping; mapping: ChartMapping }>({
     result,
@@ -23,9 +26,20 @@ export function ResultPanel({ result, onCopySql, initialMapping }: Props) {
     mapping: initial,
   })
   const [copied, setCopied] = useState(false)
-  const chartMapping = chartState.result === result && chartState.initial === initial
-    ? chartState.mapping
-    : initial
+  const controlled = controlledMapping !== undefined
+  const chartMapping = controlled
+    ? controlledMapping
+    : chartState.result === result && chartState.initial === initial
+      ? chartState.mapping
+      : initial
+
+  function handleMapping(mapping: ChartMapping) {
+    if (controlled) {
+      onMappingChange?.(mapping)
+    } else {
+      setChartState({ result, initial, mapping })
+    }
+  }
 
   function handleCopy() {
     onCopySql()
@@ -61,7 +75,7 @@ export function ResultPanel({ result, onCopySql, initialMapping }: Props) {
           columns={result.columns}
           data={result.rows}
           mapping={chartMapping}
-          onChange={(mapping) => setChartState({ result, initial, mapping })}
+          onChange={handleMapping}
         />
       </div>
     </div>

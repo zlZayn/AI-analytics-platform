@@ -347,7 +347,7 @@ export function buildDataProfileText(profiles: TableDataProfile[]): string {
     for (const col of profile.columns) {
       const samples = col.samples
         .slice(0, 3)
-        .map((s) => `\`${String(s).replace(/\|/g, '\\|').replace(/\n/g, ' ')}`)
+        .map((s) => `\`${String(s).replace(/\|/g, '\\|').replace(/\n/g, ' ')}\``)
         .join(', ')
       const min = col.min !== null ? String(col.min).replace(/\|/g, '\\|') : ''
       const max = col.max !== null ? String(col.max).replace(/\|/g, '\\|') : ''

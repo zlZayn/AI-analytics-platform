@@ -10,7 +10,7 @@
 | 阶段 | 状态 | 开始日期 | 完成日期 | 备注 |
 |------|------|---------|---------|------|
 | 阶段一：建立新层 | ✅ 已完成 | 2026-09-02 | 2026-09-02 | 类型定义 + 编译器 + 校验器 + Schema 扩展（已推送） |
-| 阶段二：接入状态 | ⬜ 待开始 | | | useSession + workspace 接入 + API 传 history |
+| 阶段二：接入状态 | ✅ 已完成 | 2026-09-02 | 2026-09-02 | useSession + sessionReducer + workspace 接入（feature flag）+ API 传 history（已推送） |
 | 阶段三：切换 AI 输出 | ⬜ 待开始 | | | AI 同时输出 sql + querySpec，优先 querySpec |
 | 阶段四：数据流转改造 | ⬜ 待开始 | | | SemanticDataset + render-binder + 图表展示 warnings |
 
@@ -63,34 +63,39 @@
 
 ### 任务清单
 
-- [ ] 2.1 创建 `src/hooks/useSession.ts`
-  - [ ] useReducer + sessionReducer
-  - [ ] 三个 useEffect 副作用（querySpec 变化→编译；compiledSql 变化→执行；needs_recompile→判断重查）
-  - [ ] connectionId 和 schema 作为参数传入
+- [x] 2.1 创建 `src/hooks/useSession.ts`
+  - [x] useReducer + sessionReducer
+  - [x] 三个 useEffect 副作用（querySpec 变化→编译；compiledSql 变化→执行；needs_recompile→判断重查）
+  - [x] connectionId 和 schema 作为参数传入
+  - [x] 最新值 ref 通过无依赖 effect 同步（规避 react-hooks/refs 渲染期改 ref 告警）
 
-- [ ] 2.2 创建 `src/hooks/sessionReducer.ts`
-  - [ ] 所有 Action 的纯函数处理
-  - [ ] INIT_FROM_AI 中 schema-based 校验
-  - [ ] UPDATE_DISPLAY_CONFIG 中 data-based/schema-based 校验 + needs_recompile 判断
-  - [ ] EXECUTE_SUCCESS 中 data-based 校验
-  - [ ] 单元测试覆盖 reducer
+- [x] 2.2 创建 `src/hooks/sessionReducer.ts`
+  - [x] 所有 Action 的纯函数处理
+  - [x] INIT_FROM_AI 中 schema-based 校验
+  - [x] UPDATE_DISPLAY_CONFIG 中 data-based/schema-based 校验 + needs_recompile 判断
+  - [x] EXECUTE_SUCCESS 中 data-based 校验
+  - [x] 单元测试覆盖 reducer（16 用例）
 
-- [ ] 2.3 修改 `src/app/workspace/page.tsx`
-  - [ ] 删除 5 个 useState（sql / result / pendingChartMapping / aiHistory / error）
-  - [ ] 改用 useSession
-  - [ ] askAI / executeInsight / handleMappingChange 改为 dispatch
-  - [ ] 现有功能不受影响（feature flag 可切换新旧）
+- [x] 2.3 修改 `src/app/workspace/page.tsx`
+  - [x] 新增 `src/components/workspace/session-workspace.tsx`：session 替代 sql / result / pendingChartMapping / aiHistory / error 五个 state
+  - [x] 改用 useSession（executeCompiled 注入 /api/query，SQL 执行经 SET_COMPILED_SQL）
+  - [x] askAI / executeInsight / handleMappingChange 改为 dispatch
+  - [x] ResultPanel 支持受控模式（mapping / onMappingChange 回传）
+  - [x] 现有功能不受影响（feature flag：`?session=1` 或 `NEXT_PUBLIC_SESSION_STATE=1` 切换新旧）
 
-- [ ] 2.4 修改 API 路由
-  - [ ] `src/app/api/ai/route.ts`：传递 conversationHistory
-  - [ ] `src/app/api/ai/insights/route.ts`：传递 conversationHistory
+- [x] 2.4 修改 API 路由
+  - [x] `src/app/api/ai/route.ts`：优先接收请求体 conversationHistory，回退按 conversationId 从库加载
+  - [x] `src/app/api/ai/insights/route.ts`：传递 conversationHistory
 
 ### 验收标准
 
-- [ ] reducer 单元测试通过
-- [ ] workspace 现有功能完整（提问→AI返回→执行→出图→改映射）
-- [ ] 多轮对话有上下文（第二轮能引用第一轮的结果）
-- [ ] feature flag 可回退到旧 state 管理
+- [x] reducer 单元测试通过（16 用例）
+- [x] workspace 现有功能完整（旧版默认保留；新版经 feature flag 启用）
+- [x] 多轮对话有上下文（API 已传递 conversationHistory；第二轮起可引用第一轮结果——待浏览器人工 E2E 确认）
+- [x] feature flag 可回退（旧版 `WorkspaceContent` 未改动）
+- [x] typecheck 0 错误 / lint 0 错误 / 94 测试全通过
+
+> 注：阶段二代码完成且静态校验全绿；「多轮对话有上下文」需接入真实数据库与 AI_API_KEY 后在浏览器验证，尚未做 E2E。
 
 ---
 
@@ -172,6 +177,7 @@
 
 | 日期 | 版本 | 变更内容 | 提交者 |
 |------|------|---------|--------|
+| 2026-09-02 | v4.2 | 阶段二完成：useSession + sessionReducer（19 Action + 16 测试）；SessionWorkspace 接入（feature flag）；ResultPanel 受控模式；API 路由传递 conversationHistory；修复 react-hooks/refs 渲染期改 ref 告警 | zlZayn |
 | 2026-09-02 | v4.1 | 阶段一完成：实现 session/actions 类型、query-compiler、validators、schema-service 数据轮廓；新增 19 个单元测试；typecheck 通过 | zlZayn |
 | 2026-09-02 | v4.0 | 初始方案提交，融合代码诊断 + 架构方案 + 审核反馈 | zlZayn |
 
