@@ -15,14 +15,17 @@ This version has breaking changes — APIs, conventions, and file structure may 
 ## 常用命令
 - `npm test` · `npm run typecheck` · `npm run lint` · `npm run dev`
 
-## 验证快照（2026-09-01）
-- vitest: 20 files / 59 passed / 0 failed
+## 验证快照（2026-09-02，refactor-plan 分支）
+- vitest: 24 files / 106 passed / 0 failed
+- typecheck / lint: 0 errors
 
 ## 待办
 - [ ] 真实只读账号人工验收：[docs/manual-acceptance.md](docs/manual-acceptance.md)
+- [ ] refactor-plan 合并回 main 前核对 [REFACTOR_STATUS.md](REFACTOR_STATUS.md) 与 handoff 文档
 
 ## 活跃坑
 - 烟测/开发服务器用 `http://localhost:4321`；行尾统一 LF（maintenance-flow 的 check-line-endings.py 检测）
+- typecheck 报 PrismaClient 缺模型属性（schemaSnapshot/connection）→ `node_modules/@prisma/client` 损坏，重装后必须 `npx prisma generate`
 
 ## 文档地图
 - 用途与用法：[README.md](README.md)
