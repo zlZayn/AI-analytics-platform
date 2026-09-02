@@ -75,7 +75,7 @@ REM   OK        -> 产物最新，跳过构建，直接生产启动
 REM   STALE     -> 源码有更新，询问是否重新构建
 REM   NOT_BUILT -> 从未构建，询问是否构建
 REM ============================================================
-powershell -NoProfile -Command "$f=Get-ChildItem 'src','prisma' -Recurse -File -EA SilentlyContinue; $t=$null; foreach($x in $f){if(-not $t -or $x.LastWriteTime -gt $t){$t=$x.LastWriteTime}}; if(-not (Test-Path '.next\BUILD_ID')){'NOT_BUILT'}elseif($t -gt (Get-Item '.next\BUILD_ID').LastWriteTime){'STALE'}else{'OK'}" > "%BUILDSTATE%" 2>nul
+powershell -NoProfile -Command "$f=Get-ChildItem 'src','prisma' -Recurse -File -EA SilentlyContinue ^| Where-Object { $_.FullName -notmatch '\\generated\\' }; $t=$null; foreach($x in $f){if(-not $t -or $x.LastWriteTime -gt $t){$t=$x.LastWriteTime}}; if(-not (Test-Path '.next\BUILD_ID')){'NOT_BUILT'}elseif($t -gt (Get-Item '.next\BUILD_ID').LastWriteTime){'STALE'}else{'OK'}" > "%BUILDSTATE%" 2>nul
 set /p BUILD_STATE=<"%BUILDSTATE%"
 
 if "%BUILD_STATE%"=="STALE" (
