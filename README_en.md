@@ -77,6 +77,11 @@ npm run dev
 
 Open <http://localhost:3000>
 
+### Windows shortcuts (recommended)
+
+- `启动 AI 分析平台.cmd`: one-click launch (checks/installs dependencies -> generates the Prisma client -> starts the dev server -> opens the browser)
+- `构建.cmd`: type-check + production build, for releases
+
 ## Query Safety & Limits
 
 Only a single `SELECT`/`WITH` statement is allowed, run inside a PostgreSQL read-only transaction with a statement timeout. The default result cap is 5,000 rows; truncation and chart sampling are always surfaced in the UI. Configure read-only accounts for every external database in production.

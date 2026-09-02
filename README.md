@@ -77,6 +77,11 @@ npm run dev
 
 访问 <http://localhost:3000>
 
+### Windows 快捷入口（推荐）
+
+- `启动 AI 分析平台.cmd`：一键启动（自动检查/安装依赖 → 生成 Prisma 客户端 → 启动 dev server → 打开浏览器），日常开发双击即可
+- `构建.cmd`：类型检查 + 生产构建，发布前使用
+
 ## 查询安全与边界
 
 查询只允许单条 `SELECT`/`WITH`，在 PostgreSQL 只读事务和 statement timeout 内执行。默认最多返回 5,000 行；结果被截断或图表采样时，界面会明确提示。生产环境应为每个外部数据库配置只读账号。
