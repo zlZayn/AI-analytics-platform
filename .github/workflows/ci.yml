@@ -38,6 +38,9 @@ jobs:
 
       - name: Build
         run: npm run build
+        env:
+          ENCRYPTION_KEY: "ci-only-build-placeholder-key-not-used-at-runtime"
+          DATABASE_URL: "postgresql://ci:ci@localhost:5432/ci"
 
       - name: Check docs links
         run: python scripts/check-links.py .
