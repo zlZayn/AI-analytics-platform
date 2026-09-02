@@ -20,10 +20,10 @@
 - 阶段四：query-engine 返回 SemanticDataset（semanticType 全程透传）、`render-binder`（坐标翻转/无效值过滤）、`SessionView`、InsightCard 错误态
 - 审核修复：数据轮廓排除平台元数据表；EXECUTE_SUCCESS 校验结果接入 UI
 
-## 自动验证（2026-09-02，无环境变量离线）
+## 自动验证（2026-09-03，无环境变量离线）
 
 ```text
-npm test                   24 files / 106 tests passed
+npm test                   25 files / 111 tests passed
 npm run typecheck          passed
 npm run lint               passed
 npm run build              passed (Next.js 16.2.9)

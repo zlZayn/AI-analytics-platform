@@ -15,8 +15,8 @@ This version has breaking changes — APIs, conventions, and file structure may 
 ## 常用命令
 - `npm test` · `npm run typecheck` · `npm run lint` · `npm run dev`
 
-## 验证快照（2026-09-02，main 分支）
-- vitest: 24 files / 106 passed / 0 failed
+## 验证快照（2026-09-03，main 分支）
+- vitest: 25 files / 111 passed / 0 failed
 - typecheck / lint: 0 errors
 - 生产 build: passed（清 `.next` 后）；浏览器烟测/离线 E2E 脚本: passed
 
