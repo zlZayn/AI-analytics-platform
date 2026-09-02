@@ -6,6 +6,8 @@ set "PORT=3000"
 set "URL=http://localhost:%PORT%"
 set "TMPFILE=%TEMP%\aiap_http_%PORT%.txt"
 set "SERVER_LOG=%TEMP%\aiap_server_%PORT%.log"
+set "BUILDSTATE=%TEMP%\aiap_buildstate_%PORT%.txt"
+set "MODE=start"
 
 REM ---- ANSI 彩色（成功绿 / 失败红 / 警告琥珀 / 信息蓝 / 次要灰）----
 set "ESC="
@@ -18,7 +20,7 @@ set "C_DIM=%ESC%[38;2;107;114;128m"
 set "C_RST=%ESC%[0m"
 
 REM ============================================================
-REM  [1/4] Node.js 检查
+REM  [1/5] Node.js 检查
 REM ============================================================
 where node >nul 2>nul
 if errorlevel 1 (
@@ -28,7 +30,7 @@ if errorlevel 1 (
 )
 
 REM ============================================================
-REM  [2/4] 依赖检查：node_modules 缺失时自动安装
+REM  [2/5] 依赖检查：node_modules 缺失时自动安装
 REM ============================================================
 if not exist node_modules (
     echo %C_INFO%[INFO]%C_RST% 首次运行，正在安装依赖 ...
@@ -42,7 +44,7 @@ if not exist node_modules (
 )
 
 REM ============================================================
-REM  [3/4] 环境与 Prisma 客户端检查
+REM  [3/5] 环境与 Prisma 客户端检查
 REM ============================================================
 if not exist .env (
     echo %C_ERR%[ERROR]%C_RST% 缺少 .env 配置文件。
@@ -68,8 +70,40 @@ if not exist src\generated\prisma\client.ts (
 )
 
 REM ============================================================
-REM  [4/4] 端口探测：已在运行则直接打开浏览器
+REM  [4/5] 构建新鲜度检查：src/prisma 是否比 .next\BUILD_ID 新
+REM   OK        -> 产物最新，跳过构建，直接生产启动
+REM   STALE     -> 源码有更新，询问是否重新构建
+REM   NOT_BUILT -> 从未构建，询问是否构建
 REM ============================================================
+powershell -NoProfile -Command "$f=Get-ChildItem 'src','prisma' -Recurse -File -EA SilentlyContinue; $t=$null; foreach($x in $f){if(-not $t -or $x.LastWriteTime -gt $t){$t=$x.LastWriteTime}}; if(-not (Test-Path '.next\BUILD_ID')){'NOT_BUILT'}elseif($t -gt (Get-Item '.next\BUILD_ID').LastWriteTime){'STALE'}else{'OK'}" > "%BUILDSTATE%" 2>nul
+set /p BUILD_STATE=<"%BUILDSTATE%"
+
+if "%BUILD_STATE%"=="STALE" (
+    echo %C_WARN%[WARN]%C_RST% 检测到源码更新，构建产物已过期
+    set /p DOBUILD=%C_DIM%是否重新构建？^（回车=是 / D=直接进开发模式 / N=跳过）: %C_RST%
+    if /i "!DOBUILD!"=="D" (
+        set "MODE=dev"
+        goto check_running
+    )
+    if /i not "!DOBUILD!"=="N" goto build
+)
+if "%BUILD_STATE%"=="NOT_BUILT" (
+    echo %C_WARN%[WARN]%C_RST% 尚未构建（.next 缺失）
+    set /p DOBUILD=%C_DIM%是否现在构建？^（回车=是 / D=直接进开发模式 / N=跳过）: %C_RST%
+    if /i "!DOBUILD!"=="D" (
+        set "MODE=dev"
+        goto check_running
+    )
+    if /i not "!DOBUILD!"=="N" goto build
+)
+if "%BUILD_STATE%"=="OK" (
+    echo %C_OK%[OK]%C_RST% 构建产物已是最新，跳过构建
+)
+
+REM ============================================================
+REM  [5/5] 端口探测：已在运行则直接打开浏览器
+REM ============================================================
+:check_running
 set "SRV_PID="
 for /f "tokens=5" %%p in ('netstat -ano ^| findstr ":%PORT%" ^| findstr "LISTENING"') do set "SRV_PID=%%p"
 if defined SRV_PID (
@@ -78,10 +112,13 @@ if defined SRV_PID (
     exit /b 0
 )
 
-echo %C_INFO%[INFO]%C_RST% 服务未运行，正在启动开发服务器 ...
-
-REM ---- 后台启动 dev server（日志写入临时文件）----
-start "" /b cmd /c "npm run dev > "%SERVER_LOG%" 2>&1"
+if "%MODE%"=="dev" (
+    echo %C_INFO%[INFO]%C_RST% 正在启动开发服务器（热更新）...
+    start "" /b cmd /c "npm run dev -- -p %PORT% > "%SERVER_LOG%" 2>&1"
+) else (
+    echo %C_INFO%[INFO]%C_RST% 服务未运行，正在启动生产服务器 ...
+    start "" /b cmd /c "npm run start -- -p %PORT% > "%SERVER_LOG%" 2>&1"
+)
 
 REM ---- 等待服务就绪（最长 30 秒）----
 set /a TRIES=0
@@ -105,6 +142,17 @@ if /i "!QUIT!"=="Q" (
     echo %C_OK%[OK]%C_RST% 服务已停止。
 )
 exit /b 0
+
+:build
+echo %C_INFO%[INFO]%C_RST% 正在构建（本机字体自托管，无需联网）...
+call npm run build
+if errorlevel 1 (
+    echo %C_ERR%[ERROR]%C_RST% 构建失败。
+    pause
+    exit /b 1
+)
+echo %C_OK%[OK]%C_RST% 构建完成。
+goto check_running
 
 :fail
 echo %C_ERR%[ERROR]%C_RST% 服务 30 秒内未就绪，请查看日志: %SERVER_LOG%
