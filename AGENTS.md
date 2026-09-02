@@ -25,7 +25,7 @@ This version has breaking changes — APIs, conventions, and file structure may 
 - [ ] refactor-plan 合并回 main（重构 v4.5 已完成，见 [REFACTOR_STATUS.md](REFACTOR_STATUS.md)）
 
 ## 活跃坑
-- 烟测/开发服务器用 `http://localhost:4321`；行尾统一 LF（maintenance-flow 的 check-line-endings.py 检测）；**例外：根目录 `*.cmd` 必须 CRLF + UTF-8 无 BOM**（cmd 解析 LF 多行块报 "do was unexpected"）
+- 烟测/开发服务器用 `http://localhost:4321`；行尾统一 LF（maintenance-flow 的 check-line-endings.py 检测）；**例外：根目录 `*.cmd` 必须 CRLF + GBK(ANSI) 编码、无 BOM、不用 chcp**（cmd 解析 LF 多行块报 "do was unexpected"；UTF-8 编码在记事本/控制台显示乱码）
 - typecheck 报 PrismaClient 缺模型属性（schemaSnapshot/connection）→ `node_modules/@prisma/client` 损坏，重装后必须 `npx prisma generate`
 - `.next` 缓存 dev/prod 混用会致 build 失败（font module-not-found）；先删 `.next` 再 build
 - 浏览器烟测/E2E 需本地 chromium（Playwright），CI 不跑浏览器脚本

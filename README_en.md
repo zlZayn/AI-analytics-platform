@@ -79,8 +79,8 @@ Open <http://localhost:3000>
 
 ### Windows shortcuts (recommended)
 
-- `启动 AI 分析平台.cmd`: one-click launch (checks/installs dependencies -> generates the Prisma client -> starts the dev server -> opens the browser)
-- `构建.cmd`: type-check + production build, for releases
+- `Start Dev.cmd`: one-click launch (checks/installs dependencies -> generates the Prisma client -> starts the dev server -> opens the browser)
+- `Build.cmd`: type-check + production build, for releases
 
 ## Query Safety & Limits
 
