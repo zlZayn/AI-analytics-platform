@@ -214,7 +214,7 @@ export function Sidebar({ mobileOpen = false, onClose }: { mobileOpen?: boolean;
 
       {/* Footer */}
       <div className="px-3 py-2 border-t border-[var(--sidebar-border)]">
-        <span className="text-[10px] text-[var(--muted-foreground)]">v{process.env.NEXT_PUBLIC_APP_VERSION}</span>
+        <span className="text-[10px] text-[var(--muted-foreground)]">v{process.env.NEXT_PUBLIC_APP_VERSION ?? ""}</span>
       </div>
     </aside>
   )
