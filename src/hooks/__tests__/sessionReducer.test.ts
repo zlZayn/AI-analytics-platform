@@ -217,6 +217,63 @@ describe("createSessionReducer（带 schema）", () => {
     expect(next.status).toBe("compiling")
     expect(next.displayConfig.mapping.chartType).toBe("bar")
   })
+
+  it("EXECUTE_SUCCESS 将 data-based 校验结果存入 validationIssues（无效数值）", () => {
+    const next = reducer(makeSession(), {
+      type: "EXECUTE_SUCCESS",
+      result: {
+        columns: [
+          { name: "customer_name", type: "text", semanticType: "text" },
+          { name: "amount", type: "numeric", semanticType: "numeric" },
+        ],
+        rows: [
+          { customer_name: "A", amount: 10 },
+          { customer_name: "B", amount: "oops" },
+        ],
+        rowCount: 2,
+        executionTimeMs: 5,
+        returnedRowCount: 2,
+        truncated: false,
+        rowLimit: 5000,
+      },
+    })
+    expect(next.status).toBe("ready")
+    expect(next.result?.rowCount).toBe(2)
+    expect(next.validationIssues?.some((i) => i.code === "INVALID_NUMERIC")).toBe(true)
+  })
+
+  it("EXECUTE_SUCCESS 校验通过时 validationIssues 为 undefined", () => {
+    const next = reducer(makeSession(), {
+      type: "EXECUTE_SUCCESS",
+      result: {
+        columns: [
+          { name: "customer_name", type: "text", semanticType: "text" },
+          { name: "amount", type: "numeric", semanticType: "numeric" },
+        ],
+        rows: [
+          { customer_name: "A", amount: 10 },
+          { customer_name: "B", amount: 20 },
+        ],
+        rowCount: 2,
+        executionTimeMs: 5,
+        returnedRowCount: 2,
+        truncated: false,
+        rowLimit: 5000,
+      },
+    })
+    expect(next.status).toBe("ready")
+    expect(next.validationIssues).toBeUndefined()
+  })
+
+  it("CHANGE_CHART_TYPE 清除过期 validationIssues", () => {
+    const withIssues = makeSession({
+      status: "ready",
+      validationIssues: [{ code: "INVALID_NUMERIC", message: "amount 有 1 个无效数值", severity: "warning" }],
+    })
+    const next = reducer(withIssues, { type: "CHANGE_CHART_TYPE", chartType: "line" })
+    expect(next.displayConfig.chartType).toBe("line")
+    expect(next.validationIssues).toBeUndefined()
+  })
 })
 
 describe("missingMappingFields", () => {

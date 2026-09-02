@@ -188,6 +188,7 @@
 
 | 日期 | 版本 | 变更内容 | 提交者 |
 |------|------|---------|--------|
+| 2026-09-02 | v4.5 | 审核修复：P1 数据轮廓扫描复用 PLATFORM_TABLES 排除平台元数据表（不再泄露 users/connections 等结构给 AI）；P2 EXECUTE_SUCCESS 的 data-based 校验结果存入 session.validationIssues，由 SessionView 以 ChartNotice 展示，相关转换清除过期校验；+3 测试（106 全绿） | zlZayn |
 | 2026-09-02 | v4.4 | 阶段四完成：query-engine 返回 SemanticDataset（columns 含 semanticType，全程透传不再强制 unknown）；新建 render-binder（bindDataToChart：分类变量在 Y 轴自动 coord_flip + 无效数值过滤，6 测试）；新建 SessionView（loading/error/图表 + warnings/adjustments + isUserModified）；session-workspace 结果区改用 SessionView；InsightCard 卡片级 error 展示；103 测试全绿 | zlZayn |
 | 2026-09-02 | v4.3 | 阶段三完成：AI 契约双变体（querySpec+displayConfig 优先 / sql+chart 回退）；parse 优先 querySpec、缺失标记 fallback；buildSystemPrompt 注入 QuerySpec 说明与数据轮廓；generateSQL→generateAnalysis；API 路由注入数据轮廓 | zlZayn |
 | 2026-09-02 | v4.2 | 阶段二完成：useSession + sessionReducer（19 Action + 16 测试）；SessionWorkspace 接入（feature flag）；ResultPanel 受控模式；API 路由传递 conversationHistory；修复 react-hooks/refs 渲染期改 ref 告警 | zlZayn |

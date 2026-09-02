@@ -57,17 +57,17 @@ async function getPool(connectionId: string): Promise<Pool> {
   })
 }
 
+// 平台自身的元数据表，不展示给用户、不喂给 AI（schema 扫描与数据轮廓扫描共用）
+const PLATFORM_TABLES = [
+  'users', 'connections', 'schema_snapshots', 'saved_queries', 'query_history',
+  'dashboards', 'dashboard_widgets', 'analysis_templates',
+  'ai_conversations', 'ai_messages', 'system_configs',
+]
+
 export async function scanSchema(connectionId: string): Promise<DatabaseSchema> {
   const pool = await getPool(connectionId)
 
   try {
-    // 平台自身的元数据表，不展示给用户
-    const PLATFORM_TABLES = [
-      'users', 'connections', 'schema_snapshots', 'saved_queries', 'query_history',
-      'dashboards', 'dashboard_widgets', 'analysis_templates',
-      'ai_conversations', 'ai_messages', 'system_configs',
-    ]
-
     // 获取所有表（排除平台元数据表）
     const tablesResult = await pool.query(`
       SELECT
@@ -322,8 +322,10 @@ export async function scanAllDataProfiles(
   try {
     const result = await pool.query(
       `SELECT table_name FROM information_schema.tables
-       WHERE table_schema = 'public' ORDER BY table_name LIMIT $1`,
-      [maxTables],
+       WHERE table_schema = 'public'
+         AND table_name NOT IN (${PLATFORM_TABLES.map((_, i) => `$${i + 1}`).join(',')})
+       ORDER BY table_name LIMIT $${PLATFORM_TABLES.length + 1}`,
+      [...PLATFORM_TABLES, maxTables],
     )
     tableNames = result.rows.map((r) => r.table_name as string)
   } finally {

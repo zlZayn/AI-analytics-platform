@@ -3,6 +3,7 @@
 
 import type { ChartMapping } from "@/components/charts/types"
 import type { ChartType } from "@/lib/variable-types"
+import type { ValidationIssue } from "@/lib/validators"
 
 // ---- 语义类型（与 components/charts/pipeline.ts 保持一致，并扩展） ----
 
@@ -145,6 +146,8 @@ export interface AnalysisSession {
   displayConfig: DisplayConfig
   status: SessionStatus
   error?: string
+  /** data-based 校验结果（EXECUTE_SUCCESS 时写入，由 SessionView 展示） */
+  validationIssues?: ValidationIssue[]
   source: "ai" | "user"
   isUserModified: boolean
   conversationHistory: ConversationMessage[]

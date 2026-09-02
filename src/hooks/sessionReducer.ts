@@ -8,6 +8,7 @@ import type { SchemaData } from "@/types"
 import type { ChartMapping } from "@/components/charts/types"
 import { createChartMapping, getMappingSlot } from "@/components/charts/mapping"
 import { validateDisplayConfig } from "@/lib/validators"
+import type { ValidationIssue } from "@/lib/validators"
 
 export interface SessionReducerDeps {
   schema: SchemaData | null
@@ -90,28 +91,37 @@ export function createSessionReducer(deps: SessionReducerDeps) {
           source: "user",
           isUserModified: false,
           error: undefined,
+          validationIssues: undefined,
           conversationHistory: [...state.conversationHistory, userMessage],
         })
       }
 
       case "COMPILE_START":
-        return touch({ ...state, status: "compiling", error: undefined })
+        return touch({ ...state, status: "compiling", error: undefined, validationIssues: undefined })
 
       case "SET_COMPILED_SQL":
-        return touch({ ...state, compiledSql: action.compiledSql, status: "executing", error: undefined })
+        return touch({ ...state, compiledSql: action.compiledSql, status: "executing", error: undefined, validationIssues: undefined })
 
       case "COMPILE_ERROR":
         return touch({ ...state, status: "error", error: action.error, compiledSql: null })
 
       case "EXECUTE_START":
-        return touch({ ...state, status: "executing", error: undefined })
+        return touch({ ...state, status: "executing", error: undefined, validationIssues: undefined })
 
       case "EXECUTE_SUCCESS": {
-        // data-based 校验：确认结果列支持当前 displayConfig（错误不阻断状态存储）
+        // data-based 校验：确认结果列支持当前 displayConfig；issues 存进 state 供 SessionView 展示（错误不阻断渲染）
+        let validationIssues: ValidationIssue[] | undefined
         if (schema) {
-          validateDisplayConfig(state.displayConfig, { mode: "data", dataset: action.result })
+          const result = validateDisplayConfig(state.displayConfig, { mode: "data", dataset: action.result })
+          if (result.issues.length > 0) validationIssues = result.issues
         }
-        return touch({ ...state, status: "ready", result: action.result, error: undefined })
+        return touch({
+          ...state,
+          status: "ready",
+          result: action.result,
+          error: undefined,
+          validationIssues,
+        })
       }
 
       case "EXECUTE_ERROR":
@@ -134,6 +144,7 @@ export function createSessionReducer(deps: SessionReducerDeps) {
           result: null,
           status: "compiling",
           error: undefined,
+          validationIssues: undefined,
           source: "ai",
           isUserModified: false,
           conversationHistory: payload.conversationHistory ?? state.conversationHistory,
@@ -147,6 +158,7 @@ export function createSessionReducer(deps: SessionReducerDeps) {
           status: "needs_recompile",
           isUserModified: true,
           error: undefined,
+          validationIssues: undefined,
         })
 
       case "UPDATE_DISPLAY_CONFIG": {
@@ -155,6 +167,7 @@ export function createSessionReducer(deps: SessionReducerDeps) {
           displayConfig: action.displayConfig,
           isUserModified: true,
           error: undefined,
+          validationIssues: undefined,
         }
         // 判断是否重查：mapping 引用了当前结果/Schema 中不存在的字段 → 需要重新查询
         const missing = missingMappingFields(action.displayConfig.mapping, currentColumns(state))
@@ -170,6 +183,7 @@ export function createSessionReducer(deps: SessionReducerDeps) {
           ...state,
           displayConfig: { ...state.displayConfig, chartType: action.chartType },
           isUserModified: true,
+          validationIssues: undefined,
         })
 
       case "UPDATE_TITLE":

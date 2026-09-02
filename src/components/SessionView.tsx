@@ -57,6 +57,14 @@ export function SessionView({ session, onMappingChange, onCopySql }: SessionView
         )}
       </div>
       <div className="p-3 space-y-2">
+        {session.validationIssues?.map((issue) => (
+          <ChartNotice
+            key={`${issue.code}-${issue.field ?? ""}`}
+            tone={issue.severity === "error" ? "warning" : "muted"}
+          >
+            {issue.message}
+          </ChartNotice>
+        ))}
         {bound.warnings.map((warning) => (
           <ChartNotice key={warning.code} tone="warning">
             {warning.message}
