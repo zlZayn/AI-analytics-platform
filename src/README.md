@@ -12,6 +12,15 @@
 - `types/`：共享类型 + 会话类型（`session.ts` 唯一真相源：AnalysisSession/QuerySpec/SemanticDataset/DisplayConfig）
 - `generated/prisma/`：Prisma 生成客户端，可再生，不手改
 
+## 页面路由
+
+| 路由 | 功能 |
+| :--- | :--- |
+| `/` | 连接选择与管理 (侧边栏下拉切换) |
+| `/workspace?connection=xxx` | 数据工作台 (SQL 编辑 + AI 助手)；加 `&session=1` 启用会话状态版 |
+| `/explorer?connection=xxx` | 数据探索 (Schema 浏览) |
+| `/queries?connection=xxx` | 查询管理 (收藏 + 历史) |
+
 ## 关键导出与改动路由
 
 - `lib/query-engine.ts`：SQL 执行 + 连接池，返回 SemanticDataset；被 `app/api/query/*` 与 ai-service 依赖；改后跑 `lib/__tests__/` 全部

@@ -16,13 +16,13 @@
 
 用户提问 → `AnalysisSession` 承载 QuerySpec → `query-compiler` 编译参数化 SQL → `query-engine` 执行返回 SemanticDataset → `render-binder` 将数据绑定到 DisplayConfig → `SessionView` 渲染图表与警告。
 
-状态转换集中在本分支的 `sessionReducer`（19 种 Action），副作用由 `useSession` 的三个 effect 驱动（querySpec 变化→编译；compiledSql 变化→执行；needs_recompile→判断重查）。旧事件驱动路径（sql/result/pendingChartMapping/aiHistory/error 五 state）仍保留在 `workspace/page.tsx`，由 feature flag `?session=1` 或 `NEXT_PUBLIC_SESSION_STATE=1` 切换，重构完成后移除。
+状态转换集中在 `sessionReducer`（19 种 Action），副作用由 `useSession` 的三个 effect 驱动（querySpec 变化→编译；compiledSql 变化→执行；needs_recompile→判断重查）。旧事件驱动路径（sql/result/pendingChartMapping/aiHistory/error 五 state）保留在 `workspace/page.tsx`，由 feature flag `?session=1` 或 `NEXT_PUBLIC_SESSION_STATE=1` 切换。
 
 ## 不变决策
 
 - 查询只允许单条 SELECT/WITH，在 PostgreSQL 只读事务 + statement timeout 内执行，默认上限 5,000 行
 - 平台元数据表（Prisma）与用户业务表分离；数据库名 `ai_analytics` 保持，见 [决策记录](../.agents/notes/2026-09-01-keep-database-name-ai-analytics.md)
-- AI 输出优先结构化 QuerySpec + DisplayConfig（双变体 anyOf），`sql` 字段保留为过渡期回退；AI 输出使用供应商原生 strict JSON Schema + 运行时校验；SQL 只引用当前 Schema 与显式输出别名
+- AI 输出优先结构化 QuerySpec + DisplayConfig（双变体 anyOf），`sql` 字段作为回退；AI 输出使用供应商原生 strict JSON Schema + 运行时校验；SQL 只引用当前 Schema 与显式输出别名
 - 连接密码 AES-256 加密（每条随机盐）；AI 与数据库凭据只从环境变量读取，不落库
 - Geist 字体自托管（`src/app/fonts/` via `next/font/local`）；构建与开发不访问外网字体服务
 - 入口脚本构建新鲜度检查：`src`/`prisma`（排除 `generated`）vs `.next/BUILD_ID`，最新即跳过构建

@@ -6,7 +6,7 @@ AI 根据当前连接扫描出的 Schema 与数据轮廓，建议结构化 Query
 
 ## 输出契约（双变体）
 
-AI 每项输出 `title`、`insight`、`querySpec` + `displayConfig`（新格式）或 `sql` + `chart`（旧格式，过渡期回退）：
+AI 每项输出 `title`、`insight`、`querySpec` + `displayConfig`，或 `sql` + `chart`：
 
 - `querySpec`：结构化查询（dimensions/measures/filters/having/sort/limit/joins），由 `query-compiler.ts` 编译为参数化 SQL（防注入，标识符分段引号）
 - `displayConfig`：`{ chartType, mapping }`，由 `validators.ts` 双模式校验
@@ -15,7 +15,7 @@ AI 每项输出 `title`、`insight`、`querySpec` + `displayConfig`（新格式�
 ## 模块
 
 - `src/lib/ai-contract.ts`：提示词构建、供应商 JSON Schema（双变体 anyOf）、运行时校验、数据轮廓注入
-- `src/lib/ai-service.ts`：可注入的 `AICompletionProvider` 和 OpenAI 兼容生产 provider；`generateAnalysis`（旧名 `generateSQL` 保留别名）
+- `src/lib/ai-service.ts`：可注入的 `AICompletionProvider` 和 OpenAI 兼容生产 provider；`generateAnalysis`（`generateSQL` 为兼容别名）
 - `src/lib/schema-service.ts`：生成当前连接 Schema 上下文与数据轮廓（scanDataProfile / buildDataProfileText）
 - `src/lib/query-compiler.ts`：QuerySpec → 参数化 SQL
 - `src/lib/validators.ts`：schema-based / data-based 双模式校验
@@ -24,7 +24,7 @@ AI 每项输出 `title`、`insight`、`querySpec` + `displayConfig`（新格式�
 
 ## Structured Output
 
-生产 provider 使用 `response_format.type = json_schema`、`strict = true`。根对象是 `{ items: [...] }`，每项为新旧双变体 anyOf。支持 table、line、bar、pie、scatter、boxplot、heatmap、correlation、kpi、histogram。
+生产 provider 使用 `response_format.type = json_schema`、`strict = true`。根对象是 `{ items: [...] }`，每项为双变体 anyOf。支持 table、line、bar、pie、scatter、boxplot、heatmap、correlation、kpi、histogram。
 
 运行时仍执行第二道校验：
 
