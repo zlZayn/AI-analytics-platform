@@ -41,3 +41,5 @@ AI 每项输出 `title`、`insight`、`querySpec` + `displayConfig`，或 `sql` 
 ## 离线回归
 
 `src/lib/__tests__/ai-contract.test.ts` 使用固定夹具覆盖提示词领域中立性、原生 Schema、双变体解析、sql 回退、未知图表、缺失映射、未知别名、非法 SQL、损坏 JSON 和数据轮廓注入。日常测试禁止使用真实 AI API。
+## 文档导航
+- 设计决策 [ARCHITECTURE.md](ARCHITECTURE.md) · 使用入口 [README.md](../README.md)

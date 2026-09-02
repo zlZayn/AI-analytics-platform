@@ -455,3 +455,5 @@ function validateDisplayConfig(
 ### 一句话
 
 所有问题已收束到这份文档中。按此实施，状态统一、类型贯穿、校验一致、查询呈现解耦、多轮对话完整、迁移可回滚。
+## 文档导航
+- 进度追踪 [REFACTOR_STATUS.md](../REFACTOR_STATUS.md) · 设计决策 [ARCHITECTURE.md](ARCHITECTURE.md)

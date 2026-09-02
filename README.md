@@ -1,6 +1,6 @@
 # AI Analytics Platform
 
-[English](README_en.md) | [简体中文](README.md)
+[English](README_en.md) | 简体中文
 
 面向业务分析的自然语言数据分析平台：接上 PostgreSQL，用对话提问，得到图表和洞察。
 

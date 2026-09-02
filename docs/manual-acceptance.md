@@ -61,3 +61,5 @@ npm run dev
 ## 通过标准
 
 上述步骤全部通过，且真实业务数据的图表含义与 SQL 聚合含义一致，才可视为本轮人工验收完成。任何失败都应记录页面、连接、SQL、视口、复现步骤和 request-id。
+## 文档导航
+- 测试说明 [testing.md](testing.md) · 使用入口 [README.md](../README.md)

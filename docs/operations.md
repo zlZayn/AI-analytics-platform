@@ -17,3 +17,5 @@
 ## 测试数据隔离
 
 `scripts/seed.py` 只接受 `SEED_DATABASE_URL`，故意不回退到应用 `DATABASE_URL`。种子账号和目标库应独立于生产环境，并允许创建测试表和写入测试数据。
+## 文档导航
+- 设计决策 [ARCHITECTURE.md](ARCHITECTURE.md) · 使用入口 [README.md](../README.md)
