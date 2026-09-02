@@ -1,7 +1,7 @@
 # 重构进度追踪
 
 > 对应方案：[docs/REFACTOR_PLAN_v4.md](./docs/REFACTOR_PLAN_v4.md)
-> 分支：`refactor-plan`（不合并到 main，持续更新）
+> 分支：`refactor-plan` → 已合并 `main`（2026-09-02），后续在 main 开发
 
 ---
 
