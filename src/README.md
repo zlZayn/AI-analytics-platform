@@ -5,20 +5,25 @@
 
 ## 目录职责
 
-- `app/`：路由页面（layout/page/workspace/explorer/queries）+ `api/` Route Handlers
-- `components/`：`layout/` 布局与连接上下文；`charts/` 图表系统（views/ 视图、algorithms/transform/pipeline 管线）；`dashboard/` 结果面板；`ui/` 基础组件
-- `lib/`：核心库（AI 服务、查询引擎、SQL 校验、Schema 扫描、加密、池管理）
-- `types/`：共享类型
+- `app/`：路由页面（layout/page/workspace/explorer/queries）+ `api/` Route Handlers（ai/、ai/insights、connections、query/、schema/）
+- `components/`：`layout/` 布局与连接上下文；`charts/` 图表系统（views/ 视图、algorithms/transform 管线）；`dashboard/` 结果面板；`workspace/` 会话工作台；`SessionView.tsx` 会话渲染（loading/error/图表）；`ui/` 基础组件
+- `hooks/`：`useSession.ts`（会话状态 + 副作用）、`sessionReducer.ts`（19 种 Action 纯函数转换）
+- `lib/`：核心库（AI 服务、查询编译器、校验器、渲染绑定、查询引擎、SQL 校验、Schema 扫描、数据轮廓、加密、池管理）
+- `types/`：共享类型 + 会话类型（`session.ts` 唯一真相源：AnalysisSession/QuerySpec/SemanticDataset/DisplayConfig）
 - `generated/prisma/`：Prisma 生成客户端，可再生，不手改
 
 ## 关键导出与改动路由
 
-- `lib/query-engine.ts`：SQL 执行 + 连接池，被 `app/api/query/*` 与 ai-service 依赖；改后跑 `lib/__tests__/` 全部
-- `lib/sql-validator.ts`：SQL 白名单校验，被 query-engine 依赖；改后跑 `sql-validator.test.ts`、`sql-identifiers.test.ts`
-- `lib/ai-contract.ts`：提示词与 JSON Schema，被 ai-service 依赖；改后跑 `ai-contract.test.ts`、`api-route-contract.test.ts`
+- `lib/query-engine.ts`：SQL 执行 + 连接池，返回 SemanticDataset；被 `app/api/query/*` 与 ai-service 依赖；改后跑 `lib/__tests__/` 全部
+- `lib/query-compiler.ts`：QuerySpec → 参数化 SQL（防注入）；被 useSession 副作用依赖；改后跑 `query-compiler.test.ts`
+- `lib/validators.ts`：双模式（schema-based/data-based）校验；被 sessionReducer 与 SessionView 依赖；改后跑 `validators.test.ts`
+- `lib/render-binder.ts`：Dataset + DisplayConfig → 图表数据（坐标翻转/无效数值过滤）；改后跑 `render-binder.test.ts`
+- `lib/ai-contract.ts`：提示词与 JSON Schema（双变体 anyOf）；被 ai-service 依赖；改后跑 `ai-contract.test.ts`、`api-route-contract.test.ts`
+- `hooks/sessionReducer.ts`：会话状态转换；改后跑 `hooks/__tests__/sessionReducer.test.ts`
+- `lib/sql-validator.ts`：SQL 白名单校验；改后跑 `sql-validator.test.ts`、`sql-identifiers.test.ts`
 - `lib/encryption.ts`：连接密码加密；改后跑 `encryption.test.ts`
 - `components/charts/algorithms.ts`：统计算法（Type 7 箱线、分箱、相关系数）；改后跑 `charts/__tests__/algorithms.test.ts`
-- `components/charts/transform.ts`、`pipeline.ts`：展示变换与管线；改后跑 `transform.test.ts`、`pipeline.test.ts`
+- `components/charts/transform.ts`：展示变换；改后跑 `transform.test.ts`
 - 任何模块改动 → 跑 `npm test`，数字更新到根 [AGENTS.md](../AGENTS.md) 验证快照
 
 ## 引用

@@ -22,4 +22,4 @@
 
 ## AI
 
-`POST /api/ai` 与 `POST /api/ai/insights` 返回 `{ items: InsightItem[] }`。模型响应必须通过原生 JSON Schema structured output 和本地运行时校验；非法 SQL、未知图表、非法槽位或引用未知 SQL 输出别名的映射会被丢弃，不存在文本 SQL 兜底。
+`POST /api/ai` 与 `POST /api/ai/insights` 返回 `{ items: InsightItem[] }`。模型响应必须通过原生 JSON Schema structured output 和本地运行时校验；项为双变体：新格式 `querySpec` + `displayConfig` 优先（经 `query-compiler` 编译为参数化 SQL），旧格式 `sql` + `chart` 作为过渡回退（标记 `fallback`）。非法 SQL、未知图表、非法槽位或引用未知 SQL 输出别名的映射会被丢弃。

@@ -1,5 +1,7 @@
 # AI Analytics Platform
 
+[English](README_en.md) | [简体中文](README.md)
+
 通用型 AI 数据分析平台，支持 PostgreSQL 数据库接入，通过自然语言进行数据分析和可视化。
 
 ## 功能
@@ -7,7 +9,7 @@
 - **连接管理** - PostgreSQL 数据库连接 CRUD，自动测试连接
 - **Schema 发现** - 自动扫描数据库结构，缓存 Schema 快照
 - **SQL 编辑器** - Monaco Editor，语法高亮，执行 SQL 查询
-- **AI 分析** - 自然语言 -> SQL，多轮对话
+- **AI 分析** - 自然语言 -> 结构化查询，多轮对话
 - **AI 洞察推荐** - 自动生成业务洞察，一键执行并可视化
 - **数据探索** - 浏览表结构、字段详情、表关联、数据预览
 - **图表可视化** - 表格、KPI、折线、柱状、饼/环、散点、直方、箱线、热力和相关矩阵，用户主动选择列映射
@@ -86,12 +88,15 @@ npm run typecheck
 npm run lint
 npm test
 npm run build
+npx prisma generate   # 若 src/generated/prisma 不存在
 ```
 
-AI 合同测试全部使用注入的 fake provider，不调用真实模型 API。浏览器脚本见 `docs/testing.md`。
+CI（GitHub Actions，见 `.github/workflows/ci.yml`）在每次推送与 PR 上执行同一序列：install → prisma generate → typecheck → lint → test → build → 文档链接校验（`scripts/check-links.py`）→ diff 检查。
+
+AI 合同测试全部使用注入的 fake provider，不调用真实模型 API。浏览器验证见 `docs/testing.md`。
 仓库不包含真实 AI 调用脚本或凭据；真实 provider 只用于人工验收，并应使用可轮换的受限密钥。
 
-设计原则、图表算法、API 约定、测试和运维说明位于 `docs/`。
+设计原则、架构决策、API 约定、图表规范和运维说明位于 `docs/`。
 
 ## 项目结构
 
@@ -115,6 +120,8 @@ src/
 │   │   └── connection-context.tsx # 连接上下文
 │   ├── dashboard/                # 共享子组件
 │   │   └── result-panel.tsx      # 结果面板
+│   ├── workspace/                # 会话状态工作台（重构 v4）
+│   │   └── session-workspace.tsx # 会话驱动工作区
 │   ├── charts/                   # 图表系统
 │   │   ├── views/                # 10 种基础图表视图
 │   │   ├── hooks/                # 自定义 hooks
@@ -125,29 +132,41 @@ src/
 │   │   ├── transform.ts          # 确定性展示变换
 │   │   ├── empty-state.tsx       # 空状态组件
 │   │   └── error-boundary.tsx    # 图表错误边界
+│   ├── SessionView.tsx           # 会话渲染（loading/error/图表 + 警告）
 │   ├── chart-config-panel.tsx    # 图表配置面板
 │   ├── chart.tsx                 # 图表 re-export
 │   ├── insight-card.tsx          # AI 洞察卡片
 │   ├── toast.tsx                 # Toast 通知
 │   └── ui/                       # 基础 UI 组件 (Base UI + TailwindCSS)
+├── hooks/                        # 会话状态（重构 v4）
+│   ├── useSession.ts             # Session 管理 + 副作用
+│   └── sessionReducer.ts         # 19 种 Action 纯函数转换
 ├── lib/                          # 核心库
-│   ├── ai-service.ts             # AI 服务 (SQL生成 + 洞察推荐)
+│   ├── ai-service.ts             # AI 服务 (生成分析 + 洞察推荐)
 │   ├── ai-contract.ts            # 提示词、JSON Schema 与运行时校验
+│   ├── query-compiler.ts         # QuerySpec -> 参数化 SQL（重构 v4）
+│   ├── validators.ts             # 双模式校验（重构 v4）
+│   ├── render-binder.ts          # 数据绑定到图表（重构 v4）
 │   ├── query-engine.ts           # 查询引擎
-│   ├── schema-service.ts         # Schema 扫描
+│   ├── schema-service.ts         # Schema 扫描 + 数据轮廓
 │   ├── sql-validator.ts          # SQL 安全校验
-│   ├── variable-types.ts         # 图表类型定义 + 映射槽位
 │   ├── encryption.ts             # 密码加密
 │   ├── prisma.ts                 # Prisma 客户端
 │   └── utils.ts                  # 工具函数
-├── types/                        # 共享类型定义
-└── generated/prisma/             # Prisma 客户端
+├── types/                        # 共享类型 + 会话类型（session.ts/actions.ts）
+└── generated/prisma/             # Prisma 客户端 (可再生)
 
 prisma/
 └── schema.prisma                 # 数据库 Schema 定义
 
 scripts/
-└── seed.py                       # 测试数据生成脚本
+├── seed.py                       # 测试数据生成脚本
+├── check-links.py                # 文档链接校验
+├── final_ui_smoke.py             # 四视口 UI 烟测
+└── offline_workspace_e2e.py      # 离线工作台 E2E
+
+.github/
+└── workflows/ci.yml              # GitHub Actions CI
 ```
 
 ## 页面路由
@@ -155,7 +174,7 @@ scripts/
 | 路由 | 功能 |
 | :--- | :--- |
 | `/` | 连接选择与管理 (侧边栏下拉切换) |
-| `/workspace?connection=xxx` | 数据工作台 (SQL 编辑 + AI 助手) |
+| `/workspace?connection=xxx` | 数据工作台 (SQL 编辑 + AI 助手)；加 `&session=1` 启用会话状态版 |
 | `/explorer?connection=xxx` | 数据探索 (Schema 浏览) |
 | `/queries?connection=xxx` | 查询管理 (收藏 + 历史) |
 
@@ -191,12 +210,11 @@ scripts/
 ## 文档
 
 - [架构说明](docs/ARCHITECTURE.md)
-- [项目概述](docs/01_project_overview.md)
-- [数据库设计](docs/02_database_design.md)
-- [API 设计](docs/03_api_design.md)
 - [AI 集成](docs/04_ai_integration.md)
-- [模块设计](docs/05_module_design.md)
-- [开发计划](docs/06_development_plan.md)
-- [页面结构](docs/07_page_structure.md)
-- [变更日志](docs/CHANGELOG.md)
+- [API 约定](docs/api.md)
+- [图表规范](docs/charts.md)
+- [测试说明](docs/testing.md)
+- [运维说明](docs/operations.md)
+- [设计哲学](docs/design-philosophy.md)
+- [人工验收](docs/manual-acceptance.md)
 - 维护者索引与规则：[AGENTS.md](AGENTS.md)
