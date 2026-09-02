@@ -24,6 +24,8 @@
 - 平台元数据表（Prisma）与用户业务表分离；数据库名 `ai_analytics` 保持，见 [决策记录](../.agents/notes/2026-09-01-keep-database-name-ai-analytics.md)
 - AI 输出优先结构化 QuerySpec + DisplayConfig（双变体 anyOf），`sql` 字段保留为过渡期回退；AI 输出使用供应商原生 strict JSON Schema + 运行时校验；SQL 只引用当前 Schema 与显式输出别名
 - 连接密码 AES-256 加密（每条随机盐）；AI 与数据库凭据只从环境变量读取，不落库
+- Geist 字体自托管（`src/app/fonts/` via `next/font/local`）；构建与开发不访问外网字体服务
+- 入口脚本构建新鲜度检查：`src`/`prisma`（排除 `generated`）vs `.next/BUILD_ID`，最新即跳过构建
 - API 统一 `ApiResponse<T>` + requestId；客户端统一处理 HTTP、非 JSON、超时、Abort
 - 图表变换全部确定性；统计计算（相关矩阵、直方图分箱）在可取消 Worker 中执行
 - 数据轮廓扫描（最多 6 表）注入 AI 提示词，失败不阻断主流程

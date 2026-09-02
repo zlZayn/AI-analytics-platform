@@ -79,8 +79,8 @@ npm run dev
 
 ### Windows 快捷入口（推荐）
 
-- `Start Dev.cmd`：一键启动（自动检查/安装依赖 → 生成 Prisma 客户端 → 启动 dev server → 打开浏览器），日常开发双击即可
-- `Build.cmd`：类型检查 + 生产构建，发布前使用
+- `Start Dev.cmd`：一键启动（依赖/.env/Prisma 检查 → 构建新鲜度检查：产物最新则跳过构建直接生产启动，过期可重建或进开发模式 → 打开浏览器；端口已占用则直接开浏览器）
+- `Build.cmd`：构建新鲜度检查（最新提示跳过，可强制重建）→ 类型检查 → 生产构建
 
 ## 查询安全与边界
 
@@ -109,6 +109,7 @@ AI 合同测试全部使用注入的 fake provider，不调用真实模型 API�
 src/
 ├── app/                          # Next.js App Router
 │   ├── layout.tsx                # 根布局
+│   ├── fonts/                    # 自托管 Geist 字体 (woff2)
 │   ├── page.tsx                  # 连接选择与管理
 │   ├── workspace/page.tsx        # 数据工作台 (SQL + AI)
 │   ├── explorer/page.tsx         # 数据探索

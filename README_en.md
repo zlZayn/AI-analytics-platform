@@ -79,8 +79,8 @@ Open <http://localhost:3000>
 
 ### Windows shortcuts (recommended)
 
-- `Start Dev.cmd`: one-click launch (checks/installs dependencies -> generates the Prisma client -> starts the dev server -> opens the browser)
-- `Build.cmd`: type-check + production build, for releases
+- `Start Dev.cmd`: one-click launch (dependency/.env/Prisma checks -> build freshness check: skips rebuild and starts production when up-to-date, allows rebuild or dev mode when stale -> opens the browser; opens browser directly when port is in use)
+- `Build.cmd`: build freshness check (skips when up-to-date, force-rebuild option) -> type-check -> production build
 
 ## Query Safety & Limits
 
@@ -109,6 +109,7 @@ Design principles, architecture decisions, API conventions, chart specs, and ope
 src/
 ├── app/                          # Next.js App Router
 │   ├── layout.tsx                # Root layout
+│   ├── fonts/                    # Self-hosted Geist fonts (woff2)
 │   ├── page.tsx                  # Connection selection & management
 │   ├── workspace/page.tsx        # Data workbench (SQL + AI)
 │   ├── explorer/page.tsx         # Data explorer
