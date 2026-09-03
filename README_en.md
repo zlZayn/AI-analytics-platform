@@ -24,6 +24,7 @@ Design philosophy and boundaries: [design-philosophy.md](docs/design-philosophy.
 - **SQL editor** - Monaco Editor with highlighting; run queries directly
 - **Charting** - table, KPI, line, bar, pie/donut, scatter, histogram, boxplot, heatmap, correlation matrix; user-chosen mappings
 - **Query management** - history and favorites with replay
+- **R workbench** - run R in the browser (WebR): query results injected as `df`, write dplyr/ggplot2 code to plot, no local R needed
 
 ## What the AI Can See
 

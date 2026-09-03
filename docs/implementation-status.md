@@ -20,16 +20,25 @@
 - 阶段四：query-engine 返回 SemanticDataset（semanticType 全程透传）、`render-binder`（坐标翻转/无效值过滤）、`SessionView`、InsightCard 错误态
 - 审核修复：数据轮廓排除平台元数据表；EXECUTE_SUCCESS 校验结果接入 UI
 
+## 已完成（R 分析能力 P0/P1）
+
+- P0：`r-bridge.ts`（SemanticDataset↔R 代码/CSV 纯函数）+ ResultToolbar（导出 CSV/JSON/复制 R 模板，中文列名 Excel 兼容）
+- P1a：COI 头（COOP/COEP）+ webr@0.6.0 验证（`crossOriginIsolated=true`，`1+1=2`）
+- P1b：`webr-client.ts`（SAB 通道、单例、purge 纪律、超时、规模阈值预留）+ mock 测试 + Monaco R 语言
+- P1c/P1d：`RWorkbench` 组件树（内嵌区块、输出分级、快捷键、无障碍），SessionView 结果区下方接入
+- P1 实测：R.wasm（12.3MB）从 CDN 按需加载；summary(df) 输出与 ggplot canvas 正常；关闭/重开包缓存保留
+
 ## 自动验证（2026-09-03，无环境变量离线）
 
 ```text
-npm test                   25 files / 111 tests passed
+npm test                   25 files / 163 tests passed
 npm run typecheck          passed
 npm run lint               passed
 npm run build              passed (Next.js 16.2.9)
 scripts/check-links.py     0 errors
 git diff --check           passed
 CI 模拟（npm ci 全链路）   passed
+浏览器 E2E（离线 mock）    passed；R 分析端到端（summary 输出 + 图）passed
 ```
 
 浏览器烟测脚本（`scripts/final_ui_smoke.py`、`offline_workspace_e2e.py`）输出到 `.artifacts/`。开发服务器使用 `http://localhost:4321`，避免 Next.js 16 拒绝跨来源 HMR。

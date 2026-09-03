@@ -6,9 +6,9 @@
 ## 目录职责
 
 - `app/`：路由页面（layout/page/workspace/explorer/queries）+ `api/` Route Handlers（ai/、ai/insights、connections、query/、schema/）+ `fonts/` 自托管 Geist 字体（`next/font/local`，构建不联网）
-- `components/`：`layout/` 布局与连接上下文；`charts/` 图表系统（views/ 视图、algorithms/transform 管线）；`dashboard/` 结果面板；`workspace/` 会话工作台；`SessionView.tsx` 会话渲染（loading/error/图表）；`AiVisibilityHint.tsx` AI 可见性提示（用户可见边界）；`AiMentionInput.tsx` + `AiMentionPanel.tsx` @ 提及选表（显式上下文注入）；`ui/` 基础组件
-- `hooks/`：`useSession.ts`（会话状态 + 副作用）、`sessionReducer.ts`（19 种 Action 纯函数转换）、`useMentionInput.ts`（@ 提及状态机：面板开关/键盘导航/选中）
-- `lib/`：核心库（AI 服务、查询编译器、校验器、渲染绑定、查询引擎、SQL 校验、Schema 扫描、数据轮廓、加密、池管理、`mention.ts` @ 提及纯逻辑、`r-bridge.ts` R 数据桥（SemanticDataset↔R 代码/CSV 纯函数）、`monaco-setup.ts` 本地 monaco 配置）
+- `components/`：`layout/` 布局与连接上下文；`charts/` 图表系统（views/ 视图、algorithms/transform 管线）；`dashboard/` 结果面板；`workspace/` 会话工作台；`SessionView.tsx` 会话渲染（loading/error/图表）；`AiVisibilityHint.tsx` AI 可见性提示（用户可见边界）；`AiMentionInput.tsx` + `AiMentionPanel.tsx` @ 提及选表（显式上下文注入）；`ResultToolbar.tsx` 结果导出工具条；`r-workbench/` R 分析工作台（8 文件：容器/头部/工具栏/编辑器/输出/输出项/图像/状态栏）；`ui/` 基础组件
+- `hooks/`：`useSession.ts`（会话状态 + 副作用）、`sessionReducer.ts`（19 种 Action 纯函数转换）、`useMentionInput.ts`（@ 提及状态机：面板开关/键盘导航/选中）、`useWebR.ts`（WebRClient 的 React 绑定，模块级单例）
+- `lib/`：核心库（AI 服务、查询编译器、校验器、渲染绑定、查询引擎、SQL 校验、Schema 扫描、数据轮廓、加密、池管理、`mention.ts` @ 提及纯逻辑、`r-bridge.ts` R 数据桥（SemanticDataset↔R 代码/CSV 纯函数）、`webr-client.ts` WebR 客户端（非 React 单例类）、`monaco-setup.ts` 本地 monaco 配置）
 - `types/`：共享类型 + 会话类型（`session.ts` 唯一真相源：AnalysisSession/QuerySpec/SemanticDataset/DisplayConfig）
 - `generated/prisma/`：Prisma 生成客户端，可再生，不手改
 - 编辑器：Monaco 从 npm 包本地加载（`monaco-setup.ts` 的 `loader.config`），不访问 CDN，离线可用

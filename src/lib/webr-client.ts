@@ -6,6 +6,36 @@ import type { SemanticDataset } from "@/types/session"
 
 export type ROutputItem = { type: string; data: string }
 
+/**
+ * 安全序列化 captureR 输出项：data 可能是 string、RObject（含 toJs）或其它对象。
+ * 链：string → 原样；有 toJs → await 转 primitive 再 String；JSON 可序列化 → JSON；否则兜底。
+ */
+export async function safeOutputData(data: unknown): Promise<string> {
+  if (typeof data === "string") return data
+  if (data !== null && typeof data === "object") {
+    const maybeRObject = data as { toJs?: () => unknown | Promise<unknown> }
+    if (typeof maybeRObject.toJs === "function") {
+      try {
+        const val = await maybeRObject.toJs()
+        return typeof val === "string" ? val : String(val)
+      } catch {
+        // toJs 失败：fall through 到 JSON/兜底
+      }
+    }
+    try {
+      const json = JSON.stringify(data)
+      return json === "{}" ? "" : json
+    } catch {
+      return String(data)
+    }
+  }
+  try {
+    return String(data)
+  } catch {
+    return "[object]"
+  }
+}
+
 /** 注入规模阈值：超过则走 bind 预留路径（P1b 基准后按需实现） */
 export const INJECT_CELL_THRESHOLD = 100_000
 /** 执行默认超时（毫秒） */
@@ -118,15 +148,11 @@ export class WebRClient {
         captureStreams: true,
         captureConditions: true,
       })
-      this.patch({
-        output: [
-          ...this.state.output,
-          ...capture.output.map((o) => ({
-            type: String(o.type),
-            data: typeof o.data === "string" ? o.data : String(o.data),
-          })),
-        ],
-      })
+      const mapped: ROutputItem[] = []
+      for (const o of capture.output) {
+        mapped.push({ type: String(o.type), data: await safeOutputData(o.data) })
+      }
+      this.patch({ output: [...this.state.output, ...mapped] })
       if (capture.images.length > 0) {
         this.patch({ images: [...this.state.images, ...capture.images] })
       }

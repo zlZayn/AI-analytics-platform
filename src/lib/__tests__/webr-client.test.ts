@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, beforeEach } from "vitest"
-import { WebRClient, INJECT_CELL_THRESHOLD, withTimeout } from "@/lib/webr-client"
+import { WebRClient, INJECT_CELL_THRESHOLD, withTimeout, safeOutputData } from "@/lib/webr-client"
 import type { WebR } from "webr"
 import type { SemanticDataset } from "@/types/session"
 
@@ -166,6 +166,30 @@ describe("WebRClient", () => {
     client.subscribe(listener)
     await client.init()
     expect(listener).toHaveBeenCalled()
+  })
+})
+
+describe("safeOutputData", () => {
+  it("passes strings through", async () => {
+    await expect(safeOutputData("hello")).resolves.toBe("hello")
+  })
+
+  it("resolves RObject-like values via toJs", async () => {
+    const robject = { toJs: async () => 42 }
+    await expect(safeOutputData(robject)).resolves.toBe("42")
+    const robjectStr = { toJs: async () => "printed" }
+    await expect(safeOutputData(robjectStr)).resolves.toBe("printed")
+  })
+
+  it("falls back to JSON for plain objects", async () => {
+    await expect(safeOutputData({ a: 1 })).resolves.toBe('{"a":1}')
+  })
+
+  it("never throws for unstringifiable values", async () => {
+    const cyc: Record<string, unknown> = {}
+    cyc.self = cyc
+    // JSON.stringify 抛错 → String() 兜底为 "[object Object]"
+    await expect(safeOutputData(cyc)).resolves.toBe("[object Object]")
   })
 })
 
