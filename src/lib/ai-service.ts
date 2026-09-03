@@ -36,9 +36,10 @@ export async function generateAnalysis(
   conversationHistory: { role: "user" | "assistant"; content: string }[] = [],
   provider: AICompletionProvider = getDefaultProvider(),
   dataProfileText = "",
+  businessContext = "",
 ): Promise<AIServiceResult> {
   const messages: AIMessage[] = [
-    { role: "system", content: buildSystemPrompt(schemaContext, dataProfileText) },
+    { role: "system", content: buildSystemPrompt(schemaContext, dataProfileText, businessContext) },
     ...conversationHistory,
     { role: "user", content: message },
   ]

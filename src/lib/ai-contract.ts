@@ -31,6 +31,15 @@ const FILTER_OPERATORS: ReadonlySet<string> = new Set([
   "eq", "neq", "gt", "gte", "lt", "lte", "in", "not_in", "contains", "between", "is_null", "is_not_null",
 ])
 
+export interface InsightContext {
+  /** 来源文档/规则名称（如 RAG 检索的业务口径来源） */
+  source: string
+  /** 业务规则/口径描述（如「高价值客户 = 年消费 > 10 万」） */
+  rule: string
+  /** 是否已应用到本次 SQL/querySpec */
+  applied: boolean
+}
+
 export interface InsightItem {
   title: string
   insight: string
@@ -44,6 +53,8 @@ export interface InsightItem {
   displayConfig?: DisplayConfig
   /** 回退标记：true 表示 querySpec 缺失、以 sql 直通 */
   fallback: boolean
+  /** 业务上下文引用（RAG/业务口径融合预留）：AI 遵守了哪些规则 */
+  context?: InsightContext[]
 }
 
 // 每个图表类型的 mapping 结构（用于 displayConfig.mapping 与旧 chart.mapping）
@@ -79,6 +90,21 @@ const chartSchemaVariants = CHART_TYPES.map((type, i) => ({
   },
 }))
 
+const contextSchema = {
+  type: "array",
+  maxItems: 5,
+  items: {
+    type: "object",
+    additionalProperties: false,
+    required: ["source", "rule", "applied"],
+    properties: {
+      source: { type: "string", maxLength: 120 },
+      rule: { type: "string", maxLength: 300 },
+      applied: { type: "boolean" },
+    },
+  },
+} as const
+
 export const AI_RESPONSE_JSON_SCHEMA = {
   name: "analytics_insights",
   strict: true,
@@ -97,7 +123,7 @@ export const AI_RESPONSE_JSON_SCHEMA = {
             {
               type: "object",
               additionalProperties: false,
-              required: ["title", "insight", "querySpec", "displayConfig"],
+              required: ["title", "insight", "querySpec", "displayConfig", "context"],
               properties: {
                 title: { type: "string", maxLength: 80 },
                 insight: { type: "string", maxLength: 1000 },
@@ -111,18 +137,20 @@ export const AI_RESPONSE_JSON_SCHEMA = {
                     mapping: { anyOf: mappingSchemas },
                   },
                 },
+                context: contextSchema,
               },
             },
             // 旧格式回退（过渡期）：AI 直出 SQL + chart
             {
               type: "object",
               additionalProperties: false,
-              required: ["title", "insight", "sql", "chart"],
+              required: ["title", "insight", "sql", "chart", "context"],
               properties: {
                 title: { type: "string", maxLength: 80 },
                 insight: { type: "string", maxLength: 1000 },
                 sql: { type: "string" },
                 chart: { anyOf: chartSchemaVariants },
+                context: contextSchema,
               },
             },
           ],
@@ -132,12 +160,16 @@ export const AI_RESPONSE_JSON_SCHEMA = {
   },
 } as const
 
-export function buildSystemPrompt(schemaContext: string, dataProfileText = ""): string {
+export function buildSystemPrompt(schemaContext: string, dataProfileText = "", businessContext = ""): string {
   const chartRules = CHART_TYPES.map((type) => {
     const contract = CHART_CONTRACTS[type]
     const slots = [...contract.required, ...contract.optional]
     return `- ${type}: ${contract.description}; mapping=${slots.length ? slots.join(", ") : "{}"}`
   }).join("\n")
+
+  const businessSection = businessContext.trim()
+    ? `\n业务口径（企业上下文，可信规则；SQL 的条件/过滤与字段解释必须遵守，不得虚构或改写；若某条规则不适用于当前问题则忽略并在 context 中不引用）：\n${businessContext.trim()}`
+    : ""
 
   return `你是数据分析工作台的 SQL 与图表建议助手。只依据下方当前连接 Schema 回答，不得假设行业、表、列或关系。
 
@@ -146,7 +178,8 @@ export function buildSystemPrompt(schemaContext: string, dataProfileText = ""): 
 - querySpec 结构：{ "table": "表名", "dimensions": ["列名"], "measures": [{ "field": "列名", "aggregation": "sum|count|avg|min|max|count_distinct", "alias": "输出别名" }], "filters": [{ "field": "列名", "op": "eq|gt|...", "value": 值 }], "having": [...], "sort": [{ "field": "别名", "direction": "asc|desc" }], "limit": 数字, "joins": [{ "table": "表名", "type": "inner|left|right", "on": { "left": "a.id", "right": "b.id" } }] }
 - displayConfig 结构：{ "chartType": "bar", "mapping": { "x": "类别别名", "y": "数值别名" } }，mapping 只能引用 querySpec 输出的别名。
 - 尽量同时输出 sql（过渡期字段，供旧客户端回退）；若 querySpec 已完整，sql 可省略。
-
+- context 必须输出数组（可为空 []）；应用了业务口径中的规则时逐条回传 { "source", "rule", "applied" }。
+${businessSection}
 设计边界：
 - 业务聚合和数据整形必须在 SQL 中完成；图表不会猜测业务语义，也不会合并重复坐标。
 - 图表只是建议。首次结果保持表格，用户决定是否采用建议及其映射、排序和堆叠语义。
@@ -179,6 +212,7 @@ export function parseInsightItems(content: string): InsightItem[] {
     // 优先 querySpec + displayConfig（新契约）
     const querySpec = parseQuerySpec(raw.querySpec)
     const displayConfig = parseDisplayConfig(raw.displayConfig)
+    const context = parseContext(raw.context)
     if (querySpec && displayConfig) {
       // 过渡期：AI 同时输出 sql 时一并透传，供旧客户端（InsightCard）展示
       const sql = typeof raw.sql === "string" && validateSQL(raw.sql.trim()).valid ? raw.sql.trim() : undefined
@@ -190,6 +224,7 @@ export function parseInsightItems(content: string): InsightItem[] {
         querySpec,
         displayConfig,
         fallback: false,
+        context,
       })
       continue
     }
@@ -208,6 +243,7 @@ export function parseInsightItems(content: string): InsightItem[] {
       chart,
       displayConfig: displayConfig ?? undefined,
       fallback: true,
+      context,
     })
   }
   return items
@@ -341,6 +377,25 @@ function extractOutputAliases(sql: string): Set<string> {
   const aliases = new Set<string>()
   for (const match of sql.matchAll(/\bAS\s+"?([a-z_][\w$]*)"?/gi)) aliases.add(match[1])
   return aliases
+}
+
+// 解析业务上下文引用（容错：非法项丢弃；缺失返回空数组）
+function parseContext(raw: unknown): InsightContext[] | undefined {
+  if (!Array.isArray(raw) || raw.length === 0) return undefined
+  const contexts: InsightContext[] = []
+  for (const item of raw.slice(0, 5)) {
+    if (
+      isRecord(item) &&
+      typeof item.source === "string" &&
+      item.source.trim() &&
+      typeof item.rule === "string" &&
+      item.rule.trim() &&
+      typeof item.applied === "boolean"
+    ) {
+      contexts.push({ source: item.source.slice(0, 120), rule: item.rule.slice(0, 300), applied: item.applied })
+    }
+  }
+  return contexts.length > 0 ? contexts : undefined
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

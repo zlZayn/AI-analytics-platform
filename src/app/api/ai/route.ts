@@ -8,7 +8,7 @@ import { apiFailure, apiSuccess } from '@/lib/api-response'
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { connectionId, message, conversationId, conversationHistory: bodyHistory, referencedTables } = body
+    const { connectionId, message, conversationId, conversationHistory: bodyHistory, referencedTables, businessContext } = body
 
     // 验证必填字段
     if (!connectionId || !message) {
@@ -79,8 +79,21 @@ export async function POST(request: NextRequest) {
       dataProfileText = ''
     }
 
+    // 业务口径（RAG/企业上下文融合预留）：可选的业务规则文本，注入提示词；AI 遵守并在 context 回传引用
+    const businessContextText =
+      typeof businessContext === "string" && businessContext.trim().length > 0
+        ? businessContext.trim()
+        : ""
+
     // 调用 AI 生成分析
-    const result = await generateAnalysis(message, schemaContext, conversationHistory, undefined, dataProfileText)
+    const result = await generateAnalysis(
+      message,
+      schemaContext,
+      conversationHistory,
+      undefined,
+      dataProfileText,
+      businessContextText,
+    )
 
     return apiSuccess({ items: result.items })
   } catch (error) {

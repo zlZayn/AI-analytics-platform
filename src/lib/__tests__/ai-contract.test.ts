@@ -47,6 +47,41 @@ describe("AI prompt and output contract", () => {
     expect(plain).not.toContain("数据轮廓")
   })
 
+  it("injects business context when provided and omits the section otherwise", () => {
+    const prompt = buildSystemPrompt("TABLE sales(region text, amount numeric)", "", "高价值客户 = 年消费 > 10 万")
+    expect(prompt).toContain("业务口径（企业上下文")
+    expect(prompt).toContain("高价值客户 = 年消费 > 10 万")
+    const plain = buildSystemPrompt("TABLE sales(region text, amount numeric)")
+    expect(plain).not.toContain("业务口径（企业上下文")
+  })
+
+  it("parses context references from items (new format)", () => {
+    const base = JSON.parse(newFormat) as { items: unknown[] }
+    const items = parseInsightItems(JSON.stringify({
+      items: [{
+        ...(base.items[0] as object),
+        context: [
+          { source: "运营规范.pdf", rule: "高价值客户 = 年消费 > 10 万", applied: true },
+          { source: "坏规则", rule: "", applied: false },
+        ],
+      }],
+    }))
+    expect(items).toHaveLength(1)
+    expect(items[0].context).toEqual([
+      { source: "运营规范.pdf", rule: "高价值客户 = 年消费 > 10 万", applied: true },
+    ])
+    expect(items[0].fallback).toBe(false)
+  })
+
+  it("omits context when absent or empty", () => {
+    expect(parseInsightItems(newFormat)[0].context).toBeUndefined()
+    const base = JSON.parse(newFormat) as { items: unknown[] }
+    const withEmpty = parseInsightItems(JSON.stringify({
+      items: [{ ...(base.items[0] as object), context: [] }],
+    }))
+    expect(withEmpty[0].context).toBeUndefined()
+  })
+
   it("exposes a strict provider structured-output schema with querySpec and displayConfig", () => {
     expect(AI_RESPONSE_JSON_SCHEMA).toMatchObject({
       name: "analytics_insights",
