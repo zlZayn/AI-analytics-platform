@@ -15,7 +15,7 @@
 ## 已完成（重构 v4 四阶段）
 
 - 阶段一：会话/动作类型（`src/types/session.ts`、`actions.ts`）、`query-compiler`（参数化 SQL 防注入）、`validators`（双模式校验）、schema-service 数据轮廓扫描
-- 阶段二：`useSession` + `sessionReducer`（19 Action）接入 workspace（feature flag `?session=1`），API 传递 conversationHistory
+- 阶段二：`useSession` + `sessionReducer`（19 Action）接入 workspace，API 传递 conversationHistory
 - 阶段三：AI 双变体输出（querySpec + displayConfig 优先 / sql + chart 回退），数据轮廓注入提示词
 - 阶段四：query-engine 返回 SemanticDataset（semanticType 全程透传）、`render-binder`（坐标翻转/无效值过滤）、`SessionView`、InsightCard 错误态
 - 审核修复：数据轮廓排除平台元数据表；EXECUTE_SUCCESS 校验结果接入 UI

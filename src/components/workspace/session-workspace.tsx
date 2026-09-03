@@ -1,16 +1,16 @@
 "use client"
 
-// 阶段二：会话状态驱动的工作台（feature flag 切换，旧版保留在 page.tsx）
+// 会话状态驱动的工作台（唯一实现）：
 // 状态是唯一真相：session 替代 sql / result / pendingChartMapping / aiHistory / error 五个独立 state。
 // 所有用户操作 → dispatch(SessionAction)；查询的编译与执行由 useSession 的三个副作用驱动。
-//
-// 阶段二过渡说明：AI 接口仍只返回 sql + chart（不含 querySpec）。
-// 因此这里在 INIT_FROM_AI 后通过 SET_COMPILED_SQL 直接注入 AI 生成的 SQL 触发执行；
-// 阶段三 AI 输出 querySpec 后，将由 querySpec → compile 管线取代此直通路径。
+// AI 双变体：querySpec 优先（编译管线），缺失时 sql 直通（SET_COMPILED_SQL）。
 
 import { useEffect, useMemo, useState } from "react"
 import dynamic from "next/dynamic"
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { SessionView } from "@/components/SessionView"
 import type { InsightItem } from "@/components/insight-card"
 import { AiVisibilityHint } from "@/components/ai-visibility-hint"
@@ -20,7 +20,7 @@ import { useSession } from "@/hooks/useSession"
 import type { ApiResponse, SchemaData } from "@/types"
 import type { CompiledSql, ConversationMessage, SemanticDataset } from "@/types/session"
 import type { ChartMapping } from "@/components/chart"
-import { Play, Loader2, Send } from "lucide-react"
+import { Play, Loader2, Send, Save } from "lucide-react"
 import { AiMentionInput } from "@/components/ai-mention-input"
 import { extractMentions } from "@/lib/mention"
 
@@ -47,6 +47,8 @@ export function SessionWorkspace({ connectionId, initialSql }: SessionWorkspaceP
   const [aiInput, setAiInput] = useState("")
   const [aiLoading, setAiLoading] = useState(false)
   const [aiUnavailable, setAiUnavailable] = useState(false)
+  const [saveDialogOpen, setSaveDialogOpen] = useState(false)
+  const [saveName, setSaveName] = useState("")
   const { toast } = useToast()
 
   // 加载 Schema：供 schema-based 校验与 querySpec 编译使用（异步到达时由 useSession 的 ref 接管）
@@ -167,6 +169,22 @@ export function SessionWorkspace({ connectionId, initialSql }: SessionWorkspaceP
     dispatch({ type: "SET_COMPILED_SQL", compiledSql: { sql: sqlDraft.trim(), params: [] } })
   }
 
+  async function saveQuery() {
+    if (!saveName.trim() || !compiledSql?.sql || !connectionId) return
+    try {
+      await fetchApi("/api/query/saved", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ connectionId, name: saveName.trim(), sql: compiledSql.sql }),
+      })
+      setSaveDialogOpen(false)
+      setSaveName("")
+      toast("查询已保存", "success")
+    } catch {
+      toast("保存失败，请稍后重试", "error")
+    }
+  }
+
   function handleMappingChange(mapping: ChartMapping) {
     dispatch({
       type: "UPDATE_DISPLAY_CONFIG",
@@ -205,10 +223,21 @@ export function SessionWorkspace({ connectionId, initialSql }: SessionWorkspaceP
       <div className="flex h-48 min-h-0 flex-col gap-2">
         <div className="flex items-center justify-between">
           <span className="text-xs font-medium text-[var(--muted-foreground)]">SQL 编辑器</span>
-          <Button size="sm" onClick={runSql} disabled={busy || !sqlDraft.trim()} className="gap-1 h-7 text-xs">
-            {busy ? <Loader2 className="w-3 h-3 animate-spin" /> : <Play className="w-3 h-3" />}
-            {busy ? "执行中" : "执行"}
-          </Button>
+          <div className="flex items-center gap-1.5">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setSaveDialogOpen(true)}
+              disabled={!compiledSql?.sql}
+              className="h-7 text-xs gap-1"
+            >
+              <Save className="w-3.5 h-3.5" /> 保存
+            </Button>
+            <Button size="sm" onClick={runSql} disabled={busy || !sqlDraft.trim()} className="gap-1 h-7 text-xs">
+              {busy ? <Loader2 className="w-3 h-3 animate-spin" /> : <Play className="w-3 h-3" />}
+              {busy ? "执行中" : "执行"}
+            </Button>
+          </div>
         </div>
         <div className="flex-1 border rounded-lg overflow-hidden min-h-0">
           <MonacoEditor
@@ -310,6 +339,30 @@ export function SessionWorkspace({ connectionId, initialSql }: SessionWorkspaceP
           />
         </div>
       </div>
+
+      {/* 保存查询对话框 */}
+      <Dialog open={saveDialogOpen} onOpenChange={setSaveDialogOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>保存查询</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-2">
+            <Label htmlFor="save-name" className="text-xs">名称</Label>
+            <Input
+              id="save-name"
+              value={saveName}
+              onChange={(e) => setSaveName(e.target.value)}
+              placeholder="查询名称"
+              className="h-8 text-xs"
+              onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), saveQuery())}
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" size="sm" onClick={() => setSaveDialogOpen(false)}>取消</Button>
+            <Button size="sm" onClick={saveQuery} disabled={!saveName.trim()}>保存</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

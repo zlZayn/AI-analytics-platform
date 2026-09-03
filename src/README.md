@@ -18,7 +18,7 @@
 | 路由 | 功能 |
 | :--- | :--- |
 | `/` | 连接选择与管理 (侧边栏下拉切换) |
-| `/workspace?connection=xxx` | 数据工作台 (SQL 编辑 + AI 助手)；加 `&session=1` 启用会话状态版 |
+| `/workspace?connection=xxx` | 数据工作台 (SQL 编辑 + AI 助手 + @ 选表) |
 | `/explorer?connection=xxx` | 数据探索 (Schema 浏览) |
 | `/queries?connection=xxx` | 查询管理 (收藏 + 历史) |
 

@@ -16,7 +16,7 @@
 
 用户提问 → `AnalysisSession` 承载 QuerySpec → `query-compiler` 编译参数化 SQL → `query-engine` 执行返回 SemanticDataset → `render-binder` 将数据绑定到 DisplayConfig → `SessionView` 渲染图表与警告。
 
-状态转换集中在 `sessionReducer`（19 种 Action），副作用由 `useSession` 的三个 effect 驱动（querySpec 变化→编译；compiledSql 变化→执行；needs_recompile→判断重查）。旧事件驱动路径（sql/result/pendingChartMapping/aiHistory/error 五 state）保留在 `workspace/page.tsx`，由 feature flag `?session=1` 或 `NEXT_PUBLIC_SESSION_STATE=1` 切换。
+状态转换集中在 `sessionReducer`（19 种 Action），副作用由 `useSession` 的三个 effect 驱动（querySpec 变化→编译；compiledSql 变化→执行；needs_recompile→判断重查）。workspace 页面直接渲染 `SessionWorkspace`（会话驱动版本为唯一实现）。
 
 ## 不变决策
 
