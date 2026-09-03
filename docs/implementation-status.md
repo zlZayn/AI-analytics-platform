@@ -1,14 +1,12 @@
 # 实现状态与续作上下文
 
-更新时间：2026-09-03（重构 v4.5 已合并 main）
+更新时间：2026-09-03
 
 当前产品版本：`1.24.0`
 
 ## Git 状态
 
-- 工作分支：`main`（重构 v4.5 已合并，见 [AGENTS.md](../AGENTS.md) 待办）
-- 重构方案：[docs/REFACTOR_PLAN_v4.md](REFACTOR_PLAN_v4.md) · 进度追踪：[REFACTOR_STATUS.md](../REFACTOR_STATUS.md)
-- 前一阶段收尾：`34a9651`（workbench refactor 合并）+ `b5aa748`（query lifecycle）+ `9779185`（收尾硬化）
+- 工作分支：`main`（重构 v4.5 已于 2026-09-02 合并；历史见 git log）
 - 原始开发工作树位于 `.worktrees/`（已删除并存档）；Codex 可视化目录中的旧工作树由宿主环境管理，不是续作入口
 - `.omo/` 与 `.codegraph/` 为本地工具产物，保持未跟踪
 

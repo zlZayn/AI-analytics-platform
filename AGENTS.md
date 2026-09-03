@@ -21,10 +21,12 @@ This version has breaking changes — APIs, conventions, and file structure may 
 - 生产 build: passed（清 `.next` 后）；浏览器烟测/离线 E2E 脚本: passed
 
 ## 待办
-- [ ] 真实只读账号人工验收：[docs/manual-acceptance.md](docs/manual-acceptance.md)（含生产 build 后的浏览器复验）
+- [ ] 真实只读账号人工验收：[docs/manual-acceptance.md](docs/manual-acceptance.md)（含 R 工作台，见第 5 节）
+- [ ] UIUX 方案 A（结果区 Tabs：图表/数据表/R 分析）待拍板实施，见 [docs/PLAN.md](docs/PLAN.md)
+- [ ] P2：AI 生成 R 代码（等待 P1 使用反馈，见 [docs/PLAN.md](docs/PLAN.md)）
 
 ## 活跃坑
-- 烟测/开发服务器用 `http://localhost:4321`；行尾统一 LF（maintenance-flow 的 check-line-endings.py 检测）；**例外：根目录 `*.cmd` 必须 CRLF + GBK(ANSI) 编码、无 BOM、不用 chcp**（cmd 解析 LF 多行块报 "do was unexpected"；UTF-8 编码在记事本/控制台显示乱码）
+- 烟测/开发服务器用 `http://localhost:4321`；行尾统一 LF（maintenance-flow 的 check-line-endings.py 检测）；**例外：根目录 `*.cmd` 必须 CRLF + GBK(ANSI) 编码、无 BOM、不用 chcp**（cmd 解析 LF 多行块报 "do was unexpected"；UTF-8 编码在记事本/控制台显示乱码；编辑铁律见 [决策记录](.agents/notes/2026-09-03-windows-script-encoding-rules.md)）
 - typecheck 报 PrismaClient 缺模型属性（schemaSnapshot/connection）→ `node_modules/@prisma/client` 损坏，重装后必须 `npx prisma generate`
 - `.next` 缓存 dev/prod 混用会致 build 失败（清 `.next` 再 build）；**Geist 字体已自托管（`src/app/fonts/`），构建/开发不联网**
 - 浏览器烟测/E2E 需本地 chromium（Playwright），CI 不跑浏览器脚本
