@@ -20,6 +20,7 @@ Design philosophy and boundaries: [design-philosophy.md](docs/design-philosophy.
 - **Connection management** - PostgreSQL CRUD, connection test, AES-encrypted passwords
 - **Schema discovery** - automatic table scanning with cached snapshots and data preview
 - **Data explorer** - table structure, column details, relations, data preview
+- **Result export** - one-click CSV (Excel-friendly)/JSON export, copy an R code template (dplyr + ggplot2)
 - **SQL editor** - Monaco Editor with highlighting; run queries directly
 - **Charting** - table, KPI, line, bar, pie/donut, scatter, histogram, boxplot, heatmap, correlation matrix; user-chosen mappings
 - **Query management** - history and favorites with replay

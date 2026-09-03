@@ -11,6 +11,7 @@ import { bindDataToChart } from "@/lib/render-binder"
 import { ResultPanel } from "@/components/dashboard/result-panel"
 import { ChartNotice } from "@/components/charts/chart-notice"
 import { Loader2, Pencil } from "lucide-react"
+import { ResultToolbar } from "@/components/result-toolbar"
 
 interface SessionViewProps {
   session: AnalysisSession
@@ -50,11 +51,14 @@ export function SessionView({ session, onMappingChange, onCopySql }: SessionView
     <div className="min-h-0 overflow-auto rounded-lg border">
       <div className="flex items-center justify-between px-3 py-1.5 bg-[var(--muted)]">
         <span className="text-xs font-medium text-[var(--muted-foreground)]">分析结果</span>
-        {isUserModified && (
-          <span className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] text-[var(--warning)] bg-[var(--warning-surface)]">
-            <Pencil className="w-2.5 h-2.5" /> 已手动调整
-          </span>
-        )}
+        <div className="flex items-center gap-2">
+          <ResultToolbar dataset={result} />
+          {isUserModified && (
+            <span className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] text-[var(--warning)] bg-[var(--warning-surface)]">
+              <Pencil className="w-2.5 h-2.5" /> 已手动调整
+            </span>
+          )}
+        </div>
       </div>
       <div className="p-3 space-y-2">
         {session.validationIssues?.map((issue) => (

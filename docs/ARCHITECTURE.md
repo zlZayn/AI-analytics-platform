@@ -14,7 +14,7 @@
 
 ## 核心流程（状态驱动）
 
-用户提问 → `AnalysisSession` 承载 QuerySpec → `query-compiler` 编译参数化 SQL → `query-engine` 执行返回 SemanticDataset → `render-binder` 将数据绑定到 DisplayConfig → `SessionView` 渲染图表与警告。
+用户提问 → `AnalysisSession` 承载 QuerySpec → `query-compiler` 编译参数化 SQL → `query-engine` 执行返回 SemanticDataset → `render-binder` 将数据绑定到 DisplayConfig → `SessionView` 渲染图表与警告。结果区另有导出分支（CSV/JSON/R 代码模板，`result-toolbar`），均基于 `session.result` 只读消费。
 
 状态转换集中在 `sessionReducer`（19 种 Action），副作用由 `useSession` 的三个 effect 驱动（querySpec 变化→编译；compiledSql 变化→执行；needs_recompile→判断重查）。workspace 页面直接渲染 `SessionWorkspace`（会话驱动版本为唯一实现）。
 
