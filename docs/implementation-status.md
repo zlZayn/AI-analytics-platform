@@ -29,14 +29,14 @@
 ## 自动验证（2026-09-03，无环境变量离线）
 
 ```text
-npm test                   25 files / 163 tests passed
+npm test                   28 files / 165 tests passed
 npm run typecheck          passed
 npm run lint               passed
 npm run build              passed (Next.js 16.2.9)
 scripts/check-links.py     0 errors
 git diff --check           passed
 CI 模拟（npm ci 全链路）   passed
-浏览器 E2E（离线 mock）    passed；R 分析端到端（summary 输出 + 图）passed
+浏览器 E2E（离线 mock）    passed（含 R 工作台错误态断言：初始化失败不再误显「等待运行…/就绪」）
 ```
 
 浏览器烟测脚本（`scripts/final_ui_smoke.py`、`offline_workspace_e2e.py`）输出到 `.artifacts/`。开发服务器使用 `http://localhost:4321`，避免 Next.js 16 拒绝跨来源 HMR。

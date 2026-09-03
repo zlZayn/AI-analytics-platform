@@ -16,9 +16,9 @@ This version has breaking changes — APIs, conventions, and file structure may 
 - `npm test` · `npm run typecheck` · `npm run lint` · `npm run dev`
 
 ## 验证快照（2026-09-03，main 分支）
-- vitest: 25 files / 163 passed / 0 failed
+- vitest: 28 files / 165 passed / 0 failed
 - typecheck / lint: 0 errors
-- 生产 build: passed（清 `.next` 后）；浏览器烟测/离线 E2E 脚本: passed
+- 生产 build: passed（清 `.next` 后）；浏览器烟测/离线 E2E（含 R 工作台错误态断言）: passed
 
 ## 待办
 - [ ] 真实只读账号人工验收：[docs/manual-acceptance.md](docs/manual-acceptance.md)（含 R 工作台，见第 5 节）
@@ -33,7 +33,7 @@ This version has breaking changes — APIs, conventions, and file structure may 
 - 入口脚本 `Start Dev.cmd`/`Build.cmd` 有构建新鲜度检查（对比 `src`/`prisma` 排除 `generated` 与 `.next\BUILD_ID`），见 [README.md](README.md)
 - **`next start`（Start Dev 生产模式）跑旧构建产物**：git pull 新代码后必须重建（Start Dev 询问时选"是"/F），否则改动不生效；排查"改了什么没变化"先验 `.next` 是否含新内容
 - sidebar 版本徽标读 `NEXT_PUBLIC_APP_VERSION`（未配置时隐藏）；烟测脚本按 package.json 版本断言它
-- Monaco 已本地托管（`src/lib/monaco-setup.ts` 的 `loader.config`）；`@monaco-editor/react` 默认从 CDN 拉引擎，新编辑器接入点必须 import `@/lib/monaco-setup`，否则离线环境编辑器永久 Loading
+- Monaco 已本地托管（`src/lib/monaco-setup.ts` 的惰性 `configureMonaco`：SSR 安全，配置完成前渲染占位避免 loader.init 回退 CDN）；`@monaco-editor/react` 默认从 CDN 拉引擎，新编辑器接入点必须「先 `await configureMonaco()` 再渲染编辑器」，顶层 `import "@/lib/monaco-setup"` 会在 SSR 评估 monaco-editor 而 window 崩（曾致 workspace 整页不可交互）
 - R 分析工作台（WebR 0.6）：COI 头已配置（COOP/COEP）；R.wasm（12.3MB）与 R 包从 `webr.r-wasm.org` CDN 按需加载，离线不可用；包下载后会话内缓存（模块级单例），刷新页面需重下
 - E2E 脚本 mock 路由必须与 API 路由同步：新增/修改 app 路由时同步更新 `scripts/offline_workspace_e2e.py` 的 `page.route`
 
