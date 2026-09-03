@@ -29,6 +29,7 @@ This version has breaking changes — APIs, conventions, and file structure may 
 - `.next` 缓存 dev/prod 混用会致 build 失败（清 `.next` 再 build）；**Geist 字体已自托管（`src/app/fonts/`），构建/开发不联网**
 - 浏览器烟测/E2E 需本地 chromium（Playwright），CI 不跑浏览器脚本
 - 入口脚本 `Start Dev.cmd`/`Build.cmd` 有构建新鲜度检查（对比 `src`/`prisma` 排除 `generated` 与 `.next\BUILD_ID`），见 [README.md](README.md)
+- **`next start`（Start Dev 生产模式）跑旧构建产物**：git pull 新代码后必须重建（Start Dev 询问时选"是"/F），否则改动不生效；排查"改了什么没变化"先验 `.next` 是否含新内容
 - sidebar 版本徽标读 `NEXT_PUBLIC_APP_VERSION`（未配置时隐藏）；烟测脚本按 package.json 版本断言它
 - Monaco 已本地托管（`src/lib/monaco-setup.ts` 的 `loader.config`）；`@monaco-editor/react` 默认从 CDN 拉引擎，新编辑器接入点必须 import `@/lib/monaco-setup`，否则离线环境编辑器永久 Loading
 - R 分析工作台（WebR 0.6）：COI 头已配置（COOP/COEP）；R.wasm（12.3MB）与 R 包从 `webr.r-wasm.org` CDN 按需加载，离线不可用；包下载后会话内缓存（模块级单例），刷新页面需重下
