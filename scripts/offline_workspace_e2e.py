@@ -69,6 +69,27 @@ def fulfill_schema(route: Route) -> None:
     }))
 
 
+def fulfill_ai(route: Route) -> None:
+    route.fulfill(json=envelope({
+        "items": [
+            {
+                "title": "洞察A：销售分布",
+                "insight": "华东区销售占比最高",
+                "sql": "SELECT 'A' AS note",
+                "chart": {"chartType": "bar", "x": "region", "y": "sales"},
+                "fallback": True,
+            },
+            {
+                "title": "洞察B：销售趋势",
+                "insight": "销售额呈上升趋势",
+                "sql": "SELECT 'B' AS note",
+                "chart": {"chartType": "line", "x": "day", "y": "sales"},
+                "fallback": True,
+            },
+        ]
+    }))
+
+
 def main() -> None:
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
     with sync_playwright() as playwright:
@@ -83,6 +104,7 @@ def main() -> None:
         page.route("**/api/connections/test", fulfill_connection)
         page.route("**/api/query", fulfill_query)
         page.route("**/api/schema/test*", fulfill_schema)
+        page.route("**/api/ai", fulfill_ai)
         # R 工作台：mock 掉 WebR CDN，制造确定性初始化失败（P1-5b 回归断言，不依赖真实网络）
         page.route("**webr.r-wasm.org**", lambda route: route.abort())
         page.goto(f"{BASE_URL}/workspace?connection=test&sql=SELECT%201", wait_until="networkidle")
@@ -115,7 +137,9 @@ def main() -> None:
 
         # R 工作台错误态（P1-5b）：WebR 初始化失败时
         # 输出区离开「等待运行…」占位并显示错误，状态栏不误显「就绪」
-        page.get_by_role("button", name="R 分析", exact=True).click()
+        # 入口：结果头部条「导出 ▼」菜单 →「R 分析」
+        page.get_by_role("button", name="导出", exact=True).click()
+        page.get_by_role("menuitem", name="R 分析", exact=True).click()
         page.get_by_text("R 分析 · df（", exact=False).wait_for(state="visible", timeout=10000)
         page.get_by_text("等待运行…", exact=False).wait_for(state="hidden", timeout=20000)
         page.get_by_text("R 环境初始化失败", exact=False).wait_for(state="visible", timeout=20000)
@@ -127,6 +151,20 @@ def main() -> None:
         page.get_by_role("button", name="运行", exact=True).click()
         page.get_by_text("R 环境未就绪", exact=False).wait_for(state="visible", timeout=20000)
         page.screenshot(path=str(OUTPUT_DIR / "r-workbench-error-state.png"), full_page=True)
+
+        # AI 多洞察（阶段 1）：返回 2 条 → 洞察 Tab 卡片流 → 点卡片执行 → 切探索视图并渲染图表
+        ai_input = page.get_by_placeholder("输入 @ 选表，如：对比 @orders 与 @customers 的销售趋势")
+        ai_input.fill("测试多洞察")
+        ai_input.press("Enter")
+        page.get_by_role("tab", name="洞察 2", exact=True).wait_for(state="visible", timeout=20000)
+        panel = page.get_by_role("tabpanel").filter(has_text="华东区销售占比最高")
+        panel.wait_for(state="visible", timeout=20000)
+        page.get_by_role("tabpanel").filter(has_text="销售额呈上升趋势").wait_for(state="visible", timeout=20000)
+        with page.expect_request("**/api/query"):
+            page.get_by_role("tabpanel").get_by_role("button", name="执行", exact=True).first.click()
+        page.get_by_test_id("chart-surface").wait_for(state="visible", timeout=20000)
+        page.get_by_role("tab", name="探索", exact=True).get_attribute("aria-selected")
+        page.screenshot(path=str(OUTPUT_DIR / "insights-tab.png"), full_page=True)
 
         page.screenshot(path=str(OUTPUT_DIR / "workspace-all-charts.png"), full_page=True)
         # WebR CDN 被故意 abort 产生的资源加载错误属预期内，其余报错才算失败

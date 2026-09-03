@@ -293,7 +293,7 @@ div.flex.h-full.min-h-0.flex-col.overflow-hidden.p-3.sm:p-4
 
 ### 5.4 工作台已知问题
 
-- AI 多结果只消费 items[0]，InsightCard 组件已实现但未挂接
+- ~~AI 多结果只消费 items[0]，InsightCard 组件已实现但未挂接~~（阶段 1 已挂接：洞察 Tab 卡片流）
 - runSql 重置图表类型；busy 且旧结果无「重新执行中」视觉提示；needs_recompile 无 UI 提示
 - Monaco theme vs-light 硬编码；编辑器 h-48 固定
 - 发送按钮无 aria-label；失败后输入内容丢失（提交即清空）
@@ -347,37 +347,38 @@ SessionWorkspace（aiInput 受控 state）
 
 ## 7. 结果区（改版主战场）
 
-### 7.1 SessionView（SessionView.tsx，100 行）当前布局（从上到下）
+### 7.1 SessionView（SessionView.tsx）当前布局（蓝图阶段 1 已实施——三层视图化）
 
 ```
-div.min-h-0.overflow-auto.rounded-lg.border          ← 结果区唯一滚动容器
-├── ① 头部条 div.flex.items-center.justify-between.px-3.py-1.5.bg-[var(--muted)]
+div.min-h-0.flex.flex-col.rounded-lg.border.overflow-hidden
+├── ① 头部条 div.flex.items-center.justify-between.px-3.py-1.5.bg-[var(--muted)] shrink-0
 │   ├── span「分析结果」（text-xs font-medium muted）
 │   └── div.flex.items-center.gap-2
-│       ├── <ResultToolbar dataset onOpenRWorkbench />        ← 4 按钮挤在此行
+│       ├── <ResultToolbar dataset onOpenRWorkbench />        ← 「导出 ▼」下拉（见 7.2）
 │       └── {isUserModified && 「已手动调整」徽标（Pencil + warning 三件套 10px）}
-├── ② 内容区 div.p-3.space-y-2
-│   ├── validationIssues → ChartNotice（severity=error→warning 色 / 否则 muted 色）
-│   ├── bound.warnings → ChartNotice（warning 色）
-│   ├── bound.adjustments → ChartNotice（muted 色）
-│   ├── <ResultPanel result={…rows: bound.rows} mapping={bound.mapping} onMappingChange />
-│   └── <RWorkbench dataset={result} open={rWorkbenchOpen} onClose />（内嵌最底部）
+├── ② 三层 Tabs（ui/tabs variant=line，受控 tab/onTabChange，keepMounted 保状态）
+│   ├── Tab 条（px-3 pt-2）：[洞察 {N}]（有 AI 洞察时显示）[探索][明细]
+│   ├── 洞察 TabsContent：InsightCard 卡片流（AI 多结果，结论前置默认激活；点执行 → 切探索 + dispatch 管线）
+│   ├── 探索 TabsContent：validationIssues/warnings/adjustments → ChartNotice + ResultPanel
+│   └── 明细 TabsContent：Chart table 分发（虚拟滚动 table-view）
+└── ③ <RWorkbench dataset open={rWorkbenchOpen} onClose />（导出菜单「R 分析」打开，内嵌底部）
 ```
 
 - 分支：`busy && !result` → 「查询执行中...」盒（min-h-[200px]）；`error && !result` → 红色错误盒；`!result || !bound` → **null（空白）**；否则正常。
 - **busy/error 且有旧结果 → 直接显示旧结果，无任何叠加提示**（仅顶部徽标）。
-- 本地 state：`rWorkbenchOpen`（不进 reducer，R 输出是会话外临时状态）。
+- 本地 state：`rWorkbenchOpen`（不进 reducer，R 输出是会话外临时状态）；`tab` 自管（受控也可由父接管）。
 - `bound = bindDataToChart(result, displayConfig)`：坐标轴交换/无效值过滤 + warnings/adjustments。
+- 洞察列表为会话外局部 state（session-workspace 的 `insightItems`，RESET 时清空）；`executingInsightIndex` 派生自 busy。
+- Tab 联动（事件驱动，无渲染期 setState）：`sendAi` 成功 → 切「洞察」；点卡片「执行」→ 切「探索」。
 
-### 7.2 ResultToolbar（result-toolbar.tsx）
+### 7.2 ResultToolbar（result-toolbar.tsx）——「导出 ▼」下拉
 
-- `div.flex.items-center.gap-0.5` + 4 个原生 button（btnCls：`inline-flex items-center gap-1 rounded px-2 py-1 text-[10px] text-[var(--muted-foreground)] hover:bg-[var(--accent)]`）：
-  1. **CSV**（Download，title「导出 CSV（带 UTF-8 BOM，Excel 中文兼容）」）
-  2. **JSON**（FileJson）
-  3. **R 模板**（Copy，复制 generateRTemplate 代码，copied→「已复制」1.5s）
-  4. **R 分析**（FlaskConical，`onOpenRWorkbench` 存在才渲染，最右）
-- 导出：`URL.createObjectURL` + a.click；CSV 走 `exportCSV(dataset)`（r-bridge，UTF-8 BOM）；JSON 直接 stringify。
-- **挤压事实**：4 个 10px 按钮（含两个 R 相关）+「已手动调整」徽标全部挤在头部条一行，与「分析结果」标题同排。
+- 触发器：`导出` + ChevronDown（aria-haspopup/menu + aria-expanded），10px 紧凑样式；外部 mousedown 关闭。
+- 菜单（`role="menu"`，`w-44` popover 浮层，`animate-in fade-in-0 zoom-in-95`）4 项，title 提示语全部保留：
+  1. **导出 CSV**（Download + FlaskConical 图标；title「导出 CSV（带 UTF-8 BOM，Excel 中文兼容）」）
+  2. **导出 JSON**（FileJson）
+  3. **复制 R 模板**（Copy；已复制 1.5s 反馈）
+  4. **R 分析**（FlaskConical；`onOpenRWorkbench` 存在才渲染）
 
 ### 7.3 ResultPanel + ChartConfigPanel
 
@@ -397,11 +398,11 @@ div.min-h-0.overflow-auto.rounded-lg.border          ← 结果区唯一滚动�
 9. 「数据提示」确认弹窗（分组槽位拦截：抽样前 20 行数值占比 >80% →「数值列不适合做分组/分类，建议使用文本列」；唯一值 >20 →「该列有 N 个唯一值，分组较多可能影响图表展示效果」；确认后才 onChange）
 - 问题：`isGroupSlot`（color/fill）与检查范围（color/fill/category）不一致；showLegend 是局部 state 不回流 session（DisplayConfig.showLegend 类型已预留未接回）；切图表类型 createMappingForChart 全量重置映射。
 
-### 7.4 InsightCard（已实现未挂接）
+### 7.4 InsightCard（已挂接：洞察 Tab 卡片流，阶段 1）
 
 - 单条 AI 洞察卡：序号「01」（font-mono 10px）+ 标题 truncate + 展开 SQL 按钮（ChevronRight/Down）+ 执行按钮（ghost h-6 10px，onExecute(item.sql, item.chart)）+ 洞察说明（11px）+ 卡片级错误条 + 展开区（bg-muted：pre 10px font-mono + 元信息「图表: type | 映射: key=val」9px）。
 - hover:border-[var(--ring)]（全站少数用 ring 描边处）。
-- 当前无任何调用方（session-workspace 只取 items[0]）。
+- 挂接：session-workspace `insightItems`（AI 多结果全量）→ SessionView 洞察 Tab；点「执行」→ `handleExecuteInsight`（INIT_FROM_AI 管线，回退 SQL 直通）→ 切探索 Tab；卡片 loading/error 由 `executingInsightIndex`/`insightError` 驱动。
 
 ### 7.5 错误呈现矩阵（跨文件）
 
@@ -537,7 +538,7 @@ div.rounded-lg.border.mt-3.overflow-hidden
 1. `page.tsx` openEdit 重置 username/password/ssl——编辑保存会改坏连接配置
 2. ~~WebR init 失败全 UI 静默 + 状态栏误显「就绪」~~（2026-09-03 已修复：error 输出项 + 状态栏四态）
 3. busy/error 且已有旧结果时无任何叠加提示（改配置后重查无反馈）
-4. AI 多结果只执行第一条（InsightCard 闲置未挂接）
+4. ~~AI 多结果只执行第一条（InsightCard 闲置未挂接）~~（阶段 1 已挂接：洞察 Tab 卡片流 + 每条可执行）
 5. runSql 强制重置图表类型为 table
 6. ConnectionProvider 错误/空态不可区分
 

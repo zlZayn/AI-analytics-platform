@@ -50,6 +50,11 @@ export function SessionWorkspace({ connectionId, initialSql }: SessionWorkspaceP
   const [saveDialogOpen, setSaveDialogOpen] = useState(false)
   const [saveName, setSaveName] = useState("")
   const [monacoReady, setMonacoReady] = useState(false)
+  // AI 多洞察：会话外临时状态（同 RWorkbench 开关哲学，不进 AnalysisSession）
+  const [insightItems, setInsightItems] = useState<InsightItem[]>([])
+  const [executingInsight, setExecutingInsight] = useState<number | null>(null)
+  // 结果区当前 Tab（受控）：新洞察到达切「洞察」（结论前置），执行卡片切「探索」
+  const [resultTab, setResultTab] = useState("explore")
   const { toast } = useToast()
 
   // 配置本地 monaco（幂等；客户端首帧后异步完成，避免 loader.init 回退 CDN）
@@ -135,6 +140,9 @@ export function SessionWorkspace({ connectionId, initialSql }: SessionWorkspaceP
         toast("AI 未生成有效结果", "warning")
         return
       }
+      // 多洞察全部保留（洞察视图卡片流），第一条仍自动执行（结论前置 + 延续现状流程）
+      setInsightItems(items)
+      setResultTab("insights")
       const item = items[0]
       dispatch({
         type: "INIT_FROM_AI",
@@ -202,6 +210,32 @@ export function SessionWorkspace({ connectionId, initialSql }: SessionWorkspaceP
       type: "UPDATE_DISPLAY_CONFIG",
       displayConfig: { ...displayConfig, mapping },
     })
+  }
+
+  /** 执行第 index 条洞察：走与 sendAi 相同的编译/执行管线（卡片 loading 态由 executingInsight 驱动） */
+  function handleExecuteInsight(index: number) {
+    const item = insightItems[index]
+    if (!item) setExecutingInsight(null)
+    else {
+      setExecutingInsight(index)
+      dispatch({
+        type: "INIT_FROM_AI",
+        payload: {
+          question: item.title,
+          title: item.title,
+          insight: item.insight,
+          querySpec: item.querySpec ?? { table: "" },
+          displayConfig: item.displayConfig ?? { chartType: item.chart.chartType, mapping: item.chart },
+        },
+      })
+      if (item.fallback || !item.querySpec) {
+        // 回退路径：AI 未输出 querySpec，直接注入 AI 生成的 SQL 触发执行
+        if (item.sql) {
+          dispatch({ type: "SET_COMPILED_SQL", compiledSql: { sql: item.sql, params: [] } })
+          setSqlDraft(item.sql)
+        }
+      }
+    }
   }
 
   if (!connectionId) {
@@ -285,7 +319,16 @@ export function SessionWorkspace({ connectionId, initialSql }: SessionWorkspaceP
           <div className="px-3 py-2 border-b flex items-center justify-between">
             <span className="text-xs font-medium text-[var(--muted-foreground)]">AI 助手</span>
             {conversationHistory.length > 0 && (
-              <Button variant="ghost" size="sm" className="h-5 text-[10px]" onClick={() => dispatch({ type: "RESET" })} disabled={busy || aiLoading}>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-5 text-[10px]"
+                onClick={() => {
+                  setInsightItems([])
+                  dispatch({ type: "RESET" })
+                }}
+                disabled={busy || aiLoading}
+              >
                 重置
               </Button>
             )}
@@ -352,6 +395,12 @@ export function SessionWorkspace({ connectionId, initialSql }: SessionWorkspaceP
                 toast("SQL 已复制", "success")
               }
             }}
+            insights={insightItems}
+            executingInsightIndex={busy ? executingInsight : null}
+            insightError={status === "error" && executingInsight !== null ? error ?? null : null}
+            onExecuteInsight={handleExecuteInsight}
+            tab={resultTab}
+            onTabChange={setResultTab}
           />
         </div>
       </div>

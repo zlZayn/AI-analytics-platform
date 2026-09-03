@@ -22,8 +22,9 @@ This version has breaking changes — APIs, conventions, and file structure may 
 
 ## 待办
 - [ ] 真实只读账号人工验收：[docs/manual-acceptance.md](docs/manual-acceptance.md)（含 R 工作台，见第 5 节）
-- [ ] UIUX 方案 A（结果区 Tabs：图表/数据表/R 分析）待拍板实施，见 [docs/PLAN.md](docs/PLAN.md)
-- [ ] P2：AI 生成 R 代码（等待 P1 使用反馈，见 [docs/PLAN.md](docs/PLAN.md)）
+- [ ] 蓝图阶段 2：AI 多洞察 context 字段 + 业务上下文注入接口预留，见 [docs/PLAN.md](docs/PLAN.md)（阶段 1 结果区三层 Tabs 已实施，见 [决策记录](.agents/notes/2026-09-03-result-area-three-layer-tabs.md)）
+- [ ] 蓝图阶段 3：WebR 黑盒统计引擎（固定模板 t.test/cor.test），见 [docs/PLAN.md](docs/PLAN.md)
+- [ ] 蓝图阶段 4：@mention 中文分词 + toast/R 状态栏 aria-live，见 [docs/PLAN.md](docs/PLAN.md)
 
 ## 活跃坑
 - 烟测/开发服务器用 `http://localhost:4321`；行尾统一 LF（maintenance-flow 的 check-line-endings.py 检测）；**例外：根目录 `*.cmd` 必须 CRLF + GBK(ANSI) 编码、无 BOM、不用 chcp**（cmd 解析 LF 多行块报 "do was unexpected"；UTF-8 编码在记事本/控制台显示乱码；编辑铁律见 [决策记录](.agents/notes/2026-09-03-windows-script-encoding-rules.md)）

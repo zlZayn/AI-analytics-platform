@@ -27,6 +27,13 @@
 - P1 实测：R.wasm（12.3MB）从 CDN 按需加载；summary(df) 输出与 ggplot canvas 正常；关闭/重开包缓存保留
 - P1-5b 修复：初始化失败不再静默（输出 error 项 + 状态栏四态）；输出项唯一 id；自动滚底用户上滚暂停；Ctrl+Enter 用 monaco 常量；Monaco 惰性配置（SSR 安全）
 
+## 已完成（蓝图阶段 1：结果区三层视图化）
+
+- `SessionView` 结果区 Tabs：洞察（InsightCard 多结果卡片流，第一条自动执行）/ 探索（ResultPanel）/ 明细（table-view）
+- 工具条收敛「导出 ▼」下拉（CSV / JSON / R 模板 / R 分析），title 提示语保留
+- 洞察为会话外局部 state；Tab keepMounted 保状态；决策见 `.agents/notes/2026-09-03-result-area-three-layer-tabs.md`
+- E2E 增加 AI 多洞察断言（mock /api/ai → 洞察 Tab → 卡片执行 → 探索渲染）
+
 ## 自动验证（2026-09-03，无环境变量离线）
 
 ```text
