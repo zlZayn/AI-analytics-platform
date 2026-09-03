@@ -335,13 +335,13 @@ SessionWorkspace（aiInput 受控 state）
 
 ### 6.4 AI 交互已知问题
 
-1. 中文场景 `对比@orders` 不弹面板（分词边界）
-2. 全链路无 aria（input 无 aria-autocomplete/controls/expanded；面板无 listbox/option/activedescendant）
-3. 面板键盘选中项不自动 scrollIntoView（max-h-52 内可能不可见）
-4. 面板开时 Tab 被占用于选表
-5. 空输入 Enter 仍调 onSend（依赖 sendAi 内部 guard）
-6. 请求失败输入不恢复；aiUnavailable 置位后空态提示消失
-7. 面板 `bottom-full` 无翻转逻辑（小屏可能超出视口顶部）
+已修复（阶段 4，2026-09-03）：~~`对比@orders` 不弹面板~~（extractPendingMention 改光标式回溯：@ 前非标识符字符即触发，email 不误判）；~~全链路无 aria~~（输入框 aria-autocomplete/expanded/controls/activedescendant；面板 role=listbox + option/aria-selected；toast 与 R 状态栏 aria-live）。剩余：
+
+1. 面板键盘选中项不自动 scrollIntoView（max-h-52 内可能不可见）
+2. 面板开时 Tab 被占用于选表
+3. 空输入 Enter 仍调 onSend（依赖 sendAi 内部 guard）
+4. 请求失败输入不恢复；aiUnavailable 置位后空态提示消失
+5. 面板 `bottom-full` 无翻转逻辑（小屏可能超出视口顶部）
 
 ---
 

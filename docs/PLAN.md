@@ -6,30 +6,20 @@
 
 ## 未完成事项
 
-### 蓝图阶段 2：AI 多洞察 + 业务上下文注入
-
-- 扩张 InsightItem（`context` 字段 + RAG 业务口径注入接口预留）
-- 更新 AiVisibilityHint 文案
-- 依赖 ai-contract.ts 扩展（P2 可动文件）
-
-### 蓝图阶段 3：WebR 黑盒统计引擎
-
-- 最小可行版：固定模板执行 t.test/cor.test（包白名单），AI 意图接线
-- 原 P2（AI 生成 R 代码给用户运行）已被蓝图升维取代，路径改为黑盒化
-
-### 蓝图阶段 4：体验打磨
-
-- @mention 中文分词（光标回溯替代 `\s+` 分词）
-- toast / R 状态栏 aria-live、@ 面板角色补齐
-- R.wasm 预加载（可选）
-
 ### 人工验收
 
 - 真实只读 PostgreSQL 账号验证写拒绝 / 长查询取消 / 认证失效池清理 / 连接删除，见 [manual-acceptance.md](manual-acceptance.md)（含 R 工作台，第 5 节）
+- 真实 AI provider 验收：strict json_schema 对新增 `context`/`statTest` 字段的输出符合性
+
+### 可选增强（蓝图阶段 4 剩余）
+
+- R.wasm Service Worker 预加载 / requestIdleCallback 预热（当前按需加载）
+- statTest 黑盒统计的真实 R 浏览器端实测（离线 E2E 只验证了错误路径，成功路径需联网）
 
 ## 已拍板决策
 
-- UIUX 方案 A 升级为「结果区三层 Tabs」（洞察 / 探索 / 明细）：阶段 1 已实施；决策理由与替代方案见 [决策记录](../.agents/notes/2026-09-03-result-area-three-layer-tabs.md)
+- 结果区三层 Tabs（洞察/探索/明细）：阶段 1 已实施，见 [决策记录](../.agents/notes/2026-09-03-result-area-three-layer-tabs.md)
+- WebR 黑盒统计引擎（固定模板，替代 AI 直接生成 R）：阶段 3 已实施，见 [决策记录](../.agents/notes/2026-09-03-webr-blackbox-stat-engine.md)
 
 ## 已知问题
 
@@ -38,7 +28,6 @@
 
 ## 下一步
 
-1. 阶段 2（多洞察 context + 上下文注入接口预留）
-2. 阶段 3（WebR 统计引擎最小版）
-3. 阶段 4（@ 分词 + aria）
-4. 真实只读账号完成人工验收
+1. 真实只读账号完成人工验收
+2. 联网环境实测 statTest 成功路径与 InsightCard 统计区块
+3. 按需实施 R.wasm 预加载优化

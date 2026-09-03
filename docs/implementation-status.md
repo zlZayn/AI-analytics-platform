@@ -34,6 +34,12 @@
 - 洞察为会话外局部 state；Tab keepMounted 保状态；决策见 `.agents/notes/2026-09-03-result-area-three-layer-tabs.md`
 - E2E 增加 AI 多洞察断言（mock /api/ai → 洞察 Tab → 卡片执行 → 探索渲染）
 
+## 已完成（蓝图阶段 2-4）
+
+- 阶段 2：`InsightItem.context` 业务上下文引用（source/rule/applied，双变体 nullable schema）+ `buildSystemPrompt` 业务口径区块（`businessContext` 参数透传 /api/ai）+ AiVisibilityHint 文案
+- 阶段 3：`r-stats.ts` WebR 黑盒统计引擎（固定模板 ttest/cor/chisq，R base 无额外包；`runStats` 黑盒执行不进输出区；`statTest` 契约 + InsightCard 统计区块自动执行；1000 行采样上限）
+- 阶段 4：@mention 中文分词（`对比@orders` 可触发，email 不误判）；toast/R 状态栏 aria-live；@ 面板 listbox/option 语义 + 输入框 aria-activedescendant
+
 ## 自动验证（2026-09-03，无环境变量离线）
 
 ```text

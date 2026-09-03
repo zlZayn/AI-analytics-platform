@@ -16,15 +16,16 @@ This version has breaking changes — APIs, conventions, and file structure may 
 - `npm test` · `npm run typecheck` · `npm run lint` · `npm run dev`
 
 ## 验证快照（2026-09-03，main 分支）
-- vitest: 28 files / 166 passed / 0 failed
+- vitest: 29 files / 181 passed / 0 failed
 - typecheck / lint: 0 errors
-- 生产 build: passed（清 `.next` 后）；浏览器烟测/离线 E2E（含 R 工作台错误态断言）: passed
+- 生产 build: passed（清 `.next` 后）；浏览器烟测/离线 E2E（含 R 工作台错误态 + AI 多洞察断言）: passed
 
 ## 待办
 - [ ] 真实只读账号人工验收：[docs/manual-acceptance.md](docs/manual-acceptance.md)（含 R 工作台，见第 5 节）
-- [ ] 蓝图阶段 2：AI 多洞察 context 字段 + 业务上下文注入接口预留，见 [docs/PLAN.md](docs/PLAN.md)（阶段 1 结果区三层 Tabs 已实施，见 [决策记录](.agents/notes/2026-09-03-result-area-three-layer-tabs.md)）
-- [ ] 蓝图阶段 3：WebR 黑盒统计引擎（固定模板 t.test/cor.test），见 [docs/PLAN.md](docs/PLAN.md)
-- [ ] 蓝图阶段 4：@mention 中文分词 + toast/R 状态栏 aria-live，见 [docs/PLAN.md](docs/PLAN.md)
+- [ ] 联网实测 statTest 黑盒统计成功路径（离线 E2E 只覆盖错误路径），见 [docs/PLAN.md](docs/PLAN.md)
+- [ ] 可选：R.wasm 预加载优化，见 [docs/PLAN.md](docs/PLAN.md)
+
+蓝图阶段 1-4 已完成（结果区三层 Tabs / 多洞察+业务上下文 / WebR 黑盒统计 / 体验打磨），决策见 [.agents/notes/](.agents/notes/)
 
 ## 活跃坑
 - 烟测/开发服务器用 `http://localhost:4321`；行尾统一 LF（maintenance-flow 的 check-line-endings.py 检测）；**例外：根目录 `*.cmd` 必须 CRLF + GBK(ANSI) 编码、无 BOM、不用 chcp**（cmd 解析 LF 多行块报 "do was unexpected"；UTF-8 编码在记事本/控制台显示乱码；编辑铁律见 [决策记录](.agents/notes/2026-09-03-windows-script-encoding-rules.md)）
