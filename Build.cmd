@@ -29,7 +29,7 @@ if not exist node_modules (
 )
 
 REM ---- 构建新鲜度检查：src/prisma（排除 generated）是否比 .next\BUILD_ID 新 ----
-powershell -NoProfile -Command "$f=Get-ChildItem 'src','prisma' -Recurse -File -EA SilentlyContinue | Where-Object { $_.FullName -notmatch '\\generated\\' }; $t=$null; foreach($x in $f){if(-not $t -or $x.LastWriteTime -gt $t){$t=$x.LastWriteTime}}; if(-not (Test-Path '.next\BUILD_ID')){'NOT_BUILT'}elseif($t -gt (Get-Item '.next\BUILD_ID').LastWriteTime){'STALE'}else{'OK'}" > "%BUILDSTATE%" 2>nul
+powershell -NoProfile -Command "$f=@(Get-ChildItem 'src','prisma' -Recurse -File -EA SilentlyContinue | Where-Object { $_.FullName -notmatch '\\generated\\' }) + @(Get-Item 'next.config.ts','package.json','tsconfig.json' -EA SilentlyContinue); $t=$null; foreach($x in $f){if(-not $t -or $x.LastWriteTime -gt $t){$t=$x.LastWriteTime}}; if(-not (Test-Path '.next\BUILD_ID')){'NOT_BUILT'}elseif($t -gt (Get-Item '.next\BUILD_ID').LastWriteTime){'STALE'}else{'OK'}" > "%BUILDSTATE%" 2>nul
 set /p BUILD_STATE=<"%BUILDSTATE%"
 
 if "%BUILD_STATE%"=="OK" (
