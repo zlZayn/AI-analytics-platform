@@ -24,6 +24,15 @@ Design philosophy and boundaries: [design-philosophy.md](docs/design-philosophy.
 - **Charting** - table, KPI, line, bar, pie/donut, scatter, histogram, boxplot, heatmap, correlation matrix; user-chosen mappings
 - **Query management** - history and favorites with replay
 
+## What the AI Can See
+
+The AI answers only from the connected database's **table structure** and **data profile** — it never sees raw data rows or any sensitive information:
+
+- Can see: table names, column names, database types, per-column distinct counts / null counts / min / max / sample values (up to 6 tables), and the current conversation history
+- Cannot see: data rows of query results (returned only when you view charts), connection passwords, connection strings, platform accounts
+
+The AI assistant panel in the workbench shows a "AI visible scope" hint at the top; click to expand details.
+
 ## Quick Start (Windows)
 
 1. Double-click **`Start Dev.cmd`** — dependencies, env, and Prisma client are checked automatically; starts directly when the build is up-to-date and opens the browser

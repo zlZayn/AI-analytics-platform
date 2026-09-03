@@ -8,6 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Label } from "@/components/ui/label"
 import { ResultPanel } from "@/components/dashboard/result-panel"
 import { InsightCard, type InsightItem } from "@/components/insight-card"
+import { AiVisibilityHint } from "@/components/ai-visibility-hint"
 import { type ChartMapping } from "@/components/chart"
 import { useToast } from "@/components/toast"
 import type { ApiResponse, QueryResult } from "@/types"
@@ -15,6 +16,9 @@ import { Play, Trash2, Save, Loader2, Send, ChevronDown, ChevronUp } from "lucid
 import dynamic from "next/dynamic"
 import { fetchApi, ApiRequestError } from "@/lib/client-api"
 import { SessionWorkspace } from "@/components/workspace/session-workspace"
+
+// 本地 monaco（loader.config 副作用：不从 CDN 拉引擎）
+import "@/lib/monaco-setup"
 
 const MonacoEditor = dynamic(() => import("@monaco-editor/react"), {
   ssr: false,
@@ -269,6 +273,7 @@ function WorkspaceContent({ connectionId, initialSql }: { connectionId: string |
                 清空
               </Button>
             </div>
+            <AiVisibilityHint />
             <div className="flex-1 overflow-auto p-3 space-y-2 min-h-0">
               {aiUnavailable && (
                 <div className="p-2 rounded bg-[var(--muted)] border border-[var(--border)] text-xs text-[var(--muted-foreground)] leading-relaxed">

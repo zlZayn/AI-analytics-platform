@@ -4,6 +4,14 @@
 
 AI 根据当前连接扫描出的 Schema 与数据轮廓，建议结构化 QuerySpec + DisplayConfig，不直接访问数据库。提示词不包含行业模型、固定表名或业务样例。SQL/AI 负责聚合和数据整形；图表只执行固定展示算法。首次查询结果保持表格，AI 推荐只有在用户执行洞察后才应用。
 
+## 可见性边界（用户可见）
+
+AI 提示词注入内容即 AI 可见范围；工作台 AI 助手面板顶部有「AI 可见范围」提示（`src/components/ai-visibility-hint.tsx`），用户可展开查看。
+
+- 可见：表名、字段名、数据库类型、数据轮廓（唯一值数 / NULL 数 / min/max / 样本值，最多 6 表）、会话问答历史
+- 不可见：查询结果数据行、连接密码、连接串、平台账号等敏感信息
+- 注入实现：`buildSystemPrompt(schemaContext, dataProfileText)`（见 [ai-contract.ts](../src/lib/ai-contract.ts)）
+
 ## 输出契约（双变体）
 
 AI 每项输出 `title`、`insight`、`querySpec` + `displayConfig`，或 `sql` + `chart`：

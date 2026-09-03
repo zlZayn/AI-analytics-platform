@@ -30,6 +30,7 @@ This version has breaking changes — APIs, conventions, and file structure may 
 - 浏览器烟测/E2E 需本地 chromium（Playwright），CI 不跑浏览器脚本
 - 入口脚本 `Start Dev.cmd`/`Build.cmd` 有构建新鲜度检查（对比 `src`/`prisma` 排除 `generated` 与 `.next\BUILD_ID`），见 [README.md](README.md)
 - sidebar 版本徽标读 `NEXT_PUBLIC_APP_VERSION`（未配置时隐藏）；烟测脚本按 package.json 版本断言它
+- Monaco 已本地托管（`src/lib/monaco-setup.ts` 的 `loader.config`）；`@monaco-editor/react` 默认从 CDN 拉引擎，新编辑器接入点必须 import `@/lib/monaco-setup`，否则离线环境编辑器永久 Loading
 
 ## 文档地图
 - 用途与用法：[README.md](README.md)

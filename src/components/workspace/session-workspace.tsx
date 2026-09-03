@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { SessionView } from "@/components/SessionView"
 import type { InsightItem } from "@/components/insight-card"
+import { AiVisibilityHint } from "@/components/ai-visibility-hint"
 import { useToast } from "@/components/toast"
 import { fetchApi, ApiRequestError } from "@/lib/client-api"
 import { useSession } from "@/hooks/useSession"
@@ -21,6 +22,9 @@ import type { ApiResponse, SchemaData } from "@/types"
 import type { CompiledSql, ConversationMessage, SemanticDataset } from "@/types/session"
 import type { ChartMapping } from "@/components/chart"
 import { Play, Loader2, Send } from "lucide-react"
+
+// 本地 monaco（loader.config 副作用：不从 CDN 拉引擎）
+import "@/lib/monaco-setup"
 
 const MonacoEditor = dynamic(() => import("@monaco-editor/react"), {
   ssr: false,
@@ -234,6 +238,7 @@ export function SessionWorkspace({ connectionId, initialSql }: SessionWorkspaceP
               </Button>
             )}
           </div>
+          <AiVisibilityHint />
           <div className="flex-1 overflow-auto p-3 space-y-2 min-h-0">
             {aiUnavailable && (
               <div className="p-2 rounded bg-[var(--muted)] border border-[var(--border)] text-xs text-[var(--muted-foreground)] leading-relaxed">
