@@ -46,6 +46,27 @@ def fulfill_query(route: Route) -> None:
     }))
 
 
+def fulfill_schema(route: Route) -> None:
+    route.fulfill(json=envelope({
+        "version": 1,
+        "scannedAt": "2026-01-01T00:00:00Z",
+        "tables": [
+            {
+                "name": "orders",
+                "comment": None,
+                "columns": [
+                    {"name": "day", "type": "date", "nullable": False},
+                    {"name": "region", "type": "varchar", "nullable": True},
+                    {"name": "sales", "type": "numeric", "nullable": True},
+                    {"name": "profit", "type": "numeric", "nullable": True},
+                ],
+                "relations": [],
+            }
+        ],
+        "relations": [],
+    }))
+
+
 def main() -> None:
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
     with sync_playwright() as playwright:
@@ -56,6 +77,7 @@ def main() -> None:
         page.on("console", lambda message: errors.append(message.text) if message.type == "error" else None)
         page.route("**/api/connections/test", fulfill_connection)
         page.route("**/api/query", fulfill_query)
+        page.route("**/api/schema/test*", fulfill_schema)
         page.goto(f"{BASE_URL}/workspace?connection=test&sql=SELECT%201", wait_until="networkidle")
 
         execute_button = page.get_by_role("button", name="执行", exact=True)
