@@ -8,12 +8,19 @@ export interface MentionTable {
   columns: { name: string }[]
 }
 
-/** 取文本中"正在输入的提及词"：最后一个以 @ 开头的词；无则 null。 */
+/** 取文本中"正在输入的提及词"：最后一个 @ 候选（@ 前为开头/空白/中文等非标识符字符，
+ *  避免 user@mail.com 误判；@ 后无空白）；无则 null。比 \s+ 分词更贴近中文场景（「对比@orders」可触发）。 */
 export function extractPendingMention(text: string): string | null {
-  const words = text.split(/\s+/)
-  const last = words[words.length - 1] ?? ""
-  if (!last.startsWith("@")) return null
-  return last.slice(1)
+  const at = text.lastIndexOf("@")
+  if (at < 0) return null
+  if (at > 0) {
+    const prev = text[at - 1]
+    // @ 前紧跟 ASCII 标识符（字母/数字/下划线/点/连字符）→ 视为普通文本而非提及
+    if (/[A-Za-z0-9_.\-]/.test(prev)) return null
+  }
+  const tail = text.slice(at + 1)
+  if (/\s/.test(tail)) return null
+  return tail
 }
 
 /** 把文本中最后一个 @ 词（含裸 @）替换为 @name；@name 后跟一个空格（如有尾随文本则保持）。 */

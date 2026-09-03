@@ -11,7 +11,7 @@ interface RWorkbenchStatusBarProps {
 /** R 工作台状态栏：运行状态（含初始化失败）+ 包状态 + 最近执行耗时（28px 高）。 */
 export function RWorkbenchStatusBar({ packages, lastExecMs, busy, status, error }: RWorkbenchStatusBarProps) {
   return (
-    <div className="flex items-center justify-between px-3 py-1 text-[10px] text-[var(--muted-foreground)]">
+    <div className="flex items-center justify-between px-3 py-1 text-[10px] text-[var(--muted-foreground)]" aria-live="polite">
       <span>
         {status === "error" ? (
           <span className="text-[var(--destructive)]">初始化失败{error ? `: ${error}` : ""}</span>

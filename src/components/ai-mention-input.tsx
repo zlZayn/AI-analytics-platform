@@ -1,6 +1,6 @@
 "use client"
 
-import { useMemo } from "react"
+import { useId, useMemo } from "react"
 import { Input } from "@/components/ui/input"
 import { AiMentionPanel } from "@/components/ai-mention-panel"
 import { useMentionInput } from "@/hooks/useMentionInput"
@@ -31,6 +31,10 @@ export function AiMentionInput({ value, onChange, onSend, disabled, placeholder,
     onHoverIndex,
   } = useMentionInput({ value, onChange, onSend, tables })
 
+  // 组合框语义：面板 id 与高亮选项 id 关联（aria-activedescendant）
+  const panelId = useId()
+  const activeOptionId = mentionOpen && activeIndex >= 0 ? `${panelId}-option-${activeIndex}` : undefined
+
   return (
     <div className="relative flex-1 min-w-0">
       <Input
@@ -41,6 +45,10 @@ export function AiMentionInput({ value, onChange, onSend, disabled, placeholder,
         disabled={disabled}
         placeholder={placeholder}
         className="h-7 text-xs"
+        aria-autocomplete="list"
+        aria-expanded={mentionOpen}
+        aria-controls={panelId}
+        aria-activedescendant={activeOptionId}
       />
       {mentionOpen && (
         <AiMentionPanel
@@ -49,6 +57,7 @@ export function AiMentionInput({ value, onChange, onSend, disabled, placeholder,
           onSelect={select}
           onHoverIndex={onHoverIndex}
           panelRef={panelRef}
+          id={panelId}
         />
       )}
     </div>

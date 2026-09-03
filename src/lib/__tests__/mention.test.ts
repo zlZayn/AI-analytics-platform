@@ -20,6 +20,16 @@ describe("extractPendingMention", () => {
   it("ignores @ in the middle of a sentence", () => {
     expect(extractPendingMention("分析 @orders 的销售")).toBeNull()
   })
+
+  it("triggers when @ directly follows CJK text", () => {
+    expect(extractPendingMention("对比@orders")).toBe("orders")
+    expect(extractPendingMention("对比@")).toBe("")
+  })
+
+  it("does not treat email-style @ as a mention", () => {
+    expect(extractPendingMention("联系 user@mail.com")).toBeNull()
+    expect(extractPendingMention("a@b 分析")).toBeNull()
+  })
 })
 
 describe("replaceMention", () => {
