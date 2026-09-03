@@ -28,9 +28,9 @@ Design philosophy and boundaries: [design-philosophy.md](docs/design-philosophy.
 
 ## What the AI Can See
 
-The AI answers only from the connected database's **table structure** and **data profile** — it never sees raw data rows or any sensitive information:
+The AI answers only from the connected database's **table structure**, **data profile**, and the **chart contract** — it never sees raw data rows or any sensitive information:
 
-- Can see: table names, column names, database types, per-column distinct counts / null counts / min / max / sample values (up to 6 tables), and the current conversation history
+- Can see: table names, column names, database types, per-column distinct counts / null counts / min / max / sample values (up to 6 tables); the 10 chart types with their slot rules and output format (basis for choosing the right chart); and the current conversation history
 - Cannot see: data rows of query results (returned only when you view charts), connection passwords, connection strings, platform accounts
 
 The AI assistant panel in the workbench shows a "AI visible scope" hint at the top; click to expand details.

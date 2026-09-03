@@ -20,7 +20,7 @@ export function AiVisibilityHint() {
       >
         <Eye className="w-3 h-3 text-[var(--muted-foreground)] shrink-0" />
         <span className="text-[10px] text-[var(--muted-foreground)]">
-          {expanded ? "AI 可见范围（点击收起）" : "AI 能看见：当前连的表结构、字段类型与数据轮廓；看不见原始数据行"}
+          {expanded ? "AI 可见范围（点击收起）" : "AI 能看见：表结构、数据轮廓与图表契约；看不见原始数据行"}
         </span>
       </button>
 
@@ -30,6 +30,7 @@ export function AiVisibilityHint() {
             <div className="font-medium text-[var(--foreground)]">AI 能看见</div>
             <div>· 当前连接的表名、字段名、数据库类型（Schema）</div>
             <div>· 数据轮廓：每列唯一值数、NULL 数、最小值/最大值、样本值（最多 6 张表）</div>
+            <div>· 图表契约：10 种图表类型 + 每种图表的必填/可选槽位规则与输出格式（AI 据此生成合适的图）</div>
             <div>· 本次会话的问答历史</div>
             <div className="font-medium text-[var(--foreground)] mt-1">AI 看不见</div>
             <div>· 原始数据行（查询结果只在你看图表时才返回）</div>
