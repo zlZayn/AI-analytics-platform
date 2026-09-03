@@ -29,6 +29,7 @@
 - API 统一 `ApiResponse<T>` + requestId；客户端统一处理 HTTP、非 JSON、超时、Abort
 - 图表变换全部确定性；统计计算（相关矩阵、直方图分箱）在可取消 Worker 中执行
 - 数据轮廓扫描（最多 6 表）注入 AI 提示词，失败不阻断主流程
+- R 分析工作台：数据只从 `session.result` 单向流入（`r-bridge` 纯函数 → WebR），R 输出不回写 AnalysisSession；WebR 实例为模块级单例（`useWebR`），SAB 通道 + COI 头；R.wasm 与 R 包从 `webr.r-wasm.org` 按需下载，离线不可用
 
 ## 校验体系（统一到 validators.ts）
 
@@ -51,4 +52,4 @@
 
 - 分层：README=用法，AGENTS.md=维护索引，本文件=设计决策，.agents/notes/=决策记录
 - 详细接口：见 [api.md](api.md)；图表算法：[charts.md](charts.md)；AI 合同：[04_ai_integration.md](04_ai_integration.md)
-- 项目结构、页面与 API 路由清单：见 [README.md](../README.md)
+- 项目结构、页面路由清单：见 [src/README.md](../src/README.md)；API 路由总表：[api.md](api.md)

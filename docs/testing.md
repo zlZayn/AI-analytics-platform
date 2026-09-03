@@ -23,6 +23,9 @@ git diff --check
 
 真实 PostgreSQL 的权限、取消和认证失效仍按 [manual-acceptance.md](manual-acceptance.md) 人工复核。
 
+R 分析工作台测试：`r-bridge.test.ts`（SemanticDataset→R 代码/CSV 纯函数，含中文列名与特殊值）与 `webr-client.test.ts`（WebRClient 状态机，注入假 WebR 类）在 vitest 跑。真实 R 执行依赖 CDN（`webr.r-wasm.org`）与浏览器，CI 不跑，人工验证见 [manual-acceptance.md](manual-acceptance.md)。
+
 浏览器验证：先在 4321 端口启动应用，然后运行 `python scripts/final_ui_smoke.py`（四视口布局/亮色/导航）和 `python scripts/offline_workspace_e2e.py`（API mock 下执行查询并切换全部 10 种视图）。开发服务器运行离线 E2E 时设置 `BASE_URL=http://localhost:4321`，生产服务器可使用默认 `127.0.0.1`。
+
 ## 文档导航
 - 人工验收 [manual-acceptance.md](manual-acceptance.md) · 设计决策 [ARCHITECTURE.md](ARCHITECTURE.md) · 使用入口 [README.md](../README.md)

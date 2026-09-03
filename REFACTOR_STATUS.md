@@ -81,7 +81,7 @@
   - [x] 改用 useSession（executeCompiled 注入 /api/query，SQL 执行经 SET_COMPILED_SQL）
   - [x] askAI / executeInsight / handleMappingChange 改为 dispatch
   - [x] ResultPanel 支持受控模式（mapping / onMappingChange 回传）
-  - [x] 现有功能不受影响（feature flag：`?session=1` 或 `NEXT_PUBLIC_SESSION_STATE=1` 切换新旧）
+  - [x] 迁移期以 feature flag（`?session=1`）切换新旧；合并后旧版已删除，SessionWorkspace 为唯一实现
 
 - [x] 2.4 修改 API 路由
   - [x] `src/app/api/ai/route.ts`：优先接收请求体 conversationHistory，回退按 conversationId 从库加载
@@ -92,7 +92,7 @@
 - [x] reducer 单元测试通过（16 用例）
 - [x] workspace 现有功能完整（旧版默认保留；新版经 feature flag 启用）
 - [x] 多轮对话有上下文（API 已传递 conversationHistory；第二轮起可引用第一轮结果——待浏览器人工 E2E 确认）
-- [x] feature flag 可回退（旧版 `WorkspaceContent` 未改动）
+- [x] feature flag 迁移期可回退（旧版 `WorkspaceContent` 保留至合并后删除）
 - [x] typecheck 0 错误 / lint 0 错误 / 94 测试全通过
 
 > 注：阶段二代码完成且静态校验全绿；「多轮对话有上下文」需接入真实数据库与 AI_API_KEY 后在浏览器验证，尚未做 E2E。

@@ -10,7 +10,7 @@ This version has breaking changes — APIs, conventions, and file structure may 
 - Next.js 16 有破坏性变更：写任何代码前先读 `node_modules/next/dist/docs/` 对应指南
 - 文档分层与引用契约：[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
 - 决策记录：[.agents/notes/](.agents/notes/)
-- 文档同步后跑链接校验（maintenance-flow skill 的 check-links.py，从 skill 目录执行）
+- 文档同步后跑链接校验（`python scripts/check-links.py <路径>`，CI 亦用）
 
 ## 常用命令
 - `npm test` · `npm run typecheck` · `npm run lint` · `npm run dev`
