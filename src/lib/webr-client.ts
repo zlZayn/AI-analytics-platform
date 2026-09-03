@@ -4,7 +4,7 @@ import { WebR, ChannelType, type Shelter } from "webr"
 import { buildDataFrameCode } from "@/lib/r-bridge"
 import type { SemanticDataset } from "@/types/session"
 
-export type ROutputItem = { type: string; data: string }
+export type ROutputItem = { id: number; type: string; data: string }
 
 /**
  * 安全序列化 captureR 输出项：data 可能是 string、RObject（含 toJs）或其它对象。
@@ -76,6 +76,13 @@ export class WebRClient {
   private installed = new Set<string>()
   private WebRImpl: typeof WebR
   private initPromise: Promise<void> | null = null
+  /** 输出项唯一 id 计数器（React key 用，截断后不因索引复用错位） */
+  private outputId = 0
+
+  private nextOutputId(): number {
+    this.outputId += 1
+    return this.outputId
+  }
 
   constructor(options: WebRClientOptions = {}) {
     this.WebRImpl = options.WebRImpl ?? WebR
@@ -145,7 +152,7 @@ export class WebRClient {
       this.patch({
         output: [
           ...this.state.output,
-          { type: "error", data: "R 环境未就绪（初始化失败）。请检查网络后刷新页面重试" },
+          { id: this.nextOutputId(), type: "error", data: "R 环境未就绪（初始化失败）。请检查网络后刷新页面重试" },
         ],
       })
       return
@@ -160,7 +167,7 @@ export class WebRClient {
       })
       const mapped: ROutputItem[] = []
       for (const o of capture.output) {
-        mapped.push({ type: String(o.type), data: await safeOutputData(o.data) })
+        mapped.push({ id: this.nextOutputId(), type: String(o.type), data: await safeOutputData(o.data) })
       }
       this.patch({ output: [...this.state.output, ...mapped] })
       if (capture.images.length > 0) {
@@ -168,7 +175,7 @@ export class WebRClient {
       }
     } catch (e) {
       const msg = e instanceof Error ? e.message : "R 代码执行失败"
-      this.patch({ output: [...this.state.output, { type: "error", data: msg }] })
+      this.patch({ output: [...this.state.output, { id: this.nextOutputId(), type: "error", data: msg }] })
     } finally {
       this.patch({ busy: false, lastExecMs: Math.round(performance.now() - start) })
     }
@@ -182,7 +189,11 @@ export class WebRClient {
       this.patch({
         output: [
           ...this.state.output,
-          { type: "warning", data: `数据集较大（${ds.rows.length} 行 × ${ds.columns.length} 列），注入可能较慢` },
+          {
+            id: this.nextOutputId(),
+            type: "warning",
+            data: `数据集较大（${ds.rows.length} 行 × ${ds.columns.length} 列），注入可能较慢`,
+          },
         ],
       })
     }
@@ -195,7 +206,7 @@ export class WebRClient {
 
   /** 输出一条错误项（供 UI 在初始化失败等场景提示；execute 未初始化路径亦走 error 项） */
   reportError(message: string) {
-    this.patch({ output: [...this.state.output, { type: "error", data: message }] })
+    this.patch({ output: [...this.state.output, { id: this.nextOutputId(), type: "error", data: message }] })
   }
 
   clearOutput() {

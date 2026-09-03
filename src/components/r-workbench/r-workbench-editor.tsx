@@ -40,11 +40,11 @@ export function RWorkbenchEditor({ value, onChange, onRun, readOnly }: RWorkbenc
           theme="vs-light"
           value={value}
           onChange={(v) => onChange(v ?? "")}
-          onMount={(editor) => {
+          onMount={(editor, monaco) => {
             editor.addAction({
               id: "r-run",
               label: "运行 R 代码",
-              keybindings: [2049 /* Ctrl+Enter */],
+              keybindings: [monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter],
               run: () => onRun(),
             })
           }}

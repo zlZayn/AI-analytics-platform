@@ -110,6 +110,17 @@ describe("WebRClient", () => {
     expect(s.lastExecMs).toBeNull()
   })
 
+  it("output items carry unique incrementing ids", async () => {
+    const { client } = makeClient()
+    client.reportError("e1")
+    await client.execute("1") // 未初始化：追加 error 项
+    client.reportError("e2")
+    const ids = client.getState().output.map((o) => o.id)
+    expect(new Set(ids).size).toBe(ids.length)
+    expect(ids).toEqual([...ids].sort((a, b) => a - b))
+    expect(ids[0]).toBeGreaterThan(0)
+  })
+
   it("reportError appends an error output item", async () => {
     const { client } = makeClient()
     client.reportError("boot failed: no network")

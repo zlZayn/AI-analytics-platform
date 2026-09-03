@@ -25,11 +25,12 @@
 - P1b：`webr-client.ts`（SAB 通道、单例、purge 纪律、超时、规模阈值预留）+ mock 测试 + Monaco R 语言
 - P1c/P1d：`RWorkbench` 组件树（内嵌区块、输出分级、快捷键、无障碍），SessionView 结果区下方接入
 - P1 实测：R.wasm（12.3MB）从 CDN 按需加载；summary(df) 输出与 ggplot canvas 正常；关闭/重开包缓存保留
+- P1-5b 修复：初始化失败不再静默（输出 error 项 + 状态栏四态）；输出项唯一 id；自动滚底用户上滚暂停；Ctrl+Enter 用 monaco 常量；Monaco 惰性配置（SSR 安全）
 
 ## 自动验证（2026-09-03，无环境变量离线）
 
 ```text
-npm test                   28 files / 165 tests passed
+npm test                   28 files / 166 tests passed
 npm run typecheck          passed
 npm run lint               passed
 npm run build              passed (Next.js 16.2.9)

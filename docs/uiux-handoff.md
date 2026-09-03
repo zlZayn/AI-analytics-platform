@@ -488,40 +488,45 @@ div.rounded-lg.border.mt-3.overflow-hidden
 ├── Toolbar（flex gap-1 px-1）：运行（sm，disabled=busy，title 含 Ctrl+Enter）
 │   / 中断（outline，disabled=!busy||!canInterrupt）/ 清空（ghost）/ 复制（ghost ml-auto）均 h-6 10px
 ├── 内容区 div.p-2.space-y-2
-│   ├── Editor：dynamic Monaco（language="r"，min-h-[200px] flex-1；onMount 注册 action id="r-run"
-│   │   keybindings=[2049 //Ctrl+Enter]；minimap off / fontSize 13 / wordWrap on；theme vs-light）
+│   ├── Editor：dynamic Monaco（language="r"，min-h-[200px] flex-1；惰性 `configureMonaco()` 本地引擎，
+│   │   配置完成前 pulse 占位；onMount 注册 action id="r-run"
+│   │   keybindings=[monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter]；minimap off / fontSize 13 / wordWrap on；theme vs-light）
 │   └── Output：aria-live="polite" min-h-[80px] max-h-[280px] overflow-auto bg-muted font-mono 11px
 │       ├── 空且不忙「等待运行...」/ 忙且空「执行中...」
-│       ├── >500 条 → 黄色「输出过长，仅显示最近 500 条」；slice(-500)
+│       ├── >500 条 → 黄色「输出过长，仅显示最近 500 条」；slice(-500)；key=item.id（唯一自增）
 │       ├── 输出项分级：error/stderr → pre role="alert" destructive；warning → warning-surface 块；
 │       │   message → muted；默认 stdout → foreground（均 whitespace-pre-wrap break-all）
 │       ├── images 全部追加（canvas：max-w-full h-auto，drawImage + cleanup image.close()）
-│       └── 尾部 endRef useEffect scrollIntoView({block:"end"}) 自动滚底
+│       └── 自动滚底：距底 ≤40px 视为钉住（onScroll 计算 pinned），新输出到达钉住才滚；
+│           用户上滚即暂停，滚回底部恢复
 └── StatusBar（flex justify-between px-3 py-1 10px muted）
-    ├── 左：busy ?「执行中...」:「就绪」+ 有包时「 · 已加载包: {join}」
+    ├── 左：status=error → 红「初始化失败: <原因>」/ loading →「正在加载 R 运行时…」/ busy →「执行中...」/
+    │   否则「就绪」+ 有包时「 · 已加载包: {join}」
     └── 右：lastExecMs「上次执行 {(s).toFixed(2)}s」
 另有条件提示行：injectedFor===null && ready →「数据注入中...（首次加载 R 运行时约 8MB...）」
 ```
 
 ### 9.3 生命周期与数据流（webr-client.ts / useWebR.ts）
 
-- `useWebR`：模块级单例 `WebRClient` + `useSyncExternalStore`；actions useMemo 稳定引用。
+- `useWebR`：模块级单例 `WebRClient` + `useSyncExternalStore`（getSnapshot 返回 `this.state` 稳定引用）；actions useMemo 稳定引用。
 - bootstrap（open 时）：init → ensurePackages(["dplyr","ggplot2"]) → injectData → setInjectedFor → setCode（模板非空且 ≠ generateRTemplate(dataset) 才不覆盖）。
 - SAB 通道显式锁定 `ChannelType.SharedArrayBuffer`（保证 interrupt 能力）；COI 头已配置（COOP/COEP）。
 - 执行：`withTimeout(execute(code), 60_000)`，超时输出 error + interrupt()；R.wasm/包从 CDN 按需加载（离线不可用，刷新重下）。
 - 全局快捷键（document 级）：Esc 关闭 / Ctrl+Shift+C 清空 / Ctrl+Shift+E 中断。
 - injectData >100,000 单元格仅追加 warning（bind 预留路径 TODO，仍 evalR 字符串注入）。
 - open=false 时 return null（单例不销毁仅隐藏）；destroy 无 UI 入口。
+- 输出项带唯一自增 `id`（React key，截断后不错位）；`ROutputItem = { id, type, data }`。
+- 错误呈现链（P1-5b 已修复）：init 失败 → status=error + `reportError` 写 error 输出项；未初始化时 `execute()` 写「R 环境未就绪…」error 项而非 throw。
 
 ### 9.4 R 工作台已知问题
 
-1. `webR.error`（init 失败）完全无 UI 消费——失败静默「假死」；StatusBar 只看 busy，「就绪」误显（status="error" 时仍显示就绪）；loading 态无 UI 分支
-2. 输出 key 用索引（500 截断错位风险）；自动滚底无「用户上滚暂停」
-3. canvas 无 role/alt；状态栏无 aria-live
-4. busy 单一布尔无法区分装包/执行（包下载无进度）
-5. 页面离开无 WebR 资源释放；dev HMR 重建单例（注释自曝）
-6. Ctrl+Enter 用魔法数字 2049；`canInterrupt` 硬编码 true；handleCopy 无失败兜底
-7. 模板小不一致：TYPE_COMMENT temporal 恒注 Date 但可能生成 as.POSIXct；plot(df) 兜底可能报错；withTimeout 不取消底层执行仅靠后续 interrupt
+已修复（P1-5b，2026-09-03）：~~init 失败静默「假死」+ 状态栏误显「就绪」~~（现输出 error 项 + 状态栏四态消费）；~~输出 key 索引错位~~（现唯一 id）；~~自动滚底无暂停~~（现 40px 阈值 pinned）；~~2049 魔法数字~~（现 monaco.KeyMod/KeyCode 常量）。剩余：
+
+1. canvas 无 role/alt；状态栏无 aria-live
+2. busy 单一布尔无法区分装包/执行（包下载无进度）
+3. 页面离开无 WebR 资源释放；dev HMR 重建单例（注释自曝）
+4. `canInterrupt` 硬编码 true；handleCopy 无失败兜底
+5. 模板小不一致：TYPE_COMMENT temporal 恒注 Date 但可能生成 as.POSIXct；plot(df) 兜底可能报错；withTimeout 不取消底层执行仅靠后续 interrupt
 
 ---
 
@@ -530,7 +535,7 @@ div.rounded-lg.border.mt-3.overflow-hidden
 ### 高（数据/功能性）
 
 1. `page.tsx` openEdit 重置 username/password/ssl——编辑保存会改坏连接配置
-2. WebR init 失败全 UI 静默 + 状态栏误显「就绪」
+2. ~~WebR init 失败全 UI 静默 + 状态栏误显「就绪」~~（2026-09-03 已修复：error 输出项 + 状态栏四态）
 3. busy/error 且已有旧结果时无任何叠加提示（改配置后重查无反馈）
 4. AI 多结果只执行第一条（InsightCard 闲置未挂接）
 5. runSql 强制重置图表类型为 table
