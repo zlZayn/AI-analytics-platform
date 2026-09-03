@@ -20,6 +20,7 @@ export interface UseWebRReturn {
   interrupt: () => Promise<void>
   clearOutput: () => void
   destroy: () => void
+  reportError: (message: string) => void
 }
 
 // 模块级单例：页面生命周期内一个 WebRClient 实例。
@@ -50,6 +51,7 @@ export function useWebR(): UseWebRReturn {
       interrupt: () => client.interrupt(),
       clearOutput: () => client.clearOutput(),
       destroy: () => client.destroy(),
+      reportError: (message: string) => client.reportError(message),
     }),
     [client]
   )

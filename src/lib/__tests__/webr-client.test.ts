@@ -101,6 +101,21 @@ describe("WebRClient", () => {
     expect(client.getState().output.some((o) => o.type === "error" && o.data === "boom")).toBe(true)
   })
 
+  it("execute before init writes error output without throwing", async () => {
+    const { client } = makeClient()
+    await expect(client.execute("1 + 1")).resolves.toBeUndefined()
+    const s = client.getState()
+    expect(s.output.some((o) => o.type === "error" && o.data.includes("未就绪"))).toBe(true)
+    expect(s.busy).toBe(false)
+    expect(s.lastExecMs).toBeNull()
+  })
+
+  it("reportError appends an error output item", async () => {
+    const { client } = makeClient()
+    client.reportError("boot failed: no network")
+    expect(client.getState().output.some((o) => o.type === "error" && o.data === "boot failed: no network")).toBe(true)
+  })
+
   it("ensurePackages installs missing packages once", async () => {
     const { client } = makeClient()
     await client.init()

@@ -139,7 +139,17 @@ export class WebRClient {
   }
 
   async execute(code: string): Promise<void> {
-    if (!this.instance) throw new Error("WebR 未初始化")
+    if (!this.instance) {
+      // 未初始化（CDN/COI 失败等）：写入错误输出项而非 throw，
+      // 保证输出区离开「等待运行…」占位并显示原因（P1-5b 修复）
+      this.patch({
+        output: [
+          ...this.state.output,
+          { type: "error", data: "R 环境未就绪（初始化失败）。请检查网络后刷新页面重试" },
+        ],
+      })
+      return
+    }
     this.patch({ busy: true })
     const start = performance.now()
     try {
@@ -181,6 +191,11 @@ export class WebRClient {
 
   async interrupt(): Promise<void> {
     await this.instance?.webR.interrupt()
+  }
+
+  /** 输出一条错误项（供 UI 在初始化失败等场景提示；execute 未初始化路径亦走 error 项） */
+  reportError(message: string) {
+    this.patch({ output: [...this.state.output, { type: "error", data: message }] })
   }
 
   clearOutput() {

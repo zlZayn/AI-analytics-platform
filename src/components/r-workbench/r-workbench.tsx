@@ -30,7 +30,7 @@ export function RWorkbench({ dataset, open, onClose }: RWorkbenchProps) {
   const initializedRef = useRef(false)
 
   // actions 为稳定引用（useWebR useMemo）；effect 依赖它们不会因渲染变化重触发
-  const { init, ensurePackages, injectData, clearOutput, interrupt, execute } = webR
+  const { init, ensurePackages, injectData, clearOutput, interrupt, execute, reportError } = webR
 
   // 打开时：初始化 WebR + 注入数据 + 填充模板
   useEffect(() => {
@@ -52,7 +52,9 @@ export function RWorkbench({ dataset, open, onClose }: RWorkbenchProps) {
           return generateRTemplate(dataset)
         })
       } catch {
-        // init/inject 失败：状态显示在 status bar（WebR status error）
+        // init/inject 失败：错误写入输出区（离开「等待运行…」占位），
+        // 具体原因经 webR.error 显示在状态栏（此处不读 state，避免 effect 依赖循环）
+        reportError("R 环境初始化失败，请检查网络后刷新页面重试")
       }
     }
 
@@ -60,7 +62,7 @@ export function RWorkbench({ dataset, open, onClose }: RWorkbenchProps) {
     return () => {
       cancelled = true
     }
-  }, [open, dataset, init, ensurePackages, injectData])
+  }, [open, dataset, init, ensurePackages, injectData, reportError])
 
   // 数据集变化且工作台已打开：重新注入（维护已打开状态下的数据新鲜度）
   useEffect(() => {
@@ -139,7 +141,13 @@ export function RWorkbench({ dataset, open, onClose }: RWorkbenchProps) {
         <RWorkbenchEditor value={code} onChange={setCode} onRun={handleRun} />
         <RWorkbenchOutput items={webR.output} images={webR.images} busy={webR.busy} />
       </div>
-      <RWorkbenchStatusBar packages={webR.packages} lastExecMs={webR.lastExecMs} busy={webR.busy} />
+      <RWorkbenchStatusBar
+        packages={webR.packages}
+        lastExecMs={webR.lastExecMs}
+        busy={webR.busy}
+        status={webR.status}
+        error={webR.error}
+      />
       {injectedFor === null && webR.status === "ready" && (
         <div className="px-3 pb-1 text-[10px] text-[var(--muted-foreground)]">
           数据注入中…（首次加载 R 运行时约 8MB，包下载后自动继续）
