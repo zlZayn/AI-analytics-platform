@@ -4,7 +4,9 @@ from pathlib import Path
 from playwright.sync_api import Route, sync_playwright
 
 
-BASE_URL = os.environ.get("BASE_URL", "http://127.0.0.1:4321")
+# 用 localhost 而非 127.0.0.1：Next.js 16 dev 拒绝跨来源 dev 资源（webpack-hmr），
+# 127.0.0.1 访问会导致客户端永不挂载（见根 AGENTS.md 活跃坑）
+BASE_URL = os.environ.get("BASE_URL", "http://localhost:4321")
 OUTPUT_DIR = Path(__file__).resolve().parents[1] / ".artifacts" / "offline-e2e"
 
 
@@ -73,11 +75,16 @@ def main() -> None:
         browser = playwright.chromium.launch(headless=True)
         page = browser.new_page(viewport={"width": 1440, "height": 1000})
         errors: list[str] = []
+        webr_aborted: list[str] = []
         page.on("pageerror", lambda error: errors.append(str(error)))
         page.on("console", lambda message: errors.append(message.text) if message.type == "error" else None)
+        # 记录被故意 abort 的 WebR CDN 请求：对应 console 的 "Failed to load resource" 属预期内
+        page.on("requestfailed", lambda request: webr_aborted.append(request.url) if "webr.r-wasm.org" in request.url else None)
         page.route("**/api/connections/test", fulfill_connection)
         page.route("**/api/query", fulfill_query)
         page.route("**/api/schema/test*", fulfill_schema)
+        # R 工作台：mock 掉 WebR CDN，制造确定性初始化失败（P1-5b 回归断言，不依赖真实网络）
+        page.route("**webr.r-wasm.org**", lambda route: route.abort())
         page.goto(f"{BASE_URL}/workspace?connection=test&sql=SELECT%201", wait_until="networkidle")
 
         execute_button = page.get_by_role("button", name="执行", exact=True)
@@ -105,9 +112,27 @@ def main() -> None:
                 raise AssertionError(f"{label} has no usable default mapping: {surface_text}")
 
         page.get_by_text("正在计算相关矩阵...").wait_for(state="hidden")
+
+        # R 工作台错误态（P1-5b）：WebR 初始化失败时
+        # 输出区离开「等待运行…」占位并显示错误，状态栏不误显「就绪」
+        page.get_by_role("button", name="R 分析", exact=True).click()
+        page.get_by_text("R 分析 · df（", exact=False).wait_for(state="visible", timeout=10000)
+        page.get_by_text("等待运行…", exact=False).wait_for(state="hidden", timeout=20000)
+        page.get_by_text("R 环境初始化失败", exact=False).wait_for(state="visible", timeout=20000)
+        # 状态栏（span 内，格式「初始化失败: <原因>」）显示具体失败原因，不再误显「就绪」
+        page.locator("span", has_text="初始化失败: ").first.wait_for(state="visible", timeout=20000)
+        if "就绪" in (page.locator("body").inner_text() or ""):
+            raise AssertionError("R workbench status bar still shows fake ready")
+        # 未初始化时点「运行」→ 写入「未就绪」错误项（不再静默无输出）
+        page.get_by_role("button", name="运行", exact=True).click()
+        page.get_by_text("R 环境未就绪", exact=False).wait_for(state="visible", timeout=20000)
+        page.screenshot(path=str(OUTPUT_DIR / "r-workbench-error-state.png"), full_page=True)
+
         page.screenshot(path=str(OUTPUT_DIR / "workspace-all-charts.png"), full_page=True)
-        if errors:
-            raise AssertionError("browser errors: " + " | ".join(errors))
+        # WebR CDN 被故意 abort 产生的资源加载错误属预期内，其余报错才算失败
+        unexpected = [e for e in errors if not (e == "Failed to load resource: net::ERR_FAILED" and webr_aborted)]
+        if unexpected:
+            raise AssertionError("browser errors: " + " | ".join(unexpected))
         browser.close()
     print(f"Offline workspace E2E passed; screenshot: {OUTPUT_DIR / 'workspace-all-charts.png'}")
 
