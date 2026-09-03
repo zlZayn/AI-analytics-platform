@@ -122,6 +122,7 @@ export function SessionView({
                 }}
                 loading={executingInsightIndex === i}
                 error={executingInsightIndex === i ? insightError : null}
+                result={result}
               />
             ))}
           </div>

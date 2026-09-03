@@ -127,6 +127,25 @@ describe("WebRClient", () => {
     expect(client.getState().output.some((o) => o.type === "error" && o.data === "boot failed: no network")).toBe(true)
   })
 
+  it("runStats returns captured stdout without touching the output area", async () => {
+    const { client } = makeClient()
+    await client.init()
+    fake.shelter.captureR.mockResolvedValueOnce({
+      result: {},
+      output: [{ type: "stdout", data: "P_VALUE=0.03|STAT=2.1|N=50" }],
+      images: [] as ImageBitmap[],
+    })
+    const out = await client.runStats("x <- c(1, 2)")
+    expect(out).toBe("P_VALUE=0.03|STAT=2.1|N=50")
+    expect(client.getState().output).toHaveLength(0)
+    expect(fake.shelter.captureR).toHaveBeenCalledWith("x <- c(1, 2)", expect.objectContaining({ withAutoprint: false }))
+  })
+
+  it("runStats before init throws", async () => {
+    const { client } = makeClient()
+    await expect(client.runStats("x <- 1")).rejects.toThrow("R 环境未就绪")
+  })
+
   it("ensurePackages installs missing packages once", async () => {
     const { client } = makeClient()
     await client.init()

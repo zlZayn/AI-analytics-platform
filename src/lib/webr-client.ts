@@ -209,6 +209,25 @@ export class WebRClient {
     this.patch({ output: [...this.state.output, { id: this.nextOutputId(), type: "error", data: message }] })
   }
 
+  /**
+   * 黑盒统计执行（蓝图阶段 3）：不写入工作台输出区/状态，仅返回 stdout 文本。
+   * 供统计引擎（r-stats 固定模板）在洞察卡静默运行。
+   */
+  async runStats(code: string): Promise<string> {
+    if (!this.instance) throw new Error("R 环境未就绪（初始化失败）")
+    const capture = await this.instance.shelter.captureR(code, {
+      withAutoprint: false,
+      captureStreams: true,
+      captureConditions: true,
+    })
+    const parts: string[] = []
+    for (const o of capture.output) {
+      const text = await safeOutputData(o.data)
+      if (text) parts.push(text)
+    }
+    return parts.join("\n").trim()
+  }
+
   clearOutput() {
     this.state.images.forEach((img) => img.close())
     this.patch({ output: [], images: [] })

@@ -1,5 +1,6 @@
 import type { ChartMapping, ChartType, CorrelationMethod } from "@/components/charts/types"
 import type { DisplayConfig, Filter, Join, Measure, QuerySpec, SortSpec } from "@/types/session"
+import type { StatTestRequest } from "@/lib/r-stats"
 import { validateSQL } from "./sql-validator"
 
 interface ChartContract {
@@ -55,6 +56,8 @@ export interface InsightItem {
   fallback: boolean
   /** 业务上下文引用（RAG/业务口径融合预留）：AI 遵守了哪些规则 */
   context?: InsightContext[]
+  /** 显著性检验建议（蓝图阶段 3 黑盒统计：前端用固定模板在 WebR 执行，AI 不写 R） */
+  statTest?: StatTestRequest
 }
 
 // 每个图表类型的 mapping 结构（用于 displayConfig.mapping 与旧 chart.mapping）
@@ -105,6 +108,19 @@ const contextSchema = {
   },
 } as const
 
+// 显著性检验建议（黑盒统计：仅当业务问题需要假设检验/相关性推断时输出，否则 null）
+const statTestSchema = {
+  type: ["object", "null"],
+  additionalProperties: false,
+  required: ["kind", "x", "y", "hypothesis"],
+  properties: {
+    kind: { type: "string", enum: ["ttest", "cor", "chisq"] },
+    x: { type: "string" },
+    y: { type: "string" },
+    hypothesis: { type: "string", maxLength: 200 },
+  },
+} as const
+
 export const AI_RESPONSE_JSON_SCHEMA = {
   name: "analytics_insights",
   strict: true,
@@ -123,7 +139,7 @@ export const AI_RESPONSE_JSON_SCHEMA = {
             {
               type: "object",
               additionalProperties: false,
-              required: ["title", "insight", "querySpec", "displayConfig", "context"],
+              required: ["title", "insight", "querySpec", "displayConfig", "context", "statTest"],
               properties: {
                 title: { type: "string", maxLength: 80 },
                 insight: { type: "string", maxLength: 1000 },
@@ -138,19 +154,21 @@ export const AI_RESPONSE_JSON_SCHEMA = {
                   },
                 },
                 context: contextSchema,
+                statTest: statTestSchema,
               },
             },
             // 旧格式回退（过渡期）：AI 直出 SQL + chart
             {
               type: "object",
               additionalProperties: false,
-              required: ["title", "insight", "sql", "chart", "context"],
+              required: ["title", "insight", "sql", "chart", "context", "statTest"],
               properties: {
                 title: { type: "string", maxLength: 80 },
                 insight: { type: "string", maxLength: 1000 },
                 sql: { type: "string" },
                 chart: { anyOf: chartSchemaVariants },
                 context: contextSchema,
+                statTest: statTestSchema,
               },
             },
           ],
@@ -179,6 +197,7 @@ export function buildSystemPrompt(schemaContext: string, dataProfileText = "", b
 - displayConfig 结构：{ "chartType": "bar", "mapping": { "x": "类别别名", "y": "数值别名" } }，mapping 只能引用 querySpec 输出的别名。
 - 尽量同时输出 sql（过渡期字段，供旧客户端回退）；若 querySpec 已完整，sql 可省略。
 - context 必须输出数组（可为空 []）；应用了业务口径中的规则时逐条回传 { "source", "rule", "applied" }。
+- statTest 必须输出（可为 null）：当问题需要比较两组数值是否显著不同（ttest）、检验两数值列相关（cor）或检验类别分布关联（chisq）时，输出 { "kind", "x", "y", "hypothesis" }，x/y 引用 querySpec 输出别名；其余情况 null。统计检验由平台在本地固定模板执行，你无需编写 R 代码。
 ${businessSection}
 设计边界：
 - 业务聚合和数据整形必须在 SQL 中完成；图表不会猜测业务语义，也不会合并重复坐标。
@@ -213,6 +232,7 @@ export function parseInsightItems(content: string): InsightItem[] {
     const querySpec = parseQuerySpec(raw.querySpec)
     const displayConfig = parseDisplayConfig(raw.displayConfig)
     const context = parseContext(raw.context)
+    const statTest = parseStatTest(raw.statTest)
     if (querySpec && displayConfig) {
       // 过渡期：AI 同时输出 sql 时一并透传，供旧客户端（InsightCard）展示
       const sql = typeof raw.sql === "string" && validateSQL(raw.sql.trim()).valid ? raw.sql.trim() : undefined
@@ -225,6 +245,7 @@ export function parseInsightItems(content: string): InsightItem[] {
         displayConfig,
         fallback: false,
         context,
+        statTest,
       })
       continue
     }
@@ -244,6 +265,7 @@ export function parseInsightItems(content: string): InsightItem[] {
       displayConfig: displayConfig ?? undefined,
       fallback: true,
       context,
+      statTest,
     })
   }
   return items
@@ -396,6 +418,16 @@ function parseContext(raw: unknown): InsightContext[] | undefined {
     }
   }
   return contexts.length > 0 ? contexts : undefined
+}
+
+// 解析显著性检验建议（容错：null/非法 → undefined）
+function parseStatTest(raw: unknown): StatTestRequest | undefined {
+  if (!isRecord(raw)) return undefined
+  const kind = raw.kind
+  if (kind !== "ttest" && kind !== "cor" && kind !== "chisq") return undefined
+  if (typeof raw.x !== "string" || !raw.x || typeof raw.y !== "string" || !raw.y) return undefined
+  const hypothesis = typeof raw.hypothesis === "string" && raw.hypothesis.trim() ? raw.hypothesis.slice(0, 200) : ""
+  return { kind, x: raw.x, y: raw.y, hypothesis }
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

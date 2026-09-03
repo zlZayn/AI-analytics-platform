@@ -1,9 +1,17 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
-import { ChevronDown, ChevronRight, Play, Loader2 } from "lucide-react"
+import { ChevronDown, ChevronRight, Play, Loader2, FlaskConical } from "lucide-react"
 import type { InsightItem } from "@/lib/ai-contract"
+import { useWebR } from "@/hooks/useWebR"
+import {
+  buildStatTestCode,
+  parseStatTestOutput,
+  summarizeStatTest,
+  type StatTestResult,
+} from "@/lib/r-stats"
+import type { SemanticDataset } from "@/types/session"
 
 export type { InsightItem } from "@/lib/ai-contract"
 
@@ -14,10 +22,44 @@ interface InsightCardProps {
   loading?: boolean
   /** 执行失败时的错误信息（阶段四：卡片级错误展示） */
   error?: string | null
+  /** 当前结果（黑盒统计检验的数据源；缺省不渲染统计区块） */
+  result?: SemanticDataset | null
 }
 
-export function InsightCard({ index, item, onExecute, loading, error }: InsightCardProps) {
+export function InsightCard({ index, item, onExecute, loading, error, result }: InsightCardProps) {
   const [expanded, setExpanded] = useState(false)
+  const webR = useWebR()
+  const [statOutcome, setStatOutcome] = useState<{ result?: StatTestResult; message?: string }>({})
+  // 派生 loading：有 statTest 且结果就绪但尚无结果/错误（状态只在异步链中写入）
+  const statRunning = !!item.statTest && !!result && !statOutcome.result && !statOutcome.message
+
+  // 黑盒统计（蓝图阶段 3）：item.statTest + result 就绪时静默执行固定模板；
+  // 先确保 WebR 初始化（失败 → 卡片内提示，读卡不受影响）；状态写入全部在异步链中
+  useEffect(() => {
+    if (!item.statTest || !result) return
+    let cancelled = false
+    void (async () => {
+      try {
+        const code = buildStatTestCode(result, item.statTest!)
+        await webR.init()
+        if (cancelled) return
+        const stdout = await webR.runStats(code)
+        if (cancelled) return
+        const parsed = parseStatTestOutput(stdout, item.statTest!.kind)
+        setStatOutcome({
+          result: parsed ?? undefined,
+          message: parsed ? undefined : "统计检验无输出",
+        })
+      } catch (e) {
+        if (!cancelled) {
+          setStatOutcome({ message: e instanceof Error ? e.message : "统计检验失败" })
+        }
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [item.statTest, item.statTest?.kind, result, webR])
 
   return (
     <div className="border rounded-lg overflow-hidden bg-[var(--card)] hover:border-[var(--ring)] transition-colors">
@@ -61,6 +103,31 @@ export function InsightCard({ index, item, onExecute, loading, error }: InsightC
       <div className="px-3 pb-2">
         <p className="text-[11px] text-[var(--muted-foreground)]">{item.insight}</p>
       </div>
+
+      {/* 统计检验（黑盒 WebR，本地执行） */}
+      {item.statTest && (
+        <div className="px-3 pb-2">
+          <div className="rounded border border-[var(--border)] bg-[var(--muted)] px-2 py-1.5 text-[11px]">
+            <div className="font-medium text-[var(--foreground)] flex items-center gap-1">
+              <FlaskConical className="w-3 h-3" /> 统计检验
+            </div>
+            <div className="text-[var(--muted-foreground)] mt-0.5">{item.statTest.hypothesis}</div>
+            {statRunning && (
+              <div className="flex items-center gap-1 text-[var(--muted-foreground)] mt-0.5">
+                <Loader2 className="w-3 h-3 animate-spin" /> 浏览器本地计算中（WebR）…
+              </div>
+            )}
+            {statOutcome.result && (
+              <div className="mt-0.5 font-medium text-[var(--foreground)]">
+                {summarizeStatTest(statOutcome.result)}
+              </div>
+            )}
+            {statOutcome.message && (
+              <div className="mt-0.5 text-[var(--warning)]">{statOutcome.message}</div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* 执行错误（卡片级） */}
       {error && (

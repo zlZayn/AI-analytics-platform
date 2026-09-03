@@ -21,6 +21,7 @@ export interface UseWebRReturn {
   clearOutput: () => void
   destroy: () => void
   reportError: (message: string) => void
+  runStats: (code: string) => Promise<string>
 }
 
 // 模块级单例：页面生命周期内一个 WebRClient 实例。
@@ -52,6 +53,7 @@ export function useWebR(): UseWebRReturn {
       clearOutput: () => client.clearOutput(),
       destroy: () => client.destroy(),
       reportError: (message: string) => client.reportError(message),
+      runStats: (code: string) => client.runStats(code),
     }),
     [client]
   )
