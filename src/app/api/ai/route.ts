@@ -1,6 +1,6 @@
 import { NextRequest } from 'next/server'
 import { generateAnalysis } from '@/lib/ai-service'
-import { buildDataProfileText, buildSchemaContext, scanAllDataProfiles, scanSchema } from '@/lib/schema-service'
+import { buildDataProfileText, buildSchemaContext, scanAllDataProfiles, scanDataProfile, scanSchema } from '@/lib/schema-service'
 import { prisma } from '@/lib/prisma'
 import { apiFailure, apiSuccess } from '@/lib/api-response'
 
@@ -8,7 +8,7 @@ import { apiFailure, apiSuccess } from '@/lib/api-response'
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { connectionId, message, conversationId, conversationHistory: bodyHistory } = body
+    const { connectionId, message, conversationId, conversationHistory: bodyHistory, referencedTables } = body
 
     // 验证必填字段
     if (!connectionId || !message) {
@@ -60,10 +60,21 @@ export async function POST(request: NextRequest) {
     }
 
     // 数据轮廓（辅助 AI 判断字段类型与基数；失败不阻断主流程）
+    // 用户显式 @提及 的表：只扫这些表（不受 6 表上限约束）；未提及：自动扫前 6 表
     let dataProfileText = ''
     try {
-      const profiles = await scanAllDataProfiles(connectionId, 6)
-      dataProfileText = buildDataProfileText(profiles)
+      const tables = Array.isArray(referencedTables)
+        ? referencedTables.filter((t: unknown): t is string => typeof t === 'string' && t.length > 0)
+        : []
+      if (tables.length > 0) {
+        const profiles = await Promise.all(
+          tables.map((name) => scanDataProfile(connectionId, name).catch(() => null))
+        )
+        dataProfileText = buildDataProfileText(profiles.filter((p): p is NonNullable<typeof p> => p !== null))
+      } else {
+        const profiles = await scanAllDataProfiles(connectionId, 6)
+        dataProfileText = buildDataProfileText(profiles)
+      }
     } catch {
       dataProfileText = ''
     }

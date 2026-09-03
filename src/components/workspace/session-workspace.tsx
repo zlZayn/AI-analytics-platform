@@ -11,7 +11,6 @@
 import { useEffect, useMemo, useState } from "react"
 import dynamic from "next/dynamic"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
 import { SessionView } from "@/components/SessionView"
 import type { InsightItem } from "@/components/insight-card"
 import { AiVisibilityHint } from "@/components/ai-visibility-hint"
@@ -22,6 +21,8 @@ import type { ApiResponse, SchemaData } from "@/types"
 import type { CompiledSql, ConversationMessage, SemanticDataset } from "@/types/session"
 import type { ChartMapping } from "@/components/chart"
 import { Play, Loader2, Send } from "lucide-react"
+import { AiMentionInput } from "@/components/ai-mention-input"
+import { extractMentions } from "@/lib/mention"
 
 // 本地 monaco（loader.config 副作用：不从 CDN 拉引擎）
 import "@/lib/monaco-setup"
@@ -103,7 +104,13 @@ export function SessionWorkspace({ connectionId, initialSql }: SessionWorkspaceP
       const data = await fetchApi<ApiResponse<{ items: InsightItem[] }>>("/api/ai", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ connectionId, message: msg, conversationHistory: history }),
+        body: JSON.stringify({
+          connectionId,
+          message: msg,
+          conversationHistory: history,
+          // @提及的表作为显式上下文：只扫这些表的数据轮廓
+          referencedTables: extractMentions(msg),
+        }),
       })
       if (!data.success) {
         throw new Error(data.error.message || "AI 分析失败")
@@ -275,13 +282,13 @@ export function SessionWorkspace({ connectionId, initialSql }: SessionWorkspaceP
             )}
           </div>
           <div className="p-2 border-t flex gap-1.5">
-            <Input
+            <AiMentionInput
               value={aiInput}
-              onChange={(e) => setAiInput(e.target.value)}
-              placeholder="描述你想分析的内容，如：给我一些数据洞察"
+              onChange={setAiInput}
+              onSend={sendAi}
               disabled={aiLoading}
-              className="h-7 text-xs"
-              onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && (e.preventDefault(), sendAi())}
+              placeholder="输入 @ 选表，如：对比 @orders 与 @customers 的销售趋势"
+              schema={schema}
             />
             <Button size="sm" onClick={sendAi} disabled={aiLoading || !aiInput.trim()} className="h-7 w-7 p-0">
               <Send className="w-3 h-3" />

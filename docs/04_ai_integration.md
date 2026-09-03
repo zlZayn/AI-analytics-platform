@@ -12,6 +12,14 @@ AI 提示词注入内容即 AI 可见范围；工作台 AI 助手面板顶部有
 - 不可见：查询结果数据行、连接密码、连接串、平台账号等敏感信息
 - 注入实现：`buildSystemPrompt(schemaContext, dataProfileText)`（见 [ai-contract.ts](../src/lib/ai-contract.ts)）
 
+## 显式表注入（@ 提及）
+
+工作台 AI 输入支持 `@表名` 语法（`AiMentionInput`：输入 @ 弹表选择，键盘/鼠标选）。提交时 `referencedTables` 随请求体传给 `/api/ai`：
+
+- 有 `referencedTables`：只扫描这些表的数据轮廓（数量不受自动上限约束），失败的表静默跳过
+- 无 `referencedTables`：回退自动扫描前 6 表
+- 图表类型与映射契约始终内置在系统提示词中，不随提及变化
+
 ## 输出契约（双变体）
 
 AI 每项输出 `title`、`insight`、`querySpec` + `displayConfig`，或 `sql` + `chart`：

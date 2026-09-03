@@ -33,6 +33,13 @@ The AI answers only from the connected database's **table structure** and **data
 
 The AI assistant panel in the workbench shows a "AI visible scope" hint at the top; click to expand details.
 
+## Specify Tables with @
+
+Type `@` to open a table picker (arrow keys/Enter or mouse). Picked tables are injected as explicit context — the AI profiles only those tables, not limited by the automatic cap. Without `@`, the AI auto-profiles the first 6 tables. Chart-type and mapping contracts are always included. Examples:
+
+- `compare @orders vs @customers monthly sales` — analyze only these two tables
+- `analyze @sales_2026` — a single table
+
 ## Quick Start (Windows)
 
 1. Double-click **`Start Dev.cmd`** — dependencies, env, and Prisma client are checked automatically; starts directly when the build is up-to-date and opens the browser

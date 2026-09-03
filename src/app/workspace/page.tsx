@@ -103,7 +103,12 @@ function WorkspaceContent({ connectionId, initialSql }: { connectionId: string |
       const data = await fetchApi<ApiResponse<{ items: InsightItem[] }>>("/api/ai", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ connectionId, message: msg }),
+        body: JSON.stringify({
+          connectionId,
+          message: msg,
+          // @提及的表作为显式上下文（手动语法：@表名）
+          referencedTables: msg.match(/@([A-Za-z_][A-Za-z0-9_.]*)/g)?.map((m) => m.slice(1)) ?? [],
+        }),
         signal: controller.signal,
       })
       if (data.success && aiController.current === controller) {
