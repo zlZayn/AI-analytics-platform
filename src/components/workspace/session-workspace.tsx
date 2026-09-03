@@ -24,8 +24,8 @@ import { Play, Loader2, Send, Save } from "lucide-react"
 import { AiMentionInput } from "@/components/ai-mention-input"
 import { extractMentions } from "@/lib/mention"
 
-// 本地 monaco（loader.config 副作用：不从 CDN 拉引擎）
-import "@/lib/monaco-setup"
+// 本地 monaco（惰性配置：SSR 安全，配置完成前编辑器渲染占位）
+import { configureMonaco } from "@/lib/monaco-setup"
 
 const MonacoEditor = dynamic(() => import("@monaco-editor/react"), {
   ssr: false,
@@ -49,7 +49,19 @@ export function SessionWorkspace({ connectionId, initialSql }: SessionWorkspaceP
   const [aiUnavailable, setAiUnavailable] = useState(false)
   const [saveDialogOpen, setSaveDialogOpen] = useState(false)
   const [saveName, setSaveName] = useState("")
+  const [monacoReady, setMonacoReady] = useState(false)
   const { toast } = useToast()
+
+  // 配置本地 monaco（幂等；客户端首帧后异步完成，避免 loader.init 回退 CDN）
+  useEffect(() => {
+    let alive = true
+    void configureMonaco().then(() => {
+      if (alive) setMonacoReady(true)
+    })
+    return () => {
+      alive = false
+    }
+  }, [])
 
   // 加载 Schema：供 schema-based 校验与 querySpec 编译使用（异步到达时由 useSession 的 ref 接管）
   useEffect(() => {
@@ -240,22 +252,26 @@ export function SessionWorkspace({ connectionId, initialSql }: SessionWorkspaceP
           </div>
         </div>
         <div className="flex-1 border rounded-lg overflow-hidden min-h-0">
-          <MonacoEditor
-            height="100%"
-            language="sql"
-            theme="vs-light"
-            value={sqlDraft}
-            onChange={(v) => setSqlDraft(v || "")}
-            options={{
-              minimap: { enabled: false },
-              fontSize: 13,
-              lineNumbers: "on",
-              scrollBeyondLastLine: false,
-              wordWrap: "on",
-              padding: { top: 8, bottom: 8 },
-              tabSize: 2,
-            }}
-          />
+          {monacoReady ? (
+            <MonacoEditor
+              height="100%"
+              language="sql"
+              theme="vs-light"
+              value={sqlDraft}
+              onChange={(v) => setSqlDraft(v || "")}
+              options={{
+                minimap: { enabled: false },
+                fontSize: 13,
+                lineNumbers: "on",
+                scrollBeyondLastLine: false,
+                wordWrap: "on",
+                padding: { top: 8, bottom: 8 },
+                tabSize: 2,
+              }}
+            />
+          ) : (
+            <div className="h-full bg-[var(--muted)] animate-pulse rounded-lg" />
+          )}
         </div>
         {error && (
           <div className="rounded border border-[var(--destructive-border)] bg-[var(--destructive-surface)] p-2 font-mono text-xs text-[var(--destructive)]">{error}</div>

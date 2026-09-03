@@ -4,9 +4,6 @@ import { Suspense } from "react"
 import { useSearchParams } from "next/navigation"
 import { SessionWorkspace } from "@/components/workspace/session-workspace"
 
-// 本地 monaco（loader.config 副作用：不从 CDN 拉引擎）
-import "@/lib/monaco-setup"
-
 function WorkspaceRoute() {
   const searchParams = useSearchParams()
   const connectionId = searchParams.get("connection")
