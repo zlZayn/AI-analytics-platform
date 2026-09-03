@@ -22,8 +22,11 @@ export interface UseWebRReturn {
   destroy: () => void
 }
 
-// 模块级单例：页面生命周期内一个 WebRClient 实例
-// （WebR 目标是单实例；模块级持有避免渲染期 ref 初始化被 lint 规则禁止）
+// 模块级单例：页面生命周期内一个 WebRClient 实例。
+// - 跨组件共享：ensurePackages 去重、output/images、busy 对所有订阅者一致
+// - 只构造状态对象（不 new WebR()、不碰 window），SSR 执行无害
+// - destroy() 是全局性的：清实例+包缓存，影响所有订阅者；工作台关闭不调它（仅隐藏）
+// - dev HMR 会重建单例（仅 dev 瑕疵；页面刷新即恢复）
 const clientSingleton = new WebRClient()
 
 /**
