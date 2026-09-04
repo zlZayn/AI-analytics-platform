@@ -69,6 +69,25 @@ def fulfill_schema(route: Route) -> None:
     }))
 
 
+def fulfill_preview(route: Route) -> None:
+    route.fulfill(json=envelope({
+        "columns": [
+            {"name": "day", "type": "date"},
+            {"name": "region", "type": "varchar"},
+            {"name": "sales", "type": "numeric"},
+        ],
+        "rows": [
+            {"day": "2026-01-01", "region": "华东", "sales": 10},
+            {"day": "2026-01-02", "region": "华南", "sales": 14},
+        ],
+        "rowCount": 2,
+        "returnedRowCount": 2,
+        "truncated": False,
+        "rowLimit": 100,
+        "executionTimeMs": 3,
+    }))
+
+
 def fulfill_ai(route: Route) -> None:
     route.fulfill(json=envelope({
         "items": [
@@ -103,23 +122,24 @@ def main() -> None:
         page.on("requestfailed", lambda request: webr_aborted.append(request.url) if "webr.r-wasm.org" in request.url else None)
         page.route("**/api/connections/test", fulfill_connection)
         page.route("**/api/query", fulfill_query)
+        page.route("**/api/query/preview", fulfill_preview)
         page.route("**/api/schema/test*", fulfill_schema)
         page.route("**/api/ai", fulfill_ai)
         # R 工作台：mock 掉 WebR CDN，制造确定性初始化失败（P1-5b 回归断言，不依赖真实网络）
         page.route("**webr.r-wasm.org**", lambda route: route.abort())
-        page.goto(f"{BASE_URL}/workspace?connection=test&sql=SELECT%201", wait_until="networkidle")
 
-        execute_button = page.get_by_role("button", name="执行", exact=True)
-        execute_button.wait_for(state="visible")
-        page.wait_for_function("button => !button.disabled", arg=execute_button.element_handle())
-        try:
-            with page.expect_request("**/api/query"):
-                execute_button.click()
-            page.get_by_test_id("chart-surface").wait_for(state="visible")
-        except Exception as error:
-            page.screenshot(path=str(OUTPUT_DIR / "workspace-failure.png"), full_page=True)
-            body = page.locator("body").inner_text()[:1500]
-            raise AssertionError(f"query result did not render: {error}; body={body}") from error
+        # 真实用户路径：数据探索 →「在工作台执行」→ 跳转 + SQL 填充 + 自动执行（无需手动点执行）
+        page.goto(f"{BASE_URL}/explorer?connection=test", wait_until="networkidle")
+        page.get_by_role("button", name="orders", exact=True).click()
+        page.get_by_role("button", name="在工作台执行", exact=True).wait_for(state="visible")
+        with page.expect_request("**/api/query"):
+            page.get_by_role("button", name="在工作台执行", exact=True).click()
+        page.wait_for_url("**/workspace**", timeout=15000)
+        page.get_by_test_id("chart-surface").wait_for(state="visible", timeout=20000)
+        page.wait_for_function(
+            "() => (document.querySelector('.monaco-editor .view-lines')?.textContent.replace(/\\u00a0/g, ' ') || '').includes('FROM orders')",
+            timeout=20000,
+        )
         page.get_by_text("4 行", exact=False).first.wait_for()
 
         chart_labels = ["表格", "指标卡", "直方图", "折线图", "柱状图", "饼图", "散点图", "箱线图", "热力图", "相关矩阵"]
