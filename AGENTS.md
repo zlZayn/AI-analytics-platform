@@ -33,7 +33,8 @@ This version has breaking changes — APIs, conventions, and file structure may 
 - `.next` 缓存 dev/prod 混用会致 build 失败（清 `.next` 再 build）；**Geist 字体已自托管（`src/app/fonts/`），构建/开发不联网**
 - 浏览器烟测/E2E 需本地 chromium（Playwright），CI 不跑浏览器脚本
 - 入口脚本 `Start Dev.cmd`/`Build.cmd` 有构建新鲜度检查（对比 `src`/`prisma` 排除 `generated` 与 `.next\BUILD_ID`），见 [README.md](README.md)
-- **`next start`（Start Dev 生产模式）跑旧构建产物**：git pull 新代码后必须重建（Start Dev 询问时选"是"/F），否则改动不生效；排查"改了什么没变化"先验 `.next` 是否含新内容
+- **`next start`（Start Dev 生产模式）跑旧构建产物**：git pull 新代码后必须重建（Start Dev 询问时选"是"/F）；构建后脚本会结束旧 PID 再启动新实例，排查"改了什么没变化"先验 `.next` 是否含新内容
+- `Start Dev.cmd` 的 `if (...)` 代码块内日志文本不得使用未转义圆括号，避免 CMD 报 `was unexpected at this time` 并闪退
 - sidebar 版本徽标读 `NEXT_PUBLIC_APP_VERSION`（next.config.ts 从 package.json 注入）；bump 用 `node scripts/bump-version.mjs X.Y.Z`（只改一行），**改后必须重建才生效**；烟测脚本按 package.json 版本断言它；每次发版必维护项见 [docs/maintenance-checklist.md](docs/maintenance-checklist.md)
 - Monaco 已本地托管（`src/lib/monaco-setup.ts` 的惰性 `configureMonaco`：SSR 安全，配置完成前渲染占位避免 loader.init 回退 CDN）；`@monaco-editor/react` 默认从 CDN 拉引擎，新编辑器接入点必须「先 `await configureMonaco()` 再渲染编辑器」，顶层 `import "@/lib/monaco-setup"` 会在 SSR 评估 monaco-editor 而 window 崩（曾致 workspace 整页不可交互）
 - R 分析工作台（WebR 0.6）：COI 头已配置（COOP/COEP）；R.wasm（12.3MB）与 R 包从 `webr.r-wasm.org` CDN 按需加载，离线不可用；包下载后会话内缓存（模块级单例），刷新页面需重下

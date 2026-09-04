@@ -108,7 +108,7 @@ set "SRV_PID="
 for /f "tokens=5" %%p in ('netstat -ano ^| findstr ":%PORT%" ^| findstr "LISTENING"') do set "SRV_PID=%%p"
 if defined SRV_PID (
     if "%RESTART_AFTER_BUILD%"=="1" (
-        echo %C_INFO%[INFO]%C_RST% Detected old server after build (PID !SRV_PID!), restarting...
+        echo %C_INFO%[INFO]%C_RST% Detected old server after build, restarting PID !SRV_PID!...
         taskkill /PID !SRV_PID! /F >nul 2>&1
         timeout /t 1 /nobreak >nul
         set "SRV_PID="

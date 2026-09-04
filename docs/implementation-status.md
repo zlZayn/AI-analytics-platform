@@ -10,6 +10,7 @@
 - `/explorer` 与 `/queries` 共用 `buildWorkspaceUrl`，统一参数编码和缺失参数处理
 - 工作台初始 SQL 执行具备 React Strict Mode 幂等保护；执行状态和错误提示可见
 - 工作台窄屏布局改为纵向滚动，SQL、AI、结果区保持稳定最小高度
+- 启动脚本重启分支的日志文本已移除未转义圆括号，双击入口不再因 CMD 代码块解析错误退出
 
 ## Git 状态
 
