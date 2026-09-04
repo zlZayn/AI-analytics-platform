@@ -107,6 +107,16 @@ export function SessionWorkspace({ connectionId, initialSql }: SessionWorkspaceP
     executeCompiled,
   })
 
+  // 自动执行：从 /explorer「在工作台执行」/ /queries「执行」带 ?sql= 跳转到达时，
+  // 填写编辑器并直接执行，无需用户手动点「执行」（workspace key 含 initialSql，变化即重挂载）
+  useEffect(() => {
+    const sql = initialSql.trim()
+    if (!sql || !connectionId) return
+    dispatch({ type: "UPDATE_DISPLAY_CONFIG", displayConfig: { chartType: "table", mapping: { chartType: "table" } } })
+    dispatch({ type: "SET_COMPILED_SQL", compiledSql: { sql, params: [] } })
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- mount 时按初始 SQL 自动执行一次
+  }, [])
+
   const { status, compiledSql, displayConfig, conversationHistory, error, title, insight } = session
   const busy = status === "compiling" || status === "executing"
 
