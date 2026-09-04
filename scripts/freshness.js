@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-require-imports */
 // 构建新鲜度检测：源码（src/prisma，排除 generated + 配置文件）最新 mtime 对比 .next\BUILD_ID。
 // 输出（stdout 纯文本，无换行）：OK | STALE | NOT_BUILT
 // 供 Start Dev.cmd / Build.cmd 调用：for /f "usebackq delims=" %%s in (`node scripts\freshness.js`) do set "BUILD_STATE=%%s"

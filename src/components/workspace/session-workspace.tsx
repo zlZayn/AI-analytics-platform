@@ -5,7 +5,7 @@
 // 所有用户操作 → dispatch(SessionAction)；查询的编译与执行由 useSession 的三个副作用驱动。
 // AI 双变体：querySpec 优先（编译管线），缺失时 sql 直通（SET_COMPILED_SQL）。
 
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import dynamic from "next/dynamic"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -41,6 +41,21 @@ function assistantMessage(content: string): ConversationMessage {
   return { role: "assistant", content, createdAt: new Date() }
 }
 
+function statusLabel(status: string): string {
+  switch (status) {
+    case "compiling":
+      return "准备查询"
+    case "executing":
+      return "执行中"
+    case "ready":
+      return "已完成"
+    case "error":
+      return "执行失败"
+    default:
+      return "等待执行"
+  }
+}
+
 export function SessionWorkspace({ connectionId, initialSql }: SessionWorkspaceProps) {
   const [schema, setSchema] = useState<SchemaData | null>(null)
   const [sqlDraft, setSqlDraft] = useState(initialSql)
@@ -53,6 +68,7 @@ export function SessionWorkspace({ connectionId, initialSql }: SessionWorkspaceP
   // AI 多洞察：会话外临时状态（同 RWorkbench 开关哲学，不进 AnalysisSession）
   const [insightItems, setInsightItems] = useState<InsightItem[]>([])
   const [executingInsight, setExecutingInsight] = useState<number | null>(null)
+  const initialSqlApplied = useRef(false)
   // 结果区当前 Tab（受控）：新洞察到达切「洞察」（结论前置），执行卡片切「探索」
   const [resultTab, setResultTab] = useState("explore")
   const { toast } = useToast()
@@ -111,7 +127,8 @@ export function SessionWorkspace({ connectionId, initialSql }: SessionWorkspaceP
   // 填写编辑器并直接执行，无需用户手动点「执行」（workspace key 含 initialSql，变化即重挂载）
   useEffect(() => {
     const sql = initialSql.trim()
-    if (!sql || !connectionId) return
+    if (initialSqlApplied.current || !sql || !connectionId) return
+    initialSqlApplied.current = true
     dispatch({ type: "UPDATE_DISPLAY_CONFIG", displayConfig: { chartType: "table", mapping: { chartType: "table" } } })
     dispatch({ type: "SET_COMPILED_SQL", compiledSql: { sql, params: [] } })
     // eslint-disable-next-line react-hooks/exhaustive-deps -- mount 时按初始 SQL 自动执行一次
@@ -253,7 +270,7 @@ export function SessionWorkspace({ connectionId, initialSql }: SessionWorkspaceP
   }
 
   return (
-    <div className="flex h-full min-h-0 flex-col overflow-hidden p-3 sm:p-4">
+    <div className="flex h-full min-h-0 flex-col overflow-y-auto p-3 sm:p-4 lg:overflow-hidden">
       {/* 顶部：标题 + 洞察 + 状态 */}
       <div className="flex items-start justify-between gap-3 px-1 pb-3">
         <div className="min-w-0">
@@ -261,6 +278,7 @@ export function SessionWorkspace({ connectionId, initialSql }: SessionWorkspaceP
           {insight && <p className="text-xs text-[var(--muted-foreground)] mt-0.5 line-clamp-2">{insight}</p>}
         </div>
         <span
+          aria-live="polite"
           className={`shrink-0 rounded px-2 py-0.5 text-[10px] font-mono ${
             status === "error"
               ? "bg-[var(--destructive-surface)] text-[var(--destructive)]"
@@ -271,12 +289,12 @@ export function SessionWorkspace({ connectionId, initialSql }: SessionWorkspaceP
                   : "bg-[var(--muted)] text-[var(--muted-foreground)]"
           }`}
         >
-          {status}
+          {statusLabel(status)}
         </span>
       </div>
 
       {/* SQL 编辑器（草稿输入，执行时 dispatch SET_COMPILED_SQL） */}
-      <div className="flex h-48 min-h-0 flex-col gap-2">
+      <div className="flex h-48 shrink-0 min-h-0 flex-col gap-2 sm:h-56 lg:h-48">
         <div className="flex items-center justify-between">
           <span className="text-xs font-medium text-[var(--muted-foreground)]">SQL 编辑器</span>
           <div className="flex items-center gap-1.5">
@@ -289,7 +307,7 @@ export function SessionWorkspace({ connectionId, initialSql }: SessionWorkspaceP
             >
               <Save className="w-3.5 h-3.5" /> 保存
             </Button>
-            <Button size="sm" onClick={runSql} disabled={busy || !sqlDraft.trim()} className="gap-1 h-7 text-xs">
+            <Button size="sm" onClick={runSql} disabled={busy || !sqlDraft.trim()} aria-busy={busy} className="gap-1 h-7 text-xs">
               {busy ? <Loader2 className="w-3 h-3 animate-spin" /> : <Play className="w-3 h-3" />}
               {busy ? "执行中" : "执行"}
             </Button>
@@ -318,14 +336,14 @@ export function SessionWorkspace({ connectionId, initialSql }: SessionWorkspaceP
           )}
         </div>
         {error && (
-          <div className="rounded border border-[var(--destructive-border)] bg-[var(--destructive-surface)] p-2 font-mono text-xs text-[var(--destructive)]">{error}</div>
+          <div role="alert" className="rounded border border-[var(--destructive-border)] bg-[var(--destructive-surface)] p-2 font-mono text-xs text-[var(--destructive)]">{error}</div>
         )}
       </div>
 
       {/* 中间：AI 助手 + 结果 */}
-      <div className="flex min-h-0 flex-1 flex-col gap-3 pt-3 lg:flex-row">
+      <div className="flex min-h-0 flex-none flex-col gap-3 pt-3 lg:flex-1 lg:flex-row lg:overflow-hidden">
         {/* AI 助手 */}
-        <div className="flex min-h-[220px] min-w-0 flex-1 flex-col rounded-lg border lg:flex-[2]">
+        <div className="flex min-h-[260px] min-w-0 flex-1 flex-col rounded-lg border lg:min-h-0 lg:flex-[2]">
           <div className="px-3 py-2 border-b flex items-center justify-between">
             <span className="text-xs font-medium text-[var(--muted-foreground)]">AI 助手</span>
             {conversationHistory.length > 0 && (
@@ -395,7 +413,7 @@ export function SessionWorkspace({ connectionId, initialSql }: SessionWorkspaceP
         </div>
 
         {/* 结果（阶段四：SessionView 按状态渲染 loading / error / 图表，并展示警告与调整） */}
-        <div className="flex min-h-0 min-w-0 flex-1 flex-col lg:flex-[3]">
+        <div className="flex min-h-[360px] min-w-0 flex-1 flex-col lg:min-h-0 lg:flex-[3]">
           <SessionView
             session={session}
             onMappingChange={handleMappingChange}

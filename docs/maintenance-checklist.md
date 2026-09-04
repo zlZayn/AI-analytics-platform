@@ -18,13 +18,13 @@
 ## B. 发布/版本（每次发版）
 
 - [ ] **bump 版本**：`node scripts/bump-version.mjs X.Y.Z`（只改 package.json 的 version 一行；sidebar 徽标与烟测断言自动跟随）
-- [ ] **重建 + 重启**：版本号只在构建产物里生效——清 `.next` 后 `npm run build`（或 Start Dev.cmd 询问选"是"），然后**杀掉旧 next start 实例再启动新实例**（多实例堆叠会造成旧 manifest 混合态，页面功能随机失效）
+- [ ] **重建 + 重启**：版本号只在构建产物里生效——清 `.next` 后 `npm run build`（或 Start Dev.cmd 询问选"是"）；Start Dev.cmd 会在构建后自动结束占用端口的旧实例，再启动新实例
 - [ ] 浏览器验收（Ctrl+Shift+R 硬刷新避免旧 chunk 缓存）：徽标显示新版本号 + 核心路径走查（探索页「在工作台执行」→ 自动执行等）
 - [ ] 改 Prisma schema → **严禁 `npx prisma db push` / migrate**（DATABASE_URL 元库与业务表同库，会 DROP fact_*/dim_* 业务表）；对照 `information_schema.columns` 手写 `ALTER TABLE ... ADD COLUMN IF NOT EXISTS`（见 [AGENTS.md](../AGENTS.md) 活跃坑）
 
 ## C. 启动与收尾（每次会话）
 
-- [ ] 启动：`Start Dev.cmd` 自动做新鲜度检测（`node scripts/freshness.js`，OK/STALE/NOT_BUILT），STALE 时选"是"重建；**端口被占时它只打开浏览器**——若怀疑旧实例，先手动确认页面徽标版本号
+- [ ] 启动：`Start Dev.cmd` 自动做新鲜度检测（`node scripts/freshness.js`，OK/STALE/NOT_BUILT），STALE 时选"是"重建并重启旧实例；开发模式或未构建模式仍复用运行中的服务
 - [ ] 收尾提交：`git add -A` → 小提交（一个 commit 一件事）→ `git push` → `git status -sb` 确认本地=远程
 - [ ] 会话结束：AGENTS.md 会话内就地更新（验证快照/待办/活跃坑），滞后即技术债
 

@@ -16,7 +16,7 @@ This version has breaking changes — APIs, conventions, and file structure may 
 - `npm test` · `npm run typecheck` · `npm run lint` · `npm run dev`
 
 ## 验证快照（2026-09-03，main 分支）
-- vitest: 29 files / 181 passed / 0 failed
+- vitest: 32 files / 185 passed / 0 failed
 - typecheck / lint: 0 errors
 - 生产 build: passed（清 `.next` 后）；浏览器烟测/离线 E2E（含 R 工作台错误态 + AI 多洞察断言）: passed
 

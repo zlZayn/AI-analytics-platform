@@ -1,8 +1,15 @@
 # 实现状态与续作上下文
 
-更新时间：2026-09-03
+更新时间：2026-09-05
 
-当前产品版本：`1.24.0`
+当前产品版本：`1.25.0`
+
+## 已完成（工作台维护）
+
+- `Start Dev.cmd` 构建后自动结束占用端口的旧服务，避免复用旧 `.next` 产物
+- `/explorer` 与 `/queries` 共用 `buildWorkspaceUrl`，统一参数编码和缺失参数处理
+- 工作台初始 SQL 执行具备 React Strict Mode 幂等保护；执行状态和错误提示可见
+- 工作台窄屏布局改为纵向滚动，SQL、AI、结果区保持稳定最小高度
 
 ## Git 状态
 
@@ -43,7 +50,7 @@
 ## 自动验证（2026-09-03，无环境变量离线）
 
 ```text
-npm test                   28 files / 166 tests passed
+npm test                   32 files / 185 tests passed
 npm run typecheck          passed
 npm run lint               passed
 npm run build              passed (Next.js 16.2.9)

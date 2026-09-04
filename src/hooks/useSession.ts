@@ -31,6 +31,11 @@ export interface UseSessionResult {
   dispatch: SessionDispatch
 }
 
+/** React Strict Mode may replay an effect; execution is keyed by object identity. */
+export function shouldStartCompiledExecution(previous: CompiledSql | null, next: CompiledSql): boolean {
+  return previous !== next
+}
+
 export function useSession(options: UseSessionOptions): UseSessionResult {
   const { connectionId, schema, executeCompiled, initialSession, autoRun = true } = options
 
@@ -44,6 +49,7 @@ export function useSession(options: UseSessionOptions): UseSessionResult {
   const executeRef = useRef(executeCompiled)
   const connectionIdRef = useRef(connectionId)
   const compiledSpecRef = useRef<string | null>(null)
+  const startedCompiledRef = useRef<CompiledSql | null>(null)
 
   useEffect(() => {
     schemaRef.current = schema
@@ -78,6 +84,8 @@ export function useSession(options: UseSessionOptions): UseSessionResult {
   useEffect(() => {
     if (!autoRun) return
     if (!state.compiledSql) return
+    if (!shouldStartCompiledExecution(startedCompiledRef.current, state.compiledSql)) return
+    startedCompiledRef.current = state.compiledSql
     const connectionId = connectionIdRef.current
     if (!connectionId) {
       dispatch({ type: "EXECUTE_ERROR", error: "未选择数据库连接" })

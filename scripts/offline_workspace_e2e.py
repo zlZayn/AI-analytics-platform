@@ -1,5 +1,6 @@
 import os
 from pathlib import Path
+from urllib.parse import parse_qs, urlparse
 
 from playwright.sync_api import Route, sync_playwright
 
@@ -116,8 +117,10 @@ def main() -> None:
         page = browser.new_page(viewport={"width": 1440, "height": 1000})
         errors: list[str] = []
         webr_aborted: list[str] = []
+        query_requests: list[str] = []
         page.on("pageerror", lambda error: errors.append(str(error)))
         page.on("console", lambda message: errors.append(message.text) if message.type == "error" else None)
+        page.on("request", lambda request: query_requests.append(request.url) if request.method == "POST" and request.url.endswith("/api/query") else None)
         # 记录被故意 abort 的 WebR CDN 请求：对应 console 的 "Failed to load resource" 属预期内
         page.on("requestfailed", lambda request: webr_aborted.append(request.url) if "webr.r-wasm.org" in request.url else None)
         page.route("**/api/connections/test", fulfill_connection)
@@ -136,6 +139,11 @@ def main() -> None:
             page.get_by_role("button", name="在工作台执行", exact=True).click()
         page.wait_for_url("**/workspace**", timeout=15000)
         page.get_by_test_id("chart-surface").wait_for(state="visible", timeout=20000)
+        if len(query_requests) != 1:
+            raise AssertionError(f"expected exactly one initial query request, got {len(query_requests)}")
+        params = parse_qs(urlparse(page.url).query)
+        if params.get("sql") != ["SELECT * FROM orders LIMIT 200"]:
+            raise AssertionError(f"workspace URL lost SQL: {page.url}")
         page.wait_for_function(
             "() => (document.querySelector('.monaco-editor .view-lines')?.textContent.replace(/\\u00a0/g, ' ') || '').includes('FROM orders')",
             timeout=20000,
@@ -187,6 +195,11 @@ def main() -> None:
         page.screenshot(path=str(OUTPUT_DIR / "insights-tab.png"), full_page=True)
 
         page.screenshot(path=str(OUTPUT_DIR / "workspace-all-charts.png"), full_page=True)
+        page.set_viewport_size({"width": 360, "height": 800})
+        page.wait_for_timeout(250)
+        if page.evaluate("document.documentElement.scrollWidth > document.documentElement.clientWidth"):
+            raise AssertionError("workspace has horizontal overflow at 360px")
+        page.screenshot(path=str(OUTPUT_DIR / "workspace-mobile.png"), full_page=True)
         # WebR CDN 被故意 abort 产生的资源加载错误属预期内，其余报错才算失败
         unexpected = [e for e in errors if not (e == "Failed to load resource: net::ERR_FAILED" and webr_aborted)]
         if unexpected:

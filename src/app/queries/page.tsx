@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useToast } from "@/components/toast"
 import { ApiRequestError, fetchApi } from "@/lib/client-api"
+import { buildWorkspaceUrl } from "@/lib/workspace-navigation"
 import type { ApiResponse, QueryHistoryItem, SavedQuery } from "@/types"
 import { Play, Trash2, Copy, Search, Bookmark, Clock } from "lucide-react"
 
@@ -47,7 +48,8 @@ export default function QueriesPage() {
   }, [connectionId])
 
   function goToWorkspace(sql: string) {
-    router.push(`/workspace?connection=${connectionId}&sql=${encodeURIComponent(sql)}`)
+    const url = buildWorkspaceUrl(connectionId, sql)
+    if (url) router.push(url)
   }
 
   async function deleteSaved(id: string) {

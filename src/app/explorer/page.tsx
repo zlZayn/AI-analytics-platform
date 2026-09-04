@@ -9,6 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Search, RefreshCw, Key, Link2, Eye, Play, Database } from "lucide-react"
 import type { ApiResponse, QueryResult, SchemaTable, SchemaData } from "@/types"
 import { ApiRequestError, fetchApi } from "@/lib/client-api"
+import { buildWorkspaceUrl } from "@/lib/workspace-navigation"
 
 export default function ExplorerPage() {
   const searchParams = useSearchParams()
@@ -153,7 +154,8 @@ export default function ExplorerPage() {
                   className="h-6 text-[10px] gap-1"
                   onClick={() => {
                     const sql = `SELECT * FROM ${selected.name} LIMIT 200`
-                    router.push(`/workspace?connection=${connectionId}&sql=${encodeURIComponent(sql)}`)
+                    const url = buildWorkspaceUrl(connectionId, sql)
+                    if (url) router.push(url)
                   }}
                 >
                   <Play className="w-2.5 h-2.5" /> 在工作台执行
