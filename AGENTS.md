@@ -34,7 +34,7 @@ This version has breaking changes — APIs, conventions, and file structure may 
 - 浏览器烟测/E2E 需本地 chromium（Playwright），CI 不跑浏览器脚本
 - 入口脚本 `Start Dev.cmd`/`Build.cmd` 有构建新鲜度检查（对比 `src`/`prisma` 排除 `generated` 与 `.next\BUILD_ID`），见 [README.md](README.md)
 - **`next start`（Start Dev 生产模式）跑旧构建产物**：git pull 新代码后必须重建（Start Dev 询问时选"是"/F），否则改动不生效；排查"改了什么没变化"先验 `.next` 是否含新内容
-- sidebar 版本徽标读 `NEXT_PUBLIC_APP_VERSION`（未配置时隐藏）；烟测脚本按 package.json 版本断言它
+- sidebar 版本徽标读 `NEXT_PUBLIC_APP_VERSION`（next.config.ts 从 package.json 注入）；bump 用 `node scripts/bump-version.mjs X.Y.Z`（只改一行），**改后必须重建才生效**；烟测脚本按 package.json 版本断言它；每次发版必维护项见 [docs/maintenance-checklist.md](docs/maintenance-checklist.md)
 - Monaco 已本地托管（`src/lib/monaco-setup.ts` 的惰性 `configureMonaco`：SSR 安全，配置完成前渲染占位避免 loader.init 回退 CDN）；`@monaco-editor/react` 默认从 CDN 拉引擎，新编辑器接入点必须「先 `await configureMonaco()` 再渲染编辑器」，顶层 `import "@/lib/monaco-setup"` 会在 SSR 评估 monaco-editor 而 window 崩（曾致 workspace 整页不可交互）
 - R 分析工作台（WebR 0.6）：COI 头已配置（COOP/COEP）；R.wasm（12.3MB）与 R 包从 `webr.r-wasm.org` CDN 按需加载，离线不可用；包下载后会话内缓存（模块级单例），刷新页面需重下
 - E2E 脚本 mock 路由必须与 API 路由同步：新增/修改 app 路由时同步更新 `scripts/offline_workspace_e2e.py` 的 `page.route`
@@ -43,5 +43,6 @@ This version has breaking changes — APIs, conventions, and file structure may 
 ## 文档地图
 - 用途与用法：[README.md](README.md)
 - 实现状态：[docs/implementation-status.md](docs/implementation-status.md)
+- 发布与维护清单（每次改动/发版必维护项）：[docs/maintenance-checklist.md](docs/maintenance-checklist.md)
 - 人工验收：[docs/manual-acceptance.md](docs/manual-acceptance.md)
 - 测试说明：[docs/testing.md](docs/testing.md)
