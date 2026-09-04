@@ -8,6 +8,7 @@ set "TMPFILE=%TEMP%\aiap_http_%PORT%.txt"
 set "SERVER_LOG=%TEMP%\aiap_server_%PORT%.log"
 set "BUILDSTATE=%TEMP%\aiap_buildstate_%PORT%.txt"
 set "MODE=start"
+set "RESTART_AFTER_BUILD=0"
 
 REM ---- ANSI 彩色（成功绿 / 失败红 / 警告琥珀 / 信息蓝 / 次要灰）----
 set "ESC="
@@ -106,6 +107,13 @@ REM ============================================================
 set "SRV_PID="
 for /f "tokens=5" %%p in ('netstat -ano ^| findstr ":%PORT%" ^| findstr "LISTENING"') do set "SRV_PID=%%p"
 if defined SRV_PID (
+    if "%RESTART_AFTER_BUILD%"=="1" (
+        echo %C_INFO%[INFO]%C_RST% Detected old server after build (PID !SRV_PID!), restarting...
+        taskkill /PID !SRV_PID! /F >nul 2>&1
+        timeout /t 1 /nobreak >nul
+        set "SRV_PID="
+        goto check_running
+    )
     echo %C_OK%[OK]%C_RST% 服务已在运行（PID !SRV_PID!），直接打开浏览器
     start "" "%URL%"
     exit /b 0
@@ -143,6 +151,7 @@ if /i "!QUIT!"=="Q" (
 exit /b 0
 
 :build
+set "RESTART_AFTER_BUILD=1"
 echo %C_INFO%[INFO]%C_RST% 正在构建（本机字体自托管，无需联网）...
 call npm run build
 if errorlevel 1 (

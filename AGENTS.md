@@ -41,6 +41,7 @@ This version has breaking changes — APIs, conventions, and file structure may 
 - **平台 DATABASE_URL 元库与业务数据同库**：`npx prisma db push` 会 DROP schema 未定义的表（fact_*/dim_* 业务表，曾有 25285 行险遭删除）——schema 演进必须手写 `ALTER TABLE ... ADD COLUMN IF NOT EXISTS`（对照 information_schema 定向补列，如 2026-09-04 为 query_history 补 error_code），严禁 db push / --accept-data-loss / migrate
 
 ## 文档地图
+- 本轮维护设计：[2026-09-04-workbench-maintenance-design.md](docs/superpowers/specs/2026-09-04-workbench-maintenance-design.md)
 - 用途与用法：[README.md](README.md)
 - 实现状态：[docs/implementation-status.md](docs/implementation-status.md)
 - 发布与维护清单（每次改动/发版必维护项）：[docs/maintenance-checklist.md](docs/maintenance-checklist.md)
