@@ -38,6 +38,7 @@ This version has breaking changes — APIs, conventions, and file structure may 
 - Monaco 已本地托管（`src/lib/monaco-setup.ts` 的惰性 `configureMonaco`：SSR 安全，配置完成前渲染占位避免 loader.init 回退 CDN）；`@monaco-editor/react` 默认从 CDN 拉引擎，新编辑器接入点必须「先 `await configureMonaco()` 再渲染编辑器」，顶层 `import "@/lib/monaco-setup"` 会在 SSR 评估 monaco-editor 而 window 崩（曾致 workspace 整页不可交互）
 - R 分析工作台（WebR 0.6）：COI 头已配置（COOP/COEP）；R.wasm（12.3MB）与 R 包从 `webr.r-wasm.org` CDN 按需加载，离线不可用；包下载后会话内缓存（模块级单例），刷新页面需重下
 - E2E 脚本 mock 路由必须与 API 路由同步：新增/修改 app 路由时同步更新 `scripts/offline_workspace_e2e.py` 的 `page.route`
+- **平台 DATABASE_URL 元库与业务数据同库**：`npx prisma db push` 会 DROP schema 未定义的表（fact_*/dim_* 业务表，曾有 25285 行险遭删除）——schema 演进必须手写 `ALTER TABLE ... ADD COLUMN IF NOT EXISTS`（对照 information_schema 定向补列，如 2026-09-04 为 query_history 补 error_code），严禁 db push / --accept-data-loss / migrate
 
 ## 文档地图
 - 用途与用法：[README.md](README.md)
