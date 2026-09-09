@@ -14,11 +14,13 @@ interface Props {
   /** 受控模式：由父组件持有 mapping，变化时通过 onMappingChange 回传 */
   mapping?: ChartMapping
   onMappingChange?: (mapping: ChartMapping) => void
+  /** SessionView 已提供外层结果容器时，避免重复边框。 */
+  embedded?: boolean
 }
 
 const DEFAULT_MAPPING: ChartMapping = { chartType: "table" }
 
-export function ResultPanel({ result, onCopySql, initialMapping, mapping: controlledMapping, onMappingChange }: Props) {
+export function ResultPanel({ result, onCopySql, initialMapping, mapping: controlledMapping, onMappingChange, embedded = false }: Props) {
   const initial = initialMapping || DEFAULT_MAPPING
   const [chartState, setChartState] = useState<{ result: QueryResult; initial: ChartMapping; mapping: ChartMapping }>({
     result,
@@ -48,7 +50,7 @@ export function ResultPanel({ result, onCopySql, initialMapping, mapping: contro
   }
 
   return (
-    <div className="border rounded-lg overflow-hidden">
+    <div className={`${embedded ? "overflow-hidden" : "rounded-lg border overflow-hidden"}`}>
       {/* Status bar */}
       <div className="flex items-center justify-between px-3 py-1.5 bg-[var(--muted)]">
         <div className="flex items-center gap-3 text-[11px] text-[var(--muted-foreground)] font-mono">

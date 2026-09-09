@@ -1,14 +1,16 @@
+import json
 import os
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
-from playwright.sync_api import Route, sync_playwright
+from playwright.sync_api import Page, Request, Route, sync_playwright
 
 
 # 用 localhost 而非 127.0.0.1：Next.js 16 dev 拒绝跨来源 dev 资源（webpack-hmr），
 # 127.0.0.1 访问会导致客户端永不挂载（见根 AGENTS.md 活跃坑）
 BASE_URL = os.environ.get("BASE_URL", "http://localhost:4321")
 OUTPUT_DIR = Path(__file__).resolve().parents[1] / ".artifacts" / "offline-e2e"
+EXPECTED_WORKSPACE_SQL = "SELECT * FROM orders LIMIT 200"
 
 
 def envelope(data: object) -> dict[str, object]:
@@ -110,6 +112,66 @@ def fulfill_ai(route: Route) -> None:
     }))
 
 
+def fulfill_saved_queries(route: Route) -> None:
+    route.fulfill(json=envelope([]))
+
+
+def fulfill_query_history(route: Route) -> None:
+    route.fulfill(json=envelope([
+        {
+            "id": "history-1",
+            "sql": EXPECTED_WORKSPACE_SQL,
+            "rowCount": 4,
+            "executionTimeMs": 7,
+            "status": "success",
+            "errorCode": None,
+            "createdAt": "2026-01-01T00:00:00Z",
+        }
+    ]))
+
+
+def record_query_request(request: Request, query_requests: list[str]) -> None:
+    if request.method == "POST" and urlparse(request.url).path == "/api/query":
+        query_requests.append(request.post_data or "")
+
+
+def assert_monaco_sql(page: Page, expected_sql: str) -> None:
+    page.wait_for_function(
+        """expectedSql => {
+            const sql = document.querySelector('.monaco-editor .view-lines')?.textContent
+                ?.replace(/\\u00a0/g, ' ') ?? ''
+            return sql.includes(expectedSql)
+        }""",
+        arg=expected_sql,
+        timeout=20_000,
+    )
+
+
+def assert_workspace_payload(
+    page: Page,
+    query_requests: list[str],
+    request_count_before: int,
+    expected_sql: str = EXPECTED_WORKSPACE_SQL,
+) -> None:
+    page.wait_for_url("**/workspace**", timeout=15_000)
+    page.get_by_test_id("chart-surface").wait_for(state="visible", timeout=20_000)
+    if len(query_requests) != request_count_before + 1:
+        raise AssertionError(
+            f"expected one query request, got {len(query_requests) - request_count_before}"
+        )
+
+    params = parse_qs(urlparse(page.url).query)
+    if params.get("sql") != [expected_sql]:
+        raise AssertionError(f"workspace URL lost SQL: {page.url}")
+
+    payload = json.loads(query_requests[-1])
+    if payload.get("connectionId") != "test" or payload.get("sql") != expected_sql:
+        raise AssertionError(f"workspace executed unexpected payload: {payload}")
+
+    assert_monaco_sql(page, expected_sql)
+    page.get_by_text("4 行", exact=False).first.wait_for()
+
+
 def main() -> None:
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
     with sync_playwright() as playwright:
@@ -120,35 +182,48 @@ def main() -> None:
         query_requests: list[str] = []
         page.on("pageerror", lambda error: errors.append(str(error)))
         page.on("console", lambda message: errors.append(message.text) if message.type == "error" else None)
-        page.on("request", lambda request: query_requests.append(request.url) if request.method == "POST" and request.url.endswith("/api/query") else None)
+        page.on("request", lambda request: record_query_request(request, query_requests))
         # 记录被故意 abort 的 WebR CDN 请求：对应 console 的 "Failed to load resource" 属预期内
         page.on("requestfailed", lambda request: webr_aborted.append(request.url) if "webr.r-wasm.org" in request.url else None)
         page.route("**/api/connections/test", fulfill_connection)
         page.route("**/api/query", fulfill_query)
         page.route("**/api/query/preview", fulfill_preview)
+        page.route("**/api/query/saved*", fulfill_saved_queries)
+        page.route("**/api/query/history*", fulfill_query_history)
         page.route("**/api/schema/test*", fulfill_schema)
         page.route("**/api/ai", fulfill_ai)
         # R 工作台：mock 掉 WebR CDN，制造确定性初始化失败（P1-5b 回归断言，不依赖真实网络）
         page.route("**webr.r-wasm.org**", lambda route: route.abort())
 
+        # 回归路径：工作台 → 侧栏数据探索 →「在工作台执行」。
+        # 同一 AppShell 内的客户端导航曾丢失 sql 查询参数。
+        page.goto(f"{BASE_URL}/workspace?connection=test", wait_until="networkidle")
+        page.get_by_role("link", name="数据探索", exact=True).click()
+        page.wait_for_url("**/explorer**")
+        page.get_by_role("button", name="orders", exact=True).click()
+        page.get_by_role("button", name="在工作台执行", exact=True).wait_for(state="visible")
+        query_request_count = len(query_requests)
+        with page.expect_request("**/api/query"):
+            page.get_by_role("button", name="在工作台执行", exact=True).click()
+        assert_workspace_payload(page, query_requests, query_request_count)
+
         # 真实用户路径：数据探索 →「在工作台执行」→ 跳转 + SQL 填充 + 自动执行（无需手动点执行）
         page.goto(f"{BASE_URL}/explorer?connection=test", wait_until="networkidle")
         page.get_by_role("button", name="orders", exact=True).click()
         page.get_by_role("button", name="在工作台执行", exact=True).wait_for(state="visible")
+        query_request_count = len(query_requests)
         with page.expect_request("**/api/query"):
             page.get_by_role("button", name="在工作台执行", exact=True).click()
-        page.wait_for_url("**/workspace**", timeout=15000)
-        page.get_by_test_id("chart-surface").wait_for(state="visible", timeout=20000)
-        if len(query_requests) != 1:
-            raise AssertionError(f"expected exactly one initial query request, got {len(query_requests)}")
-        params = parse_qs(urlparse(page.url).query)
-        if params.get("sql") != ["SELECT * FROM orders LIMIT 200"]:
-            raise AssertionError(f"workspace URL lost SQL: {page.url}")
-        page.wait_for_function(
-            "() => (document.querySelector('.monaco-editor .view-lines')?.textContent.replace(/\\u00a0/g, ' ') || '').includes('FROM orders')",
-            timeout=20000,
-        )
-        page.get_by_text("4 行", exact=False).first.wait_for()
+        assert_workspace_payload(page, query_requests, query_request_count)
+
+        # 历史记录 →「执行」→ 跳转 + SQL 填充 + 自动执行（与探索入口同一契约）
+        page.goto(f"{BASE_URL}/queries?connection=test", wait_until="networkidle")
+        page.get_by_role("tab", name="历史", exact=True).click()
+        page.get_by_role("button", name="执行", exact=True).first.wait_for(state="visible")
+        query_request_count = len(query_requests)
+        with page.expect_request("**/api/query"):
+            page.get_by_role("button", name="执行", exact=True).first.click()
+        assert_workspace_payload(page, query_requests, query_request_count)
 
         chart_labels = ["表格", "指标卡", "直方图", "折线图", "柱状图", "饼图", "散点图", "箱线图", "热力图", "相关矩阵"]
         for label in chart_labels:
@@ -191,7 +266,8 @@ def main() -> None:
         with page.expect_request("**/api/query"):
             page.get_by_role("tabpanel").get_by_role("button", name="执行", exact=True).first.click()
         page.get_by_test_id("chart-surface").wait_for(state="visible", timeout=20000)
-        page.get_by_role("tab", name="探索", exact=True).get_attribute("aria-selected")
+        if page.get_by_role("tab", name="探索", exact=True).get_attribute("aria-selected") != "true":
+            raise AssertionError("executing an insight did not select the explore tab")
         page.screenshot(path=str(OUTPUT_DIR / "insights-tab.png"), full_page=True)
 
         page.screenshot(path=str(OUTPUT_DIR / "workspace-all-charts.png"), full_page=True)

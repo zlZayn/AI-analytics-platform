@@ -231,24 +231,23 @@ div.flex.h-full.min-h-0.flex-col.p-3.sm:p-4
 
 ---
 
-## 5. 数据工作台（session-workspace.tsx，368 行，唯一实现）
+## 5. 数据工作台（session-workspace.tsx，唯一实现）
 
 ### 5.1 整体布局树
 
 ```
-div.flex.h-full.min-h-0.flex-col.overflow-hidden.p-3.sm:p-4
+div.flex.h-full.min-h-0.flex-col.overflow-y-auto.p-3.sm:p-4.lg:overflow-hidden
 ├── ① 顶部 div.flex.items-start.justify-between.gap-3.px-1.pb-3
 │   ├── 左：title（text-sm font-medium truncate）+ insight（text-xs muted line-clamp-2）
-│   └── 右：status 徽标（text-[10px] font-mono；error→destructive 三件套 / busy→muted
-│           / ready→success 绿 / 其余 muted；文字 = 英文 status 原文）
-├── ② SQL 编辑器区 div.flex.h-48.min-h-0.flex-col.gap-2          ← 固定高 192px
+│   └── 右：status 徽标（可访问实时提示；状态显示中文语义）
+├── ② SQL 编辑器区 div.flex.h-48.shrink-0.min-h-0.flex-col.gap-2 ← 桌面固定高 192px
 │   ├── 工具行：label「SQL 编辑器」+ 保存（ghost h-7 text-xs，disabled=!compiledSql?.sql）
 │   │   + 执行（h-7 text-xs，disabled=busy||!sqlDraft；busy 时 Loader2+"执行中"）
 │   ├── div.flex-1.border.rounded-lg.overflow-hidden → MonacoEditor
 │   │   （dynamic ssr:false；theme="vs-light" 硬编码；选项：minimap off / fontSize 13 /
 │   │     wordWrap on / tabSize 2 / padding 8；loading 占位 animate-pulse）
-│   └── {error && 红色 error 条（destructive 三件套 font-mono text-xs）}   ← 恒显示
-├── ③ 中部 div.flex.min-h-0.flex-1.flex-col.gap-3.pt-3.lg:flex-row
+│   └── 错误由右侧结果区固定容器承载，保留 SQL 上下文并提供可见状态
+├── ③ 中部 div.flex.min-h-0.flex-none.flex-col.gap-3.pt-3.lg:flex-1.lg:flex-row.lg:overflow-hidden
 │   ├── AI 助手卡 div.flex.min-h-[220px].min-w-0.flex-1.flex-col.rounded-lg.border.lg:flex-[2]
 │   │   ├── 卡头 px-3.py-2.border-b：label「AI 助手」+ {有历史 && 重置 ghost h-5 10px（RESET）}
 │   │   ├── <AiVisibilityHint />                                  ← 见 §6.3
@@ -261,18 +260,18 @@ div.flex.h-full.min-h-0.flex-col.overflow-hidden.p-3.sm:p-4
 │   │   └── 输入行 div.p-2.border-t.flex.gap-1.5
 │   │       ├── <AiMentionInput value onChange onSend disabled placeholder schema />（见 §6）
 │   │       └── 发送 Button size=sm h-7 w-7 p-0（Send 图标，disabled=aiLoading||!aiInput.trim()）
-│   └── 结果列 div.flex.min-h-0.min-w-0.flex-1.flex-col.lg:flex-[3]
+│   └── 结果列 div.flex.min-h-[360px].min-w-0.flex-1.flex-col.lg:min-h-0.lg:flex-[3]
 │       └── <SessionView session onMappingChange onCopySql />     ← 见 §7
 └── ④ 保存查询 Dialog（max-w-sm：名称 Input h-8 text-xs，Enter 提交，Footer 取消/保存）
 ```
 
-- 比例：lg 起 AI 助手:结果 = 2:3；lg 以下纵向堆叠（AI 卡 min-h-[220px] 保底）。
+- 比例：lg 起 AI 助手:结果 = 2:3；lg 以下纵向堆叠（AI 卡 min-h-[260px]、结果区 min-h-[360px] 保底）。
 - 无连接时整页：`p-6 flex items-center justify-center min-h-[50vh] text-xs`「请先选择数据库连接」。
 
 ### 5.2 会话状态机对 UI 的驱动
 
 - `SessionStatus = idle | compiling | executing | ready | error | needs_recompile`（src/types/session.ts）。
-- 六个状态 → UI：idle 无结果空白 / compiling+executing = busy（徽标灰 + SessionView loading）/ ready（徽标绿 + 结果）/ error（徽标红 + error 条 [+错误框，仅无旧结果]）/ needs_recompile（徽标灰，useSession 副作用即时决议，UI 无提示）。
+- 六个状态 → UI：idle 显示“执行 SQL 后查看结果”空态 / compiling+executing 显示“正在执行查询”/ ready 显示结果 / error 显示“查询未完成”并保留 SQL / needs_recompile 由 useSession 副作用即时决议。
 - 19 个 Action 的关键 UI 语义（sessionReducer.ts）：
   - `ASK_AI`：追加用户气泡、清 error/validationIssues
   - `INIT_FROM_AI`：**清 result**（旧结果立即消失）、status=compiling、schema-based 校验失败直接 throw
@@ -291,10 +290,11 @@ div.flex.h-full.min-h-0.flex-col.overflow-hidden.p-3.sm:p-4
 5. 结果：bindDataToChart 适配 → ResultPanel；用户改映射 → UPDATE_DISPLAY_CONFIG（缺字段 → needs_recompile）
 6. 导出/保存：ResultToolbar 四按钮；保存查询 Dialog
 
-### 5.4 工作台已知问题
+### 5.4 工作台维护提示
 
 - ~~AI 多结果只消费 items[0]，InsightCard 组件已实现但未挂接~~（阶段 1 已挂接：洞察 Tab 卡片流）
-- runSql 重置图表类型；busy 且旧结果无「重新执行中」视觉提示；needs_recompile 无 UI 提示
+- 跨页初始 SQL 由 `workspace-navigation.ts` 规范化，并按 `connection + SQL` key 一次性应用；探索页与历史页入口由离线 E2E 覆盖
+- 结果区固定外框承载等待/执行中/成功/失败，成功结果嵌入 `ResultPanel` 时不重复绘制外框
 - Monaco theme vs-light 硬编码；编辑器 h-48 固定
 - 发送按钮无 aria-label；失败后输入内容丢失（提交即清空）
 
@@ -347,12 +347,13 @@ SessionWorkspace（aiInput 受控 state）
 
 ## 7. 结果区（改版主战场）
 
-### 7.1 SessionView（SessionView.tsx）当前布局（蓝图阶段 1 已实施——三层视图化）
+### 7.1 SessionView（SessionView.tsx）当前布局（固定结果容器 + 三层视图）
 
 ```
-div.min-h-0.flex.flex-col.rounded-lg.border.overflow-hidden
+div.flex.h-full.min-h-[360px].flex-1.flex-col.rounded-lg.border.overflow-hidden
 ├── ① 头部条 div.flex.items-center.justify-between.px-3.py-1.5.bg-[var(--muted)] shrink-0
 │   ├── span「分析结果」（text-xs font-medium muted）
+│   ├── 状态语义（等待执行 / 执行中 / 已完成 / 执行失败）
 │   └── div.flex.items-center.gap-2
 │       ├── <ResultToolbar dataset onOpenRWorkbench />        ← 「导出 ▼」下拉（见 7.2）
 │       └── {isUserModified && 「已手动调整」徽标（Pencil + warning 三件套 10px）}
@@ -361,11 +362,12 @@ div.min-h-0.flex.flex-col.rounded-lg.border.overflow-hidden
 │   ├── 洞察 TabsContent：InsightCard 卡片流（AI 多结果，结论前置默认激活；点执行 → 切探索 + dispatch 管线）
 │   ├── 探索 TabsContent：validationIssues/warnings/adjustments → ChartNotice + ResultPanel
 │   └── 明细 TabsContent：Chart table 分发（虚拟滚动 table-view）
-└── ③ <RWorkbench dataset open={rWorkbenchOpen} onClose />（导出菜单「R 分析」打开，内嵌底部）
+└── ③ <RWorkbench dataset open={rWorkbenchOpen} onClose />（仅有结果时挂载；导出菜单「R 分析」打开）
 ```
 
-- 分支：`busy && !result` → 「查询执行中...」盒（min-h-[200px]）；`error && !result` → 红色错误盒；`!result || !bound` → **null（空白）**；否则正常。
-- **busy/error 且有旧结果 → 直接显示旧结果，无任何叠加提示**（仅顶部徽标）。
+- 无结果：固定容器显示等待/执行中/失败空态，并保留当前 SQL 片段；不会返回空白。
+- busy 且有旧结果：结果保持可查看，并在 Tabs 上方显示“正在更新结果，当前结果仍可查看”。
+- 成功结果：外层 SessionView 负责边框，嵌入式 ResultPanel 不重复绘制外框。
 - 本地 state：`rWorkbenchOpen`（不进 reducer，R 输出是会话外临时状态）；`tab` 自管（受控也可由父接管）。
 - `bound = bindDataToChart(result, displayConfig)`：坐标轴交换/无效值过滤 + warnings/adjustments。
 - 洞察列表为会话外局部 state（session-workspace 的 `insightItems`，RESET 时清空）；`executingInsightIndex` 派生自 busy。
@@ -382,8 +384,8 @@ div.min-h-0.flex.flex-col.rounded-lg.border.overflow-hidden
 
 ### 7.3 ResultPanel + ChartConfigPanel
 
-**ResultPanel**（dashboard/result-panel.tsx，83 行）：
-- `div.border.rounded-lg.overflow-hidden` → 状态条（`bg-muted`：`{rowCount} 行 | {executionTimeMs}ms | {columns.length} 列` font-mono 11px，分隔符 `text-[var(--border)]`「|」+ 复制 SQL ghost h-6 11px「已复制」1.5s 反馈）→ `p-3` → ChartConfigPanel。
+**ResultPanel**（dashboard/result-panel.tsx）：
+- `embedded=false` 时自带边框；SessionView 嵌入时传 `embedded`，只保留状态条与 ChartConfigPanel。
 - 受控/非受控双模式：`controlled = mapping !== undefined`；SessionWorkspace 恒受控（非受控分支是遗留死路径）。
 
 **ChartConfigPanel**（chart-config-panel.tsx，258 行）自上而下：

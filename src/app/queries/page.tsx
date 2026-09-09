@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { useSearchParams, useRouter } from "next/navigation"
+import { useSearchParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
@@ -14,7 +14,6 @@ import { Play, Trash2, Copy, Search, Bookmark, Clock } from "lucide-react"
 
 export default function QueriesPage() {
   const searchParams = useSearchParams()
-  const router = useRouter()
   const connectionId = searchParams.get("connection")
   const { toast } = useToast()
 
@@ -49,7 +48,8 @@ export default function QueriesPage() {
 
   function goToWorkspace(sql: string) {
     const url = buildWorkspaceUrl(connectionId, sql)
-    if (url) router.push(url)
+    // Keep navigation explicit so production App Router transitions cannot drop `sql`.
+    if (url) window.location.assign(url)
   }
 
   async function deleteSaved(id: string) {

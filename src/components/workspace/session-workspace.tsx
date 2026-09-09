@@ -23,6 +23,7 @@ import type { ChartMapping } from "@/components/chart"
 import { Play, Loader2, Send, Save } from "lucide-react"
 import { AiMentionInput } from "@/components/ai-mention-input"
 import { extractMentions } from "@/lib/mention"
+import { normalizeWorkspaceSql, workspaceSqlKey } from "@/lib/workspace-navigation"
 
 // 本地 monaco（惰性配置：SSR 安全，配置完成前编辑器渲染占位）
 import { configureMonaco } from "@/lib/monaco-setup"
@@ -58,7 +59,7 @@ function statusLabel(status: string): string {
 
 export function SessionWorkspace({ connectionId, initialSql }: SessionWorkspaceProps) {
   const [schema, setSchema] = useState<SchemaData | null>(null)
-  const [sqlDraft, setSqlDraft] = useState(initialSql)
+  const [sqlDraft, setSqlDraft] = useState(() => normalizeWorkspaceSql(initialSql))
   const [aiInput, setAiInput] = useState("")
   const [aiLoading, setAiLoading] = useState(false)
   const [aiUnavailable, setAiUnavailable] = useState(false)
@@ -68,7 +69,9 @@ export function SessionWorkspace({ connectionId, initialSql }: SessionWorkspaceP
   // AI 多洞察：会话外临时状态（同 RWorkbench 开关哲学，不进 AnalysisSession）
   const [insightItems, setInsightItems] = useState<InsightItem[]>([])
   const [executingInsight, setExecutingInsight] = useState<number | null>(null)
-  const initialSqlApplied = useRef(false)
+  // Navigation can hydrate in more than one render. Track the applied input by
+  // value so a late-arriving query is still loaded once without overwriting edits.
+  const appliedInitialSqlKey = useRef<string | null>(null)
   // 结果区当前 Tab（受控）：新洞察到达切「洞察」（结论前置），执行卡片切「探索」
   const [resultTab, setResultTab] = useState("explore")
   const { toast } = useToast()
@@ -124,15 +127,17 @@ export function SessionWorkspace({ connectionId, initialSql }: SessionWorkspaceP
   })
 
   // 自动执行：从 /explorer「在工作台执行」/ /queries「执行」带 ?sql= 跳转到达时，
-  // 填写编辑器并直接执行，无需用户手动点「执行」（workspace key 含 initialSql，变化即重挂载）
+  // 填写编辑器并直接执行，无需用户手动点「执行」。依赖参数而非首帧，
+  // 兼容客户端导航期间 connection/sql 分开到达的情况。
   useEffect(() => {
-    const sql = initialSql.trim()
-    if (initialSqlApplied.current || !sql || !connectionId) return
-    initialSqlApplied.current = true
+    const sql = normalizeWorkspaceSql(initialSql)
+    const key = workspaceSqlKey(connectionId, sql)
+    if (!key || appliedInitialSqlKey.current === key) return
+    appliedInitialSqlKey.current = key
+    setSqlDraft(sql)
     dispatch({ type: "UPDATE_DISPLAY_CONFIG", displayConfig: { chartType: "table", mapping: { chartType: "table" } } })
     dispatch({ type: "SET_COMPILED_SQL", compiledSql: { sql, params: [] } })
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- mount 时按初始 SQL 自动执行一次
-  }, [])
+  }, [connectionId, initialSql, dispatch])
 
   const { status, compiledSql, displayConfig, conversationHistory, error, title, insight } = session
   const busy = status === "compiling" || status === "executing"
@@ -335,9 +340,6 @@ export function SessionWorkspace({ connectionId, initialSql }: SessionWorkspaceP
             <div className="h-full bg-[var(--muted)] animate-pulse rounded-lg" />
           )}
         </div>
-        {error && (
-          <div role="alert" className="rounded border border-[var(--destructive-border)] bg-[var(--destructive-surface)] p-2 font-mono text-xs text-[var(--destructive)]">{error}</div>
-        )}
       </div>
 
       {/* 中间：AI 助手 + 结果 */}

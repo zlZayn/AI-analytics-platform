@@ -121,10 +121,10 @@ if defined SRV_PID (
 
 if "%MODE%"=="dev" (
     echo %C_INFO%[INFO]%C_RST% 正在启动开发服务器（热更新）...
-    start "" /b cmd /c "npm run dev -- -p %PORT% > "%SERVER_LOG%" 2>&1"
+    start "" /b cmd /c "node_modules\.bin\next.cmd dev -p %PORT% > "%SERVER_LOG%" 2>&1"
 ) else (
     echo %C_INFO%[INFO]%C_RST% 服务未运行，正在启动生产服务器 ...
-    start "" /b cmd /c "npm run start -- -p %PORT% > "%SERVER_LOG%" 2>&1"
+    start "" /b cmd /c "node_modules\.bin\next.cmd start -p %PORT% > "%SERVER_LOG%" 2>&1"
 )
 
 REM ---- 等待服务就绪（最长 30 秒）----

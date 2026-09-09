@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect, useRef } from "react"
-import { useSearchParams, useRouter } from "next/navigation"
+import { useSearchParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
@@ -13,7 +13,6 @@ import { buildWorkspaceUrl } from "@/lib/workspace-navigation"
 
 export default function ExplorerPage() {
   const searchParams = useSearchParams()
-  const router = useRouter()
   const connectionId = searchParams.get("connection")
 
   const [schema, setSchema] = useState<SchemaData | null>(null)
@@ -155,7 +154,9 @@ export default function ExplorerPage() {
                   onClick={() => {
                     const sql = `SELECT * FROM ${selected.name} LIMIT 200`
                     const url = buildWorkspaceUrl(connectionId, sql)
-                    if (url) router.push(url)
+                    // A full document navigation keeps the SQL payload intact.
+                    // App Router client transitions can reuse the AppShell and drop the second query parameter.
+                    if (url) window.location.assign(url)
                   }}
                 >
                   <Play className="w-2.5 h-2.5" /> 在工作台执行

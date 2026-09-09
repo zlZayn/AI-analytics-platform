@@ -26,7 +26,7 @@
 - 连接密码 AES-256 加密（每条随机盐）；AI 与数据库凭据只从环境变量读取，不落库
 - Geist 字体自托管（`src/app/fonts/` via `next/font/local`）；构建与开发不访问外网字体服务
 - 入口脚本构建新鲜度检查：`src`/`prisma`（排除 `generated`）vs `.next/BUILD_ID`；构建后若端口已有旧服务，`Start Dev.cmd` 先结束旧 PID 再启动新实例
-- 工作台导航 URL 由 `lib/workspace-navigation.ts` 统一生成；入口统一保留 connection 与解码后 SQL
+- 工作台导航 URL 由 `lib/workspace-navigation.ts` 统一生成；SQL 统一规范化换行、编码并保留 connection；探索与查询管理入口使用完整文档导航，避免生产 App Router 客户端转换丢失第二个查询参数；工作台按 `connection + SQL` key 一次性应用导航 payload，再进入统一执行管线
 - API 统一 `ApiResponse<T>` + requestId；客户端统一处理 HTTP、非 JSON、超时、Abort
 - 图表变换全部确定性；统计计算（相关矩阵、直方图分箱）在可取消 Worker 中执行
 - 数据轮廓扫描（最多 6 表）注入 AI 提示词，失败不阻断主流程
@@ -45,7 +45,7 @@
 
 - 颜色唯一来源是 globals.css 语义 token，组件不得自建颜色常量
 - 结果表窗口化渲染、粘性表头、NULL 标记、列宽持久化、键盘滚动
-- 工作台桌面双栏、窄屏纵向滚动；SQL/AI/结果区各自保持稳定最小尺寸，执行状态使用可访问的实时提示
+- 工作台桌面双栏、窄屏纵向滚动；SQL/AI/结果区各自保持稳定最小尺寸；结果区固定外框并统一承载等待、执行中、成功、失败、洞察、探索、明细状态，执行状态使用可访问的实时提示
 - 图表错误边界自动重置 + 手动重试，保留上一次成功结果
 - 连接池：有限 PoolRegistry、并发创建去重、闲置/LRU 回收、认证错误失效
 - 每次文档同步后跑链接校验（scripts/check-links.py），引用不写死本机路径
