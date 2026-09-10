@@ -52,11 +52,11 @@ AI 每项输出 `title`、`insight`、`querySpec` + `displayConfig`，或 `sql` 
 - `querySpec`：结构化查询（dimensions/measures/filters/having/sort/limit/joins），由 `query-compiler.ts` 编译为参数化 SQL（防注入，标识符分段引号）
 - `displayConfig`：`{ chartType, mapping }`，由 `validators.ts` 双模式校验
 - 回退规则：`querySpec` 存在时优先使用；缺失时回退 `sql` 直通，标记 `fallback=true`
-- 单一来源：契约声明在 `src/lib/ai-contract.ts` 的 `INSIGHT_FIELDS`，提示词形状/字段说明、strict JSON Schema 变体、解析截断长度都由它派生；`ai-contract-single-source.test.ts` 守卫三面一致（含「提示词必须含 json 字样」这条网关前置条件）
+- 单一来源：契约声明在 `src/lib/ai-contract.ts` 的 `INSIGHT_FIELDS`，提示词形状/字段说明、strict JSON Schema 变体、解析截断长度都由它派生；三面一致性由 AI 契约测试守卫（含「提示词必须含 json 字样」这条网关前置条件），测试分类见 [src/lib/__tests__/README.md](../src/lib/__tests__/README.md)
 
 ## 模块
 
-- `src/lib/ai-contract.ts`：契约单一来源 `INSIGHT_FIELDS`（提示词形状/字段说明、strict JSON Schema 变体、解析截断长度全部派生；`ai-contract-single-source.test.ts` 守卫三面一致）
+- `src/lib/ai-contract.ts`：契约单一来源 `INSIGHT_FIELDS`（提示词形状/字段说明、strict JSON Schema 变体、解析截断长度全部派生；一致性测试见 [src/lib/__tests__/README.md](../src/lib/__tests__/README.md)）
 - `src/lib/ai-context.ts`：上下文来源与可见范围声明（纯模块）、@ 提及规范化、trace 摘要
 - `src/lib/ai-context-service.ts`：`collectAIContext`（表结构 → 轮廓 → 历史 → 业务口径；服务端）
 - `src/lib/ai-service.ts`：可注入的 `AICompletionProvider` 和 OpenAI 兼容生产 provider；`generateAnalysis`（`generateSQL` 为兼容别名）
@@ -102,7 +102,7 @@ AI 每项输出 `title`、`insight`、`querySpec` + `displayConfig`，或 `sql` 
 
 ## 离线回归
 
-`src/lib/__tests__/ai-contract.test.ts` 使用固定夹具覆盖提示词领域中立性、原生 Schema、双变体解析、sql 回退、未知图表、缺失映射、未知别名、非法 SQL、损坏 JSON 和数据轮廓注入。日常测试禁止使用真实 AI API。
+AI 契约测试（分类见 [src/lib/__tests__/README.md](../src/lib/__tests__/README.md)）使用固定夹具覆盖提示词领域中立性、原生 Schema、双变体解析、sql 回退、未知图表、缺失映射、未知别名、非法 SQL、损坏 JSON 和数据轮廓注入。日常测试禁止使用真实 AI API。
 
 ## 文档导航
 

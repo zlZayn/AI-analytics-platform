@@ -4,7 +4,7 @@
 
 ## A. 开发轮次（每次改代码）
 
-- [ ] 改模块必跑对应测试：`npm test`（测试与被测模块同目录 `__tests__/`，清单见 [src/README.md](../src/README.md)）
+- [ ] 改模块必跑对应测试：`npm test`（布局与分类见 [docs/testing.md](testing.md)，模块覆盖见该模块的 `__tests__/README.md`）
 - [ ] `npm run typecheck` · `npm run lint`
 - [ ] 改 API 路由 → 同步 `scripts/offline_workspace_e2e.py` 的 `page.route`（少一个 mock 就 500）
 - [ ] 新编辑器接入 → 先 `await configureMonaco()` 再渲染（`src/lib/monaco-setup.ts`，勿顶层 import）
