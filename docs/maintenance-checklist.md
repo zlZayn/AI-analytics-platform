@@ -16,9 +16,17 @@
 - [ ] 三连校验：`python scripts/check-links.py .` · `python <skill>/check-line-endings.py . --exclude .next --exclude node_modules --exclude .git` · `git diff --check`
 - [ ] 测试数字漂移 → 如实更新 [AGENTS.md](../AGENTS.md) 验证快照（增删用例 → 改数字并说明）
 
-## B. 发布/版本（每次发版）
+## B. 版本与发布（每次改动 bump，发版时重建验收）
 
-- [ ] **bump 版本**：`node scripts/bump-version.mjs X.Y.Z`（只改 package.json 的 version 一行；sidebar 徽标与烟测断言自动跟随）
+改动性质决定档位，bump 与改动同一次提交：
+
+| 档位 | 何时用 | 示例 |
+| :--- | :--- | :--- |
+| patch | 修复、文档、测试 | 连接编辑回填修复 |
+| minor | 功能或行为变化 | 结果区数据表归属调整 |
+| major | 破坏性契约变更 | API 响应结构变更 |
+
+- [ ] **bump 版本**：`node scripts/bump-version.mjs {major|minor|patch}`（只改 package.json 的 version 一行、低位置零；sidebar 徽标与烟测断言自动跟随）
 - [ ] **重建 + 重启**：版本号只在构建产物里生效——清 `.next` 后 `npm run build`（或 Start Dev.cmd 询问选"是"）；Start Dev.cmd 会在构建后自动结束占用端口的旧实例，再启动新实例
 - [ ] 浏览器验收（Ctrl+Shift+R 硬刷新避免旧 chunk 缓存）：徽标显示新版本号 + 核心路径走查（探索页「在工作台执行」→ 自动执行等）
 - [ ] 改 Prisma schema → **严禁 `npx prisma db push` / migrate**（DATABASE_URL 元库与业务表同库，会 DROP fact_*/dim_* 业务表）；对照 `information_schema.columns` 手写 `ALTER TABLE ... ADD COLUMN IF NOT EXISTS`（见 [AGENTS.md](../AGENTS.md) 活跃坑）
@@ -33,7 +41,7 @@
 
 | 脚本 | 做什么 | 何时用 |
 | :--- | :--- | :--- |
-| `bump-version.mjs` | 改 package.json version 一行（校验 X.Y.Z 格式） | 每次发版 |
+| `bump-version.mjs` | 按语义改 package.json version 一行（major/minor/patch/X.Y.Z） | 每次改动 |
 | `freshness.js` | 源码 vs `.next\BUILD_ID` 时间对比 → OK/STALE/NOT_BUILT | Start Dev.cmd / Build.cmd 自动调用 |
 | `check-links.py` | Markdown 相对链接校验 | 每次文档同步后 |
 | `final_ui_smoke.py` / `offline_workspace_e2e.py` | 浏览器烟测 / 离线 E2E（localhost:4321） | 每次 UI 改动后（需本地 chromium，CI 不跑） |

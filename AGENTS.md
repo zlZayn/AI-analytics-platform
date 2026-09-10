@@ -11,6 +11,7 @@ This version has breaking changes — APIs, conventions, and file structure may 
 - 文档分层与引用契约：[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
 - 决策记录：[.agents/notes/](.agents/notes/)
 - 文档同步后跑链接校验（`python scripts/check-links.py <路径>`，CI 亦用）
+- 版本号：每次改动按语义 bump `package.json` 的 version——修复/文档 = patch、功能或行为变化 = minor、破坏性契约变更 = major；命令 `node scripts/bump-version.mjs {major|minor|patch|X.Y.Z}`（只改一行，低位置零）；徽标在侧栏底部（`src/components/layout/sidebar.tsx` 读 `NEXT_PUBLIC_APP_VERSION`），**bump 后必须重建才生效**；脚本见 [scripts/README.md](scripts/README.md)，清单见 [docs/maintenance-checklist.md](docs/maintenance-checklist.md)
 
 ## 常用命令
 - `npm test` · `npm run typecheck` · `npm run lint` · `npm run dev`
@@ -37,7 +38,7 @@ This version has breaking changes — APIs, conventions, and file structure may 
 - 入口脚本 `Start Dev.cmd`/`Build.cmd` 有构建新鲜度检查（对比 `src`/`prisma` 排除 `generated` 与 `.next\BUILD_ID`），见 [README.md](README.md)
 - **`next start`（Start Dev 生产模式）跑旧构建产物**：git pull 新代码后必须重建（Start Dev 询问时选"是"/F）；构建后脚本会结束旧 PID 再启动新实例，排查"改了什么没变化"先验 `.next` 是否含新内容
 - `Start Dev.cmd` 的 `if (...)` 代码块内日志文本不得使用未转义圆括号，避免 CMD 报 `was unexpected at this time` 并闪退
-- sidebar 版本徽标读 `NEXT_PUBLIC_APP_VERSION`（next.config.ts 从 package.json 注入）；bump 用 `node scripts/bump-version.mjs X.Y.Z`（只改一行），**改后必须重建才生效**；烟测脚本按 package.json 版本断言它；每次发版必维护项见 [docs/maintenance-checklist.md](docs/maintenance-checklist.md)
+- sidebar 版本徽标读 `NEXT_PUBLIC_APP_VERSION`（next.config.ts 从 package.json 注入）；**bump 后必须重建才生效**，否则页面仍是旧号码；烟测脚本按 package.json 版本断言它（bump 规则见「全局规则」）
 - Monaco 已本地托管（`src/lib/monaco-setup.ts` 的惰性 `configureMonaco`：SSR 安全，配置完成前渲染占位避免 loader.init 回退 CDN）；`@monaco-editor/react` 默认从 CDN 拉引擎，新编辑器接入点必须「先 `await configureMonaco()` 再渲染编辑器」，顶层 `import "@/lib/monaco-setup"` 会在 SSR 评估 monaco-editor 而 window 崩（曾致 workspace 整页不可交互）
 - R 分析工作台（WebR 0.6）：COI 头已配置（COOP/COEP）；R.wasm（12.3MB）与 R 包从 `webr.r-wasm.org` CDN 按需加载，离线不可用；包下载后会话内缓存（模块级单例），刷新页面需重下
 - AI 调用失败先看 AI 气泡里的具体原因（含 HTTP 状态与提供方原文，不再只有「稍后重试」）；网关要求的自定义头用 `AI_API_HEADERS`（`{sessionId}`/`{version}` 占位符），`AI_MODEL` 必须用提供方文档的版本化 ID，见 [docs/04_ai_integration.md](docs/04_ai_integration.md)
