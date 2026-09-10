@@ -154,7 +154,10 @@ def assert_workspace_payload(
     expected_sql: str = EXPECTED_WORKSPACE_SQL,
 ) -> None:
     page.wait_for_url("**/workspace**", timeout=15_000)
-    page.get_by_test_id("chart-surface").wait_for(state="visible", timeout=20_000)
+    # 导航入口强制表格态：探索显示图表引导，数据表由「明细」承担
+    page.get_by_test_id("chart-guide").wait_for(state="visible", timeout=20_000)
+    if page.get_by_test_id("chart-surface").count() != 0:
+        raise AssertionError("table state should not render a chart surface")
     if len(query_requests) != request_count_before + 1:
         raise AssertionError(
             f"expected one query request, got {len(query_requests) - request_count_before}"
@@ -225,7 +228,8 @@ def main() -> None:
             page.get_by_role("button", name="执行", exact=True).first.click()
         assert_workspace_payload(page, query_requests, query_request_count)
 
-        chart_labels = ["表格", "指标卡", "直方图", "折线图", "柱状图", "饼图", "散点图", "箱线图", "热力图", "相关矩阵"]
+        # 表格不是图表类型：「明细」独占数据表（见 .agents/notes/2026-09-11-detail-table-single-owner.md）
+        chart_labels = ["指标卡", "直方图", "折线图", "柱状图", "饼图", "散点图", "箱线图", "热力图", "相关矩阵"]
         for label in chart_labels:
             button = page.get_by_role("button", name=label, exact=True)
             button.click()
@@ -237,6 +241,16 @@ def main() -> None:
                 raise AssertionError(f"{label} has no usable default mapping: {surface_text}")
 
         page.get_by_text("正在计算相关矩阵...").wait_for(state="hidden")
+
+        # 明细独占数据表：读原始查询行，sales 为空的行（图表绑定会过滤）必须保留
+        page.get_by_role("tab", name="明细", exact=True).click()
+        detail_rows = page.locator("table tbody tr[data-row-index]")
+        detail_rows.first.wait_for(state="visible", timeout=10_000)
+        if detail_rows.count() != 4:
+            raise AssertionError(f"明细未渲染全部 4 行原始数据，实际 {detail_rows.count()} 行")
+        if "华北" not in page.locator("table tbody").inner_text():
+            raise AssertionError("明细缺少 sales 为空的原始行")
+        page.screenshot(path=str(OUTPUT_DIR / "detail-table.png"), full_page=True)
 
         # R 工作台错误态（P1-5b）：WebR 初始化失败时
         # 输出区离开「等待运行…」占位并显示错误，状态栏不误显「就绪」

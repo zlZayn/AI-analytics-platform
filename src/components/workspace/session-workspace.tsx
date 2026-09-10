@@ -42,21 +42,6 @@ function assistantMessage(content: string): ConversationMessage {
   return { role: "assistant", content, createdAt: new Date() }
 }
 
-function statusLabel(status: string): string {
-  switch (status) {
-    case "compiling":
-      return "准备查询"
-    case "executing":
-      return "执行中"
-    case "ready":
-      return "已完成"
-    case "error":
-      return "执行失败"
-    default:
-      return "等待执行"
-  }
-}
-
 export function SessionWorkspace({ connectionId, initialSql }: SessionWorkspaceProps) {
   const [schema, setSchema] = useState<SchemaData | null>(null)
   const [sqlDraft, setSqlDraft] = useState(() => normalizeWorkspaceSql(initialSql))
@@ -276,26 +261,10 @@ export function SessionWorkspace({ connectionId, initialSql }: SessionWorkspaceP
 
   return (
     <div className="flex h-full min-h-0 flex-col overflow-y-auto p-3 sm:p-4 lg:overflow-hidden">
-      {/* 顶部：标题 + 洞察 + 状态 */}
-      <div className="flex items-start justify-between gap-3 px-1 pb-3">
-        <div className="min-w-0">
-          <div className="text-sm font-medium truncate">{title || "会话工作台"}</div>
-          {insight && <p className="text-xs text-[var(--muted-foreground)] mt-0.5 line-clamp-2">{insight}</p>}
-        </div>
-        <span
-          aria-live="polite"
-          className={`shrink-0 rounded px-2 py-0.5 text-[10px] font-mono ${
-            status === "error"
-              ? "bg-[var(--destructive-surface)] text-[var(--destructive)]"
-              : busy
-                ? "bg-[var(--muted)] text-[var(--muted-foreground)]"
-                : status === "ready"
-                  ? "bg-[var(--muted)] text-[var(--success)]"
-                  : "bg-[var(--muted)] text-[var(--muted-foreground)]"
-          }`}
-        >
-          {statusLabel(status)}
-        </span>
+      {/* 顶部：标题 + 洞察（执行状态只在结果区头部显示一处） */}
+      <div className="min-w-0 px-1 pb-3">
+        <div className="text-sm font-medium truncate">{title || "会话工作台"}</div>
+        {insight && <p className="text-xs text-[var(--muted-foreground)] mt-0.5 line-clamp-2">{insight}</p>}
       </div>
 
       {/* SQL 编辑器（草稿输入，执行时 dispatch SET_COMPILED_SQL） */}

@@ -96,6 +96,15 @@ export const CHART_TYPE_INFO: Record<ChartType, { label: string; description: st
 }
 
 /**
+ * 可选图表类型（探索面板枚举顺序）
+ * - 不含 `table`：表格由结果区「明细」Tab 独占，探索只负责把结果画成图
+ * - `table` 仍是合法 ChartType：它是「未选择图表」的哨兵值（会话默认、导航执行、AI 回退）
+ */
+export const SELECTABLE_CHART_TYPES: ChartType[] = (Object.keys(CHART_TYPE_INFO) as ChartType[]).filter(
+  (type) => type !== "table",
+)
+
+/**
  * 根据列名关键字自动填充映射
  * 不做智能推断，纯关键字匹配
  */

@@ -8,7 +8,7 @@
 
 ## 决策
 
-- 结果区三层 Tabs（`ui/tabs` variant=line，Base UI `data-active`）：洞察（InsightCard 卡片流，AI 多结果全部消费，结论前置默认激活）/ 探索（ResultPanel 图表配置与渲染）/ 明细（table-view 虚拟滚动，复用图表系统 table 分发）
+- 结果区三层 Tabs（`ui/tabs` variant=line，Base UI `data-active`）：洞察（InsightCard 卡片流，AI 多结果全部消费，结论前置默认激活）/ 探索（ResultPanel 图表配置与渲染）/ 明细（table-view 虚拟滚动，复用图表系统 table 分发；2026-09-11 起为数据表唯一 owner，见 [数据表单一 owner](2026-09-11-detail-table-single-owner.md)）
 - 顶部工具条收敛为「导出 ▼」下拉（CSV / JSON / 复制 R 模板 / R 分析），保留全部 title 提示语（BOM 兼容说明等）
 - 洞察为会话外临时状态（`insightItems` 局部 useState，不进 AnalysisSession）；新洞察到达由事件驱动切洞察 Tab（`sendAi` 成功后），点卡片执行切探索 Tab；第一条仍自动执行（延续现状流程，结论前置）
 - Tab 面板 `keepMounted`（Base UI TabsPanel）：切换不丢图表配置局部状态
@@ -24,4 +24,4 @@
 
 - `SessionView` / `result-toolbar` / `session-workspace` 改动；`sessionReducer`、`useSession`、`types/session.ts` 未动（洞察走局部 state）
 - E2E 增加 AI 多洞察断言（mock /api/ai 返回 2 条 → 洞察 Tab → 执行 → 探索）
-- 明细视图复用 Chart table 分发，未新增表组件
+- 明细视图复用 Chart table 分发，未新增表组件（2026-09-11 起 `table` 从探索的图表类型移除，明细改读 `result.rows`）

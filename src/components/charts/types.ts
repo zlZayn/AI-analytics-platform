@@ -20,6 +20,8 @@ export interface ChartProps {
   mapping: ChartMapping
   data: Record<string, unknown>[]
   showLegend?: boolean
+  /** 视图填满容器高度（结果区「明细」Tab）；当前由表格视图消费 */
+  fillHeight?: boolean
 }
 
 export interface BoxStats {

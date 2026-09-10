@@ -11,6 +11,7 @@ import {
   type CorrelationMethod,
   CHART_TYPE_SLOTS,
   CHART_TYPE_INFO,
+  SELECTABLE_CHART_TYPES,
 } from "@/lib/variable-types"
 import { createMappingForChart, profileData, recommendCharts, validateChartMapping } from "@/components/charts/pipeline"
 import { getMappingSlot, isChartMappingSlot, setMappingSlot, type ChartMappingSlot } from "@/components/charts/mapping"
@@ -101,15 +102,36 @@ export function ChartConfigPanel({ columns, data, mapping, onChange }: ChartConf
 
   return (
     <div className="space-y-3">
-      {/* 图表类型选择 */}
-      {chartType === "table" && recommendations.length > 0 && (
-        <div className="flex flex-wrap items-center gap-1.5 rounded-md border border-[var(--border)] bg-[var(--muted)] px-2 py-1.5 text-[10px] text-[var(--muted-foreground)]">
-          <span>推荐：</span>
-          {recommendations.map((recommendation) => <button key={recommendation.chartType} type="button" className="rounded border border-[var(--border)] bg-[var(--card)] px-2 py-1 font-medium text-[var(--foreground)] hover:border-[var(--ring)]" onClick={() => onChange(recommendation.mapping)}>{CHART_TYPE_INFO[recommendation.chartType as ChartType]?.label}</button>)}
+      {/* 未选择图表：引导区（数据表由「明细」Tab 独占，这里不再渲染第二份） */}
+      {chartType === "table" && (
+        <div data-testid="chart-guide" className="rounded-md border border-[var(--border)] bg-[var(--muted)] px-3 py-2.5">
+          <p className="text-xs font-medium text-[var(--foreground)]">为这份结果选择图表</p>
+          <p className="mt-0.5 text-[11px] leading-relaxed text-[var(--muted-foreground)]">
+            逐行核对数据请切到「明细」，这里负责把结果画成图。
+          </p>
+          {recommendations.length > 0 && (
+            <div className="mt-2 flex flex-wrap gap-1.5">
+              {recommendations.map((recommendation) => (
+                <button
+                  key={recommendation.chartType}
+                  type="button"
+                  className="rounded border border-[var(--border)] bg-[var(--card)] px-2 py-1 text-left text-[11px] hover:border-[var(--ring)]"
+                  onClick={() => onChange(recommendation.mapping)}
+                >
+                  <span className="font-medium text-[var(--foreground)]">
+                    {CHART_TYPE_INFO[recommendation.chartType as ChartType]?.label}
+                  </span>
+                  <span className="ml-1 text-[10px] text-[var(--muted-foreground)]">{recommendation.reason}</span>
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       )}
+
+      {/* 图表类型选择（不含 table：表格不在此列） */}
       <div className="grid grid-cols-4 gap-1.5 sm:grid-cols-5">
-        {(Object.keys(CHART_TYPE_INFO) as ChartType[]).map((type) => {
+        {SELECTABLE_CHART_TYPES.map((type) => {
           const info = CHART_TYPE_INFO[type]
           const active = chartType === type
           return (
@@ -221,19 +243,26 @@ export function ChartConfigPanel({ columns, data, mapping, onChange }: ChartConf
         </div>
       )}
 
-      {/* 可用列列表 */}
-      <div className="flex flex-wrap gap-1">
-        {columns.map((c) => (
-          <span key={c.name} className="text-[10px] px-1.5 py-0.5 rounded bg-[var(--muted)] text-[var(--muted-foreground)] font-mono">
-            {c.name}
-          </span>
-        ))}
-      </div>
+      {/* 可用列（参考信息，默认折叠：纵向空间留给图表） */}
+      <details className="rounded-md border border-[var(--border)] bg-[var(--card)] px-2 py-1.5">
+        <summary className="cursor-pointer text-[10px] font-medium tracking-wider text-[var(--muted-foreground)]">
+          可用列 {columns.length}
+        </summary>
+        <div className="mt-1.5 flex flex-wrap gap-1">
+          {columns.map((c) => (
+            <span key={c.name} className="text-[10px] px-1.5 py-0.5 rounded bg-[var(--muted)] text-[var(--muted-foreground)] font-mono">
+              {c.name}
+            </span>
+          ))}
+        </div>
+      </details>
 
-      {/* 图表渲染 */}
-      <div data-testid="chart-surface" className="overflow-hidden rounded-lg border border-[var(--border)] bg-[var(--card)] text-[var(--card-foreground)]">
-        <Chart mapping={mapping} data={data} showLegend={showLegend} />
-      </div>
+      {/* 图表渲染：table 是「未选择图表」哨兵，此时不渲染图表 */}
+      {chartType !== "table" && (
+        <div data-testid="chart-surface" className="overflow-hidden rounded-lg border border-[var(--border)] bg-[var(--card)] text-[var(--card-foreground)]">
+          <Chart mapping={mapping} data={data} showLegend={showLegend} />
+        </div>
+      )}
 
       {/* 确认弹窗 */}
       <Dialog open={confirmDialog.open} onOpenChange={() => handleConfirm(false)}>

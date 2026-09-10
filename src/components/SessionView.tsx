@@ -3,8 +3,8 @@
 // 会话视图（阶段四扩展：三层视图化）
 // 按 session.status 展示 loading / error；结果区为 Tabs（洞察 / 探索 / 明细）：
 // - 洞察：AI 多结果卡片流（InsightCard，结论前置，默认激活）
-// - 探索：ResultPanel（图表配置 + 渲染，AI 预配映射，用户微调）
-// - 明细：table-view 虚拟滚动数据表（复用图表系统的 table 分发）
+// - 探索：ResultPanel（图表配置 + 渲染，AI 预配映射，用户微调；表格态为图表引导）
+// - 明细：原始查询结果的 table-view 虚拟滚动数据表（填满结果区，不经图表绑定投影）
 // 数据经 render-binder 适配后交给 ResultPanel；warnings/adjustments 呈现于探索视图。
 
 import { useMemo, useState } from "react"
@@ -19,6 +19,11 @@ import { ResultToolbar } from "@/components/result-toolbar"
 import { RWorkbench } from "@/components/r-workbench"
 import { InsightCard, type InsightItem } from "@/components/insight-card"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
+
+/** 面板滚动：内容自发滚动（洞察卡片流、探索配置与图表） */
+const PANEL_SCROLL = "min-h-0 flex-1 overflow-auto p-3"
+/** 面板填充：内容撑满结果区（明细数据表） */
+const PANEL_FILL = "min-h-0 flex-1 p-3"
 
 interface SessionViewProps {
   session: AnalysisSession
@@ -135,7 +140,7 @@ export function SessionView({
               </TabsList>
             </div>
 
-            <TabsContent value="insights" keepMounted className="min-h-0 flex-1 overflow-auto p-3">
+            <TabsContent value="insights" keepMounted className={PANEL_SCROLL}>
               <div className="space-y-2">
                 {insights.map((item, i) => (
                   <InsightCard
@@ -154,7 +159,7 @@ export function SessionView({
               </div>
             </TabsContent>
 
-            <TabsContent value="explore" keepMounted className="min-h-0 flex-1 overflow-auto p-3 space-y-2">
+            <TabsContent value="explore" keepMounted className={`${PANEL_SCROLL} space-y-2`}>
               {session.validationIssues?.map((issue) => (
                 <ChartNotice
                   key={`${issue.code}-${issue.field ?? ""}`}
@@ -182,9 +187,10 @@ export function SessionView({
               />
             </TabsContent>
 
-            <TabsContent value="data" keepMounted className="min-h-0 flex-1 overflow-auto p-3">
-              <div className="rounded-lg border border-[var(--border)] bg-[var(--card)]">
-                <Chart mapping={{ chartType: "table" }} data={bound.rows} />
+            <TabsContent value="data" keepMounted className={PANEL_FILL}>
+              {/* 明细取原始查询结果：图表绑定会按数值槽位过滤行，不能作为明细的数据源 */}
+              <div className="h-full min-h-0 overflow-hidden rounded-lg border border-[var(--border)] bg-[var(--card)]">
+                <Chart mapping={{ chartType: "table" }} data={result.rows} fillHeight />
               </div>
             </TabsContent>
           </Tabs>

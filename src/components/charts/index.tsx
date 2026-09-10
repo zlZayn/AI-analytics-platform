@@ -17,7 +17,7 @@ import { KpiView } from "./views/kpi"
 
 export type { ChartMapping, ChartType, ChartProps } from "./types"
 
-function ChartInner({ mapping, data, showLegend = true }: ChartProps) {
+function ChartInner({ mapping, data, showLegend = true, fillHeight = false }: ChartProps) {
   if (data.length === 0) return <EmptyState />
 
   const { chartType } = mapping
@@ -123,7 +123,7 @@ function ChartInner({ mapping, data, showLegend = true }: ChartProps) {
       const columns = Object.keys(data[0] || {})
       return (
         <ChartErrorBoundary chartType="数据表" resetKeys={[mapping, data]}>
-          <TableView data={data} columns={columns} />
+          <TableView data={data} columns={columns} fillHeight={fillHeight} />
         </ChartErrorBoundary>
       )
     }

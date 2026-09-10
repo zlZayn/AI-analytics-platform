@@ -1,10 +1,11 @@
 "use client"
 
-import React, { useMemo, useRef, useState } from "react"
+import React, { useEffect, useMemo, useRef, useState } from "react"
 import { formatNumber } from "../utils"
 import { calculateVirtualWindow } from "../table-virtualization"
 
 const ROW_HEIGHT = 32
+/** 默认窗口高度，与未填满容器时的 max-h-[400px] 对应 */
 const VIEWPORT_HEIGHT = 400
 const OVERSCAN = 6
 const DEFAULT_COLUMN_WIDTH = 160
@@ -16,21 +17,43 @@ type ColumnWidths = Record<string, number>
 export const TableView = React.memo(function TableView({
   data,
   columns,
+  fillHeight = false,
 }: {
   data: Record<string, unknown>[]
   columns: string[]
+  /** 撑满容器高度（结果区「明细」Tab），虚拟窗口跟随容器实测高度 */
+  fillHeight?: boolean
 }) {
   const viewportRef = useRef<HTMLDivElement>(null)
+  const [measuredHeight, setMeasuredHeight] = useState<number | null>(null)
   const storageKey = useMemo(() => `analytics-table-widths:${columns.join("|")}`, [columns])
   const [widthsByKey, setWidthsByKey] = useState<Record<string, ColumnWidths>>({})
   const [scrollTop, setScrollTop] = useState(0)
+
+  // 填满模式：可视行数由容器高度决定，必须实测；jsdom 无 ResizeObserver，退化为默认窗口
+  useEffect(() => {
+    if (!fillHeight) return
+    const viewport = viewportRef.current
+    if (!viewport) return
+    const measure = () => {
+      const next = viewport.clientHeight
+      if (next > 0) setMeasuredHeight(next)
+    }
+    measure()
+    if (typeof ResizeObserver === "undefined") return
+    const observer = new ResizeObserver(measure)
+    observer.observe(viewport)
+    return () => observer.disconnect()
+  }, [fillHeight])
+
+  const viewportHeight = fillHeight ? (measuredHeight ?? VIEWPORT_HEIGHT) : VIEWPORT_HEIGHT
   const persistedWidths = useMemo(() => readColumnWidths(storageKey), [storageKey])
   const storedWidths = widthsByKey[storageKey] ?? persistedWidths
   const widths = columns.reduce<ColumnWidths>((result, column) => {
     result[column] = storedWidths[column] ?? DEFAULT_COLUMN_WIDTH
     return result
   }, {})
-  const virtual = calculateVirtualWindow(data.length, VIEWPORT_HEIGHT, ROW_HEIGHT, scrollTop, OVERSCAN)
+  const virtual = calculateVirtualWindow(data.length, viewportHeight, ROW_HEIGHT, scrollTop, OVERSCAN)
   const visibleRows = data.slice(virtual.start, virtual.end)
   const tableWidth = columns.reduce((total, column) => total + widths[column], 0)
 
@@ -62,8 +85,8 @@ export const TableView = React.memo(function TableView({
     const movement: Partial<Record<string, number>> = {
       ArrowDown: ROW_HEIGHT,
       ArrowUp: -ROW_HEIGHT,
-      PageDown: VIEWPORT_HEIGHT,
-      PageUp: -VIEWPORT_HEIGHT,
+      PageDown: viewportHeight,
+      PageUp: -viewportHeight,
     }
     if (event.key in movement) viewport.scrollBy({ top: movement[event.key], behavior: "auto" })
     else if (event.key === "Home") viewport.scrollTo({ top: 0, behavior: "auto" })
@@ -75,7 +98,7 @@ export const TableView = React.memo(function TableView({
   return (
     <div
       ref={viewportRef}
-      className="max-h-[400px] overflow-auto outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]"
+      className={`${fillHeight ? "h-full" : "max-h-[400px]"} overflow-auto outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]`}
       tabIndex={0}
       aria-label={`查询结果，共 ${data.length} 行 ${columns.length} 列`}
       onScroll={(event) => setScrollTop(event.currentTarget.scrollTop)}
