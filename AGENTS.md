@@ -33,7 +33,7 @@ This version has breaking changes — APIs, conventions, and file structure may 
 ## 活跃坑
 - 烟测/开发服务器用 `http://localhost:4321`；行尾统一 LF（maintenance-flow 的 check-line-endings.py 检测）；**例外：根目录 `*.cmd` 必须 CRLF + GBK(ANSI) 编码、无 BOM、不用 chcp**（cmd 解析 LF 多行块报 "do was unexpected"；UTF-8 编码在记事本/控制台显示乱码；编辑铁律见 [决策记录](.agents/notes/2026-09-03-windows-script-encoding-rules.md)）
 - typecheck 报 PrismaClient 缺模型属性（schemaSnapshot/connection）→ `node_modules/@prisma/client` 损坏，重装后必须 `npx prisma generate`
-- `.next` 缓存 dev/prod 混用会致 build 失败（清 `.next` 再 build）；**Geist 字体已自托管（`src/app/fonts/`），构建/开发不联网**
+- `.next` 缓存 dev/prod 混用会致 build 失败（清 `.next` 再 build）；**增删 app 路由后 typecheck 可能被 `.next/types/validator.ts` 的旧生成类型绊住**（报「找不到已删除的 route.js」）→ 清 `.next` 再验；**Geist 字体已自托管（`src/app/fonts/`），构建/开发不联网**
 - 浏览器烟测/E2E 需本地 chromium（Playwright），CI 不跑浏览器脚本
 - 入口脚本 `Start Dev.cmd`/`Build.cmd` 有构建新鲜度检查（对比 `src`/`prisma` 排除 `generated` 与 `.next\BUILD_ID`），见 [README.md](README.md)
 - **`next start`（Start Dev 生产模式）跑旧构建产物**：git pull 新代码后必须重建（Start Dev 询问时选"是"/F）；构建后脚本会结束旧 PID 再启动新实例，排查"改了什么没变化"先验 `.next` 是否含新内容
