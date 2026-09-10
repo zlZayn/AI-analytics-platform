@@ -36,7 +36,9 @@
 
 ## AI
 
-`POST /api/ai` 返回 `{ items: InsightItem[] }`，请求体可选 `referencedTables: string[]`（@ 提及的表）：有则只扫描这些表的数据轮廓（不受 6 表上限约束），无则自动扫描前 6 表。`POST /api/ai/insights` 同样返回 `{ items }`，恒扫描前 6 表。模型响应必须通过原生 JSON Schema structured output 和本地运行时校验；项为双变体：`querySpec` + `displayConfig` 优先（经 `query-compiler` 编译为参数化 SQL），`sql` + `chart` 作为回退（标记 `fallback`）。非法 SQL、未知图表、非法槽位或引用未知 SQL 输出别名的映射会被丢弃。
+`POST /api/ai` 返回 `{ items: InsightItem[] }`，请求体可选 `referencedTables: string[]`（@ 提及的表）：有则只扫描这些表的数据轮廓（不受 6 表上限约束），无则自动扫描前 6 表。`POST /api/ai/insights` 同样返回 `{ items }`，恒扫描前 6 表。响应经供应商原生 JSON Schema structured output 与本地运行时校验双重把关，非法项直接丢弃。
+
+输出双变体、提示词边界与 AI 可见范围见 [04_ai_integration.md](04_ai_integration.md)。
 
 ## 文档导航
 

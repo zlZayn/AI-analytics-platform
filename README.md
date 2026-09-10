@@ -11,7 +11,7 @@
 - 分析结果直接可视化——10 种图表，支持人工调整列映射
 - 数据安全有边界——只读事务、参数化查询、白名单校验
 
-设计哲学与边界见 [design-philosophy.md](docs/design-philosophy.md)。
+设计哲学与边界见 [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)（设计哲学节）。
 
 ## 功能
 
@@ -78,8 +78,8 @@ npm run dev             # http://localhost:3000
 ## 文档
 
 - 使用/交互：本文件 + [scripts/README.md](scripts/README.md)（启动/构建入口）
-- 开发者手册：[src/README.md](src/README.md)（目录职责、页面路由、改动路由）· [prisma/README.md](prisma/README.md)
-- 架构与决策：[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) · [docs/design-philosophy.md](docs/design-philosophy.md) · [.agents/notes/](.agents/notes/)（决策记录）
-- 接口与规范：[docs/api.md](docs/api.md)（API 合约）· [docs/charts.md](docs/charts.md)（图表规范）· [docs/04_ai_integration.md](docs/04_ai_integration.md)（AI 合同）· [docs/operations.md](docs/operations.md)（运维）
+- 开发者手册：[src/README.md](src/README.md)（目录职责、页面路由、改动路由）· [src/components/charts/README.md](src/components/charts/README.md)（图表算法与限额）· [prisma/README.md](prisma/README.md)
+- 架构与决策：[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) · [.agents/notes/](.agents/notes/)（决策记录）
+- 接口与规范：[docs/api.md](docs/api.md)（API 合约）· [docs/04_ai_integration.md](docs/04_ai_integration.md)（AI 合同）· [docs/operations.md](docs/operations.md)（运维）
 - 测试与验收：[docs/testing.md](docs/testing.md)（含 CI）· [docs/manual-acceptance.md](docs/manual-acceptance.md)（人工验收）
-- 维护者索引与规则：[AGENTS.md](AGENTS.md) · 实现状态：[docs/implementation-status.md](docs/implementation-status.md)
+- 维护者索引与规则：[AGENTS.md](AGENTS.md) · 进行中计划：[docs/PLAN.md](docs/PLAN.md)

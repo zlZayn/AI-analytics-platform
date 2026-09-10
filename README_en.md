@@ -11,7 +11,7 @@ A natural-language data analytics platform for business users: connect PostgreSQ
 - Visualize results directly — 10 chart types with user-adjustable column mappings
 - Keep data safe — read-only transactions, parameterized queries, whitelist validation
 
-Design philosophy and boundaries: [design-philosophy.md](docs/design-philosophy.md).
+Design philosophy and boundaries: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) (Design Philosophy section).
 
 ## Features
 
@@ -78,8 +78,8 @@ Only single `SELECT`/`WITH` statements are allowed, run inside a read-only trans
 ## Docs
 
 - Usage/interaction: this file + [scripts/README.md](scripts/README.md) (launcher/build entry points)
-- Developer handbook: [src/README.md](src/README.md) (directory duties, page routes, change routing) · [prisma/README.md](prisma/README.md)
-- Architecture & decisions: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) · [docs/design-philosophy.md](docs/design-philosophy.md) · [.agents/notes/](.agents/notes/) (decision records)
-- Interfaces & specs: [docs/api.md](docs/api.md) (API contract) · [docs/charts.md](docs/charts.md) (chart specs) · [docs/04_ai_integration.md](docs/04_ai_integration.md) (AI contract) · [docs/operations.md](docs/operations.md) (ops)
+- Developer handbook: [src/README.md](src/README.md) (directory duties, page routes, change routing) · [src/components/charts/README.md](src/components/charts/README.md) (chart algorithms and limits) · [prisma/README.md](prisma/README.md)
+- Architecture & decisions: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) · [.agents/notes/](.agents/notes/) (decision records)
+- Interfaces & specs: [docs/api.md](docs/api.md) (API contract) · [docs/04_ai_integration.md](docs/04_ai_integration.md) (AI contract) · [docs/operations.md](docs/operations.md) (ops)
 - Testing & acceptance: [docs/testing.md](docs/testing.md) (incl. CI) · [docs/manual-acceptance.md](docs/manual-acceptance.md) (manual acceptance)
-- Maintainer index & rules: [AGENTS.md](AGENTS.md) · implementation status: [docs/implementation-status.md](docs/implementation-status.md)
+- Maintainer index & rules: [AGENTS.md](AGENTS.md) · current plan: [docs/PLAN.md](docs/PLAN.md)

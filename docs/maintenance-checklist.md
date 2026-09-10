@@ -12,7 +12,7 @@
 - [ ] 改 AI 契约（ai-contract）→ 提示词、解析、AiVisibilityHint 文案、测试同步
 - [ ] 改 `.cmd` → 字节级编辑（GBK+CRLF+无 BOM），见 [决策记录](../.agents/notes/2026-09-03-windows-script-encoding-rules.md)
 - [ ] `.cmd` 的 `if (...)` 代码块日志避免未转义圆括号；改后用 `cmd.exe /d /c` 捕获输出验证，不只双击观察
-- [ ] 文档同步（改了什么 → 对应文档节）：[implementation-status.md](implementation-status.md)（状态/数字）· [PLAN.md](PLAN.md)（待办勾掉/新计划）· [uiux-handoff.md](uiux-handoff.md)（现状事实）· 新设计决策 → [.agents/notes/](../.agents/notes/)
+- [ ] 文档同步（改了什么 → 对应文档节）：[../AGENTS.md](../AGENTS.md)（验证快照数字/待办/活跃坑）· [PLAN.md](PLAN.md)（待办勾掉/新计划）· 对应子目录 README（模块事实与算法契约）· 新设计决策 → [.agents/notes/](../.agents/notes/)
 - [ ] 三连校验：`python scripts/check-links.py .` · `python <skill>/check-line-endings.py . --exclude .next --exclude node_modules --exclude .git` · `git diff --check`
 - [ ] 测试数字漂移 → 如实更新 [AGENTS.md](../AGENTS.md) 验证快照（增删用例 → 改数字并说明）
 
