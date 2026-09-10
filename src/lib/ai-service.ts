@@ -88,9 +88,6 @@ export async function generateAnalysis(
   return { items }
 }
 
-/** 过渡别名：阶段三前旧调用方使用 generateSQL，保留以兼容（新代码请用 generateAnalysis） */
-export const generateSQL = generateAnalysis
-
 /**
  * AI_API_HEADERS：JSON 对象文本 → 请求头模板
  * 忽略非字符串与空值；非法 JSON 视为未配置（不阻断调用）

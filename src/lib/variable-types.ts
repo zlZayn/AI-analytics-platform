@@ -104,27 +104,3 @@ export const SELECTABLE_CHART_TYPES: ChartType[] = (Object.keys(CHART_TYPE_INFO)
   (type) => type !== "table",
 )
 
-/**
- * 根据列名关键字自动填充映射
- * 不做智能推断，纯关键字匹配
- */
-export function inferMapping(
-  columns: { name: string }[],
-  chartType: ChartType,
-): Record<string, string> {
-  const mapping: Record<string, string> = {}
-  const slots = CHART_TYPE_SLOTS[chartType]
-
-  if (chartType === "table" || chartType === "correlation") {
-    return mapping
-  }
-
-  const colNames = columns.map((c) => c.name)
-  Object.keys(slots).forEach((slot, i) => {
-    if (colNames[i]) {
-      mapping[slot] = colNames[i]
-    }
-  })
-
-  return mapping
-}

@@ -22,9 +22,9 @@ describe("default AI provider configuration", () => {
     process.env.AI_MODEL = "offline-test-model"
     globalThis.fetch = vi.fn().mockRejectedValue(new Error("network must not be called"))
     vi.resetModules()
-    const { generateSQL } = await import("../ai-service")
+    const { generateAnalysis } = await import("../ai-service")
 
-    await expect(generateSQL("test", "public.items(id integer)")).rejects.toThrow(
+    await expect(generateAnalysis("test", "public.items(id integer)")).rejects.toThrow(
       "AI_API_BASE",
     )
     expect(globalThis.fetch).not.toHaveBeenCalled()
@@ -36,9 +36,9 @@ describe("default AI provider configuration", () => {
     delete process.env.AI_MODEL
     globalThis.fetch = vi.fn().mockRejectedValue(new Error("network must not be called"))
     vi.resetModules()
-    const { generateSQL } = await import("../ai-service")
+    const { generateAnalysis } = await import("../ai-service")
 
-    await expect(generateSQL("test", "public.items(id integer)")).rejects.toThrow(
+    await expect(generateAnalysis("test", "public.items(id integer)")).rejects.toThrow(
       "AI_MODEL",
     )
     expect(globalThis.fetch).not.toHaveBeenCalled()

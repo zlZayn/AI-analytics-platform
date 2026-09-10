@@ -17,9 +17,9 @@ This version has breaking changes — APIs, conventions, and file structure may 
 - `npm test` · `npm run typecheck` · `npm run lint` · `npm run dev`
 
 ## 验证快照（2026-09-11，main 分支）
-- vitest: 41 files / 224 passed / 0 failed
+- vitest: 43 files / 233 passed / 0 failed
 - typecheck / lint: 0 errors
-- 生产 build: passed（清 `.next` 后）；生产端口离线 E2E（侧栏/探索/历史入口 SQL 填充、请求体、Monaco、结果区、明细原始行、连接编辑回填与移动端）: passed
+- 生产 build: passed（清 `.next` 后）；生产端口离线 E2E（侧栏/探索/历史入口 SQL 填充、请求体、Monaco、结果区、明细原始行、连接编辑回填、AI 编排与移动端）: passed
 - 真实 AI 调用（opencode zen go / `deepseek-flash`）: passed（5 条洞察；网关拒绝 `json_schema` 时按 `json_object` → 无 `response_format` 降级）
 
 ## 待办

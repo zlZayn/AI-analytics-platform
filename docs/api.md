@@ -12,7 +12,6 @@
 | GET | `/api/query/history` | 查询历史 |
 | GET/POST | `/api/query/saved` | 保存的查询 |
 | POST | `/api/ai` | AI 分析 (结构化 JSON 输出) |
-| POST | `/api/ai/insights` | AI 洞察推荐 |
 
 ## 统一响应
 
@@ -36,7 +35,7 @@
 
 ## AI
 
-`POST /api/ai` 返回 `{ items: InsightItem[] }`，请求体可选 `referencedTables: string[]`（@ 提及的表）：有则只扫描这些表的数据轮廓（不受 6 表上限约束），无则自动扫描前 6 表。`POST /api/ai/insights` 同样返回 `{ items }`，恒扫描前 6 表。响应经供应商原生 JSON Schema structured output 与本地运行时校验双重把关，非法项直接丢弃。
+`POST /api/ai` 返回 `{ items: InsightItem[] }`，请求体可选 `referencedTables: string[]`（@ 提及的表）：有则只扫描这些表的数据轮廓（不受 6 表上限约束），无则自动扫描前 6 表。响应经供应商原生 JSON Schema structured output 与本地运行时校验双重把关，非法项直接丢弃。
 
 输出双变体、提示词边界与 AI 可见范围见 [04_ai_integration.md](04_ai_integration.md)。
 

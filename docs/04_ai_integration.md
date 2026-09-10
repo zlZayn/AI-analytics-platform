@@ -59,7 +59,9 @@ AI 每项输出 `title`、`insight`、`querySpec` + `displayConfig`，或 `sql` 
 - `src/lib/ai-contract.ts`：契约单一来源 `INSIGHT_FIELDS`（提示词形状/字段说明、strict JSON Schema 变体、解析截断长度全部派生；一致性测试见 [src/lib/__tests__/README.md](../src/lib/__tests__/README.md)）
 - `src/lib/ai-context.ts`：上下文来源与可见范围声明（纯模块）、@ 提及规范化、trace 摘要
 - `src/lib/ai-context-service.ts`：`collectAIContext`（表结构 → 轮廓 → 历史 → 业务口径；服务端）
-- `src/lib/ai-service.ts`：可注入的 `AICompletionProvider` 和 OpenAI 兼容生产 provider；`generateAnalysis`（`generateSQL` 为兼容别名）
+- `src/lib/ai-service.ts`：可注入的 `AICompletionProvider` 和 OpenAI 兼容生产 provider（`generateAnalysis`：请求头模板、response_format 降级、错误描述）
+- `src/hooks/useAiAssistant.ts`：AI 编排（输入/请求/洞察流），视图只负责挂载
+- `src/lib/ai-session-mapping.ts`：洞察项 → 会话 action 的单一映射（querySpec 编译路径 / 回退 SQL 路径）
 - `src/lib/schema-service.ts`：生成当前连接 Schema 上下文与数据轮廓（scanDataProfile / buildDataProfileText）
 - `src/lib/query-compiler.ts`：QuerySpec → 参数化 SQL
 - `src/lib/validators.ts`：schema-based / data-based 双模式校验
