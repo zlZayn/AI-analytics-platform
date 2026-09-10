@@ -61,11 +61,13 @@ export function useSession(options: UseSessionOptions): UseSessionResult {
     connectionIdRef.current = connectionId
   })
 
-  // 副作用 1：querySpec 变化 → 编译
+  // 副作用 1：querySpec 变化（或收到新的执行请求）→ 编译
+  // 指纹含 runId：同一份 spec 的再次执行请求必然重新编译并产生新的 compiledSql 对象，
+  // 从而必然触发副作用 2；只有「渲染重复、spec 未变、也无新请求」才会被去重跳过。
   useEffect(() => {
     if (!autoRun) return
     if (!state.querySpec || !state.querySpec.table) return
-    const fingerprint = JSON.stringify(state.querySpec)
+    const fingerprint = `${state.runId}:${JSON.stringify(state.querySpec)}`
     if (fingerprint === compiledSpecRef.current) return
     compiledSpecRef.current = fingerprint
     try {
@@ -78,7 +80,7 @@ export function useSession(options: UseSessionOptions): UseSessionResult {
         error: error instanceof Error ? error.message : String(error),
       })
     }
-  }, [state.querySpec, autoRun])
+  }, [state.querySpec, state.runId, autoRun])
 
   // 副作用 2：compiledSql 变化 → 执行
   useEffect(() => {
@@ -115,12 +117,12 @@ export function useSession(options: UseSessionOptions): UseSessionResult {
   useEffect(() => {
     if (state.status !== "needs_recompile") return
     if (!state.querySpec) return
-    const fingerprint = JSON.stringify(state.querySpec)
+    const fingerprint = `${state.runId}:${JSON.stringify(state.querySpec)}`
     // querySpec 未变化（仅展示层变更，如映射/图表类型）→ 无需重查，回到 ready
     if (fingerprint === compiledSpecRef.current) {
       dispatch({ type: "SET_STATUS", status: "ready" })
     }
-  }, [state.status, state.querySpec])
+  }, [state.status, state.querySpec, state.runId])
 
   return { session: state, dispatch }
 }

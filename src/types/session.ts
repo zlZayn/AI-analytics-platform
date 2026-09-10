@@ -150,6 +150,12 @@ export interface AnalysisSession {
   validationIssues?: ValidationIssue[]
   source: "ai" | "user"
   isUserModified: boolean
+  /**
+   * 显式执行请求序号：每次「请执行这份查询」+1（如 INIT_FROM_AI）。
+   * 编译副作用按 querySpec 去重，序号保证同一份 spec 的再次执行不会被去重吞掉——
+   * 这是「任何入口触发的执行都真的执行」的状态机契约。
+   */
+  runId: number
   conversationHistory: ConversationMessage[]
   createdAt: Date
   updatedAt: Date

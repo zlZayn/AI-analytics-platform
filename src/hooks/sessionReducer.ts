@@ -28,6 +28,7 @@ export function createInitialSession(overrides?: Partial<AnalysisSession>): Anal
     status: "idle",
     source: "user",
     isUserModified: false,
+    runId: 0,
     conversationHistory: [],
     createdAt: now,
     updatedAt: now,
@@ -147,6 +148,8 @@ export function createSessionReducer(deps: SessionReducerDeps) {
           validationIssues: undefined,
           source: "ai",
           isUserModified: false,
+          // 显式执行请求：递增序号，保证编译去重不会吞掉这次执行
+          runId: state.runId + 1,
           conversationHistory: payload.conversationHistory ?? state.conversationHistory,
         })
       }

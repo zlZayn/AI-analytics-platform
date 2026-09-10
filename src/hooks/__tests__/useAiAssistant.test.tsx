@@ -35,6 +35,7 @@ function session(): AnalysisSession {
     status: "idle",
     source: "user",
     isUserModified: false,
+    runId: 0,
     conversationHistory: [],
     createdAt: new Date(0),
     updatedAt: new Date(0),

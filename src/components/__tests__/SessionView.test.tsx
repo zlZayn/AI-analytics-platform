@@ -45,6 +45,7 @@ function buildSession(displayConfig: AnalysisSession["displayConfig"]): Analysis
     status: "ready",
     source: "user",
     isUserModified: false,
+    runId: 0,
     conversationHistory: [],
     createdAt: new Date(0),
     updatedAt: new Date(0),
