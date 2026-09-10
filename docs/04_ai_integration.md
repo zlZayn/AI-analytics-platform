@@ -36,11 +36,13 @@ AI 每项输出 `title`、`insight`、`querySpec` + `displayConfig`，或 `sql` 
 - `src/lib/query-compiler.ts`：QuerySpec → 参数化 SQL
 - `src/lib/validators.ts`：schema-based / data-based 双模式校验
 
-`generateAnalysis(message, schemaContext, dataProfileText, history, provider?)` 返回 `{ items }`。测试注入内存 provider，不需要 API Key，也不会调用真实模型。
+`generateAnalysis(message, schemaContext, conversationHistory, provider?, dataProfileText?, businessContext?, sessionId?)` 返回 `{ items }`。测试注入内存 provider，不需要 API Key，也不会调用真实模型。
 
 ## Structured Output
 
-生产 provider 使用 `response_format.type = json_schema`、`strict = true`。根对象是 `{ items: [...] }`，每项为双变体 anyOf。支持 table、line、bar、pie、scatter、boxplot、heatmap、correlation、kpi、histogram。
+生产 provider 优先使用 `response_format.type = json_schema`、`strict = true`。提供方拒绝该类型时逐级降级：`json_object` → 不带 `response_format`（进程内记住可用档位并打日志，`AI_RESPONSE_FORMAT` 可显式指定起点）。根对象是 `{ items: [...] }`，每项为双变体 anyOf。支持 table、line、bar、pie、scatter、boxplot、heatmap、correlation、kpi、histogram。
+
+降级为纯提示词约束时，字段名（title/insight/querySpec/displayConfig/sql/chart/context/statTest）与根对象形状必须写在提示词里——否则模型会自造字段名（如 description），解析后 items 为空。
 
 运行时仍执行第二道校验：
 
@@ -53,6 +55,22 @@ AI 每项输出 `title`、`insight`、`querySpec` + `displayConfig`，或 `sql` 
 ## 配置
 
 `AI_API_BASE`、`AI_API_KEY`、`AI_MODEL` 控制真实 provider，三项均须显式配置，代码不再回退到任何私有端点或模型。任一项缺失时 API 在创建 SDK 和发起网络请求前返回稳定的未配置错误；应用构建、提示词合同测试和 fake provider 离线回归不受影响。模型温度为 0.2，以减少同一请求的结构漂移。
+
+`AI_MODEL` 必须使用提供方文档中的模型 ID：多数网关用带版本号的 ID（如 `deepseek-v4-flash`），简写别名可能返回空内容而只表现为「未生成有效结果」。
+
+`AI_API_HEADERS`（可选，JSON 对象）声明附加请求头，代码本身不内置任何网关专属头名：
+
+- 值支持占位符 `{sessionId}`（本次会话，前端传 `session.id`，缺失时回退 connectionId）与 `{version}`（应用版本）
+- 占位符无法解析时整条头丢弃，不发送空值
+- 未声明 `User-Agent` 时补 `ai-analytics-platform/<version>`（部分网关拒绝通用 SDK 标识）
+- 网关要求稳定会话头时写法示例：`AI_API_HEADERS={"x-opencode-session":"{sessionId}"}`
+
+## 错误呈现
+
+上游调用失败时接口返回具体原因，而不是「稍后重试」：`message` 形如 `AI 分析失败：HTTP 400 MissingSessionID：<提供方原文>`，保留状态码与错误类型、抹掉密钥片段、截断 300 字，工作台显示在 AI 气泡里。
+
+- 未配置或缺凭据 → `AI_NOT_CONFIGURED`（503），前端另显示 .env 指引横幅
+- 其他上游失败 → `AI_FAILED`（500，retryable），服务端仍打印完整错误便于排查
 
 ## 离线回归
 

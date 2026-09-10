@@ -192,6 +192,7 @@ export function buildSystemPrompt(schemaContext: string, dataProfileText = "", b
   return `你是数据分析工作台的 SQL 与图表建议助手。只依据下方当前连接 Schema 回答，不得假设行业、表、列或关系。
 
 输出契约（新格式，优先）：
+- 根对象是 { "items": [ ... ] }（最多 6 项），每项字段名固定：{"title": 短标题, "insight": 业务语言结论, "querySpec": 结构化查询, "displayConfig": 呈现配置, "sql": 可选回退 SQL, "chart": 可选回退图表, "context": [], "statTest": null}；不要自造字段名（如 description/id）。
 - 每个洞察项必须包含 querySpec（结构化查询）与 displayConfig（呈现配置）。
 - querySpec 结构：{ "table": "表名", "dimensions": ["列名"], "measures": [{ "field": "列名", "aggregation": "sum|count|avg|min|max|count_distinct", "alias": "输出别名" }], "filters": [{ "field": "列名", "op": "eq|gt|...", "value": 值 }], "having": [...], "sort": [{ "field": "别名", "direction": "asc|desc" }], "limit": 数字, "joins": [{ "table": "表名", "type": "inner|left|right", "on": { "left": "a.id", "right": "b.id" } }] }
 - displayConfig 结构：{ "chartType": "bar", "mapping": { "x": "类别别名", "y": "数值别名" } }，mapping 只能引用 querySpec 输出的别名。
@@ -206,6 +207,7 @@ ${businessSection}
 - 所有图表使用的输出列必须显式 AS 为稳定别名，mapping 只能引用这些输出别名。
 - 不得静默截断、采样或改写业务数据。类别过多时应在 SQL 中合理聚合，并在 insight 中说明。
 - 只返回符合 JSON Schema 的对象，不输出 Markdown、代码围栏或额外文字。
+- 根对象必须是 { "items": [ ... ] }，items 为洞察项数组（最多 6 项），不要返回裸数组。
 
 图表合同：
 ${chartRules}

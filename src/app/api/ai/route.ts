@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server'
-import { generateAnalysis } from '@/lib/ai-service'
+import { AIConfigurationError, describeAIError, generateAnalysis } from '@/lib/ai-service'
 import { buildDataProfileText, buildSchemaContext, scanAllDataProfiles, scanDataProfile, scanSchema } from '@/lib/schema-service'
 import { prisma } from '@/lib/prisma'
 import { apiFailure, apiSuccess } from '@/lib/api-response'
@@ -85,6 +85,9 @@ export async function POST(request: NextRequest) {
         ? businessContext.trim()
         : ""
 
+    // 会话标识：网关用它做路由与提示词缓存（优先前端会话 ID，回退连接 ID）
+    const sessionId = typeof conversationId === 'string' && conversationId.length > 0 ? conversationId : connectionId
+
     // 调用 AI 生成分析
     const result = await generateAnalysis(
       message,
@@ -93,16 +96,20 @@ export async function POST(request: NextRequest) {
       undefined,
       dataProfileText,
       businessContextText,
+      sessionId,
     )
 
     return apiSuccess({ items: result.items })
   } catch (error) {
     console.error('AI 分析失败', error)
-    const unavailable = error instanceof Error && /未配置|API Key/.test(error.message)
+    if (error instanceof AIConfigurationError) {
+      return apiFailure({ code: 'AI_NOT_CONFIGURED', message: error.message, retryable: false }, 503)
+    }
+    // 具体原因（HTTP 状态 + 提供方原文）回传 UI，避免只显示「稍后重试」
     return apiFailure({
-      code: unavailable ? 'AI_NOT_CONFIGURED' : 'AI_FAILED',
-      message: unavailable ? 'AI 服务未配置，请设置 AI_API_KEY' : 'AI 分析失败，请稍后重试',
-      retryable: !unavailable,
-    }, unavailable ? 503 : 500)
+      code: 'AI_FAILED',
+      message: `AI 分析失败：${describeAIError(error)}`,
+      retryable: true,
+    }, 500)
   }
 }

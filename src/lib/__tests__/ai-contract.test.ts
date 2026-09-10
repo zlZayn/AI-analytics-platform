@@ -35,6 +35,9 @@ describe("AI prompt and output contract", () => {
     expect(prompt).toContain("TABLE sales(region text, amount numeric)")
     expect(prompt).toContain("聚合和数据整形必须在 SQL 中完成")
     expect(prompt).toContain("首次结果保持表格")
+    // 降级到纯提示词约束时（网关不支持 response_format），字段名必须写在提示词里
+    expect(prompt).toContain('"insight"')
+    expect(prompt).toContain('"querySpec"')
     expect(prompt).toContain("querySpec")
     expect(prompt).not.toMatch(/药店|药房|门店|pharmacy/i)
   })

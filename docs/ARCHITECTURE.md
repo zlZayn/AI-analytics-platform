@@ -24,7 +24,7 @@
 
 - 查询只允许单条 SELECT/WITH，在 PostgreSQL 只读事务 + statement timeout 内执行，默认上限 5,000 行
 - 平台元数据表（Prisma）与用户业务表分离；数据库名 `ai_analytics` 保持，见 [决策记录](../.agents/notes/2026-09-01-keep-database-name-ai-analytics.md)
-- AI 输出优先结构化 QuerySpec + DisplayConfig（双变体 anyOf），`sql` 字段作为回退；AI 输出使用供应商原生 strict JSON Schema + 运行时校验；SQL 只引用当前 Schema 与显式输出别名
+- AI 输出优先结构化 QuerySpec + DisplayConfig（双变体 anyOf），`sql` 字段作为回退；优先要求供应商原生 strict JSON Schema，提供方不支持时按 `json_object` → 无 `response_format` 降级，运行时契约校验（parseInsightItems + validators）始终执行；SQL 只引用当前 Schema 与显式输出别名
 - 连接密码 AES-256 加密（每条随机盐）；AI 与数据库凭据只从环境变量读取，不落库
 - Geist 字体自托管（`src/app/fonts/` via `next/font/local`）；构建与开发不访问外网字体服务
 - 入口脚本构建新鲜度检查：`src`/`prisma`（排除 `generated`）vs `.next/BUILD_ID`；构建后若端口已有旧服务，`Start Dev.cmd` 先结束旧 PID 再启动新实例

@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server'
-import { generateAnalysis } from '@/lib/ai-service'
+import { AIConfigurationError, describeAIError, generateAnalysis } from '@/lib/ai-service'
 import { buildDataProfileText, buildSchemaContext, scanAllDataProfiles, scanSchema } from '@/lib/schema-service'
 import { prisma } from '@/lib/prisma'
 import { apiFailure, apiSuccess } from '@/lib/api-response'
@@ -58,11 +58,20 @@ export async function POST(request: NextRequest) {
       Array.isArray(conversationHistory) ? conversationHistory : undefined,
       undefined,
       dataProfileText,
+      "",
+      connectionId,
     )
 
     return apiSuccess({ items: result.items })
   } catch (error) {
     console.error('生成分析推荐失败', error)
-    return apiFailure({ code: 'AI_INSIGHTS_FAILED', message: '生成分析失败，请稍后重试', retryable: true })
+    if (error instanceof AIConfigurationError) {
+      return apiFailure({ code: 'AI_NOT_CONFIGURED', message: error.message, retryable: false }, 503)
+    }
+    return apiFailure({
+      code: 'AI_INSIGHTS_FAILED',
+      message: `生成分析失败：${describeAIError(error)}`,
+      retryable: true,
+    }, 500)
   }
 }

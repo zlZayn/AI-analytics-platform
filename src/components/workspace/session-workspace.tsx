@@ -142,6 +142,8 @@ export function SessionWorkspace({ connectionId, initialSql }: SessionWorkspaceP
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           connectionId,
+          // 会话标识：AI 网关据此路由与缓存（请求头模板的 {sessionId} 占位符消费）
+          conversationId: session.id,
           message: msg,
           conversationHistory: history,
           // @提及的表作为显式上下文：只扫这些表的数据轮廓
