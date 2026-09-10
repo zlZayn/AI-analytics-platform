@@ -4,9 +4,34 @@
 
 AI 根据当前连接扫描出的 Schema 与数据轮廓，建议结构化 QuerySpec + DisplayConfig，不直接访问数据库。提示词不包含行业模型、固定表名或业务样例。SQL/AI 负责聚合和数据整形；图表只执行固定展示算法。首次查询结果保持表格，AI 推荐只有在用户执行洞察后才应用。
 
+## 定位与职责
+
+助手是单发分析建议：一次提问 → 1..6 条建议（querySpec + displayConfig，或回退 sql + chart）→ 执行第一条。据此明确不做：
+
+- 不做 agent 运行时（工具循环 / 计划 / 自我修正轮次）
+- 不做长期记忆与上下文压缩（会话短、上下文有界；压缩属长任务 agent 的问题）
+- 不做会话树与分支重放（`AnalysisSession` 是唯一真相）
+- AI 不接触数据行：只注入结构与轮廓，结果数据只回浏览器
+
+决策与被否决方案见 [.agents/notes/2026-09-11-ai-assistant-contract-and-context.md](../.agents/notes/2026-09-11-ai-assistant-contract-and-context.md)。
+
+## 上下文分层
+
+来源在 `src/lib/ai-context.ts` 的 `CONTEXT_SOURCES` 一处声明（纯模块，客户端可导入），采集在 `src/lib/ai-context-service.ts` 的 `collectAIContext` 一处实现，两个 AI 路由共用：
+
+| 来源 | 采集与降级 |
+| :--- | :--- |
+| 表结构 | 优先 active 快照，缺失时现场扫描；扫描失败即请求失败 |
+| 数据轮廓 | @ 提及的表逐个扫描（不受上限）；未提及自动前 6 表；失败静默跳过 |
+| 图表契约 | 提示词常量，始终注入 |
+| 业务口径 | 调用方传入才注入 |
+| 会话历史 | 前端传入优先，否则按 conversationId 取最近 10 条 |
+
+每次请求写一条 trace（`[ai] schema=… profile=… business=… history=… mentions=… items=…`），只含长度与条数，不含业务内容。
+
 ## 可见性边界（用户可见）
 
-AI 提示词注入内容即 AI 可见范围；工作台 AI 助手面板顶部有「AI 可见范围」提示（`src/components/ai-visibility-hint.tsx`），用户可展开查看。
+AI 提示词注入内容即 AI 可见范围；工作台 AI 助手面板顶部的「AI 可见范围」提示（`src/components/ai-visibility-hint.tsx`）由上述 `CONTEXT_SOURCES` 声明渲染，与注入同一来源，不再维护静态镜像文案。
 
 - 可见：表名、字段名、数据库类型、数据轮廓（唯一值数 / NULL 数 / min/max / 样本值，最多 6 表）、图表契约（10 种类型 + 槽位规则 + 输出格式，`CHART_CONTRACTS`）、会话问答历史
 - 不可见：查询结果数据行、连接密码、连接串、平台账号等敏感信息
@@ -27,10 +52,13 @@ AI 每项输出 `title`、`insight`、`querySpec` + `displayConfig`，或 `sql` 
 - `querySpec`：结构化查询（dimensions/measures/filters/having/sort/limit/joins），由 `query-compiler.ts` 编译为参数化 SQL（防注入，标识符分段引号）
 - `displayConfig`：`{ chartType, mapping }`，由 `validators.ts` 双模式校验
 - 回退规则：`querySpec` 存在时优先使用；缺失时回退 `sql` 直通，标记 `fallback=true`
+- 单一来源：契约声明在 `src/lib/ai-contract.ts` 的 `INSIGHT_FIELDS`，提示词形状/字段说明、strict JSON Schema 变体、解析截断长度都由它派生；`ai-contract-single-source.test.ts` 守卫三面一致（含「提示词必须含 json 字样」这条网关前置条件）
 
 ## 模块
 
-- `src/lib/ai-contract.ts`：提示词构建、供应商 JSON Schema（双变体 anyOf）、运行时校验、数据轮廓注入
+- `src/lib/ai-contract.ts`：契约单一来源 `INSIGHT_FIELDS`（提示词形状/字段说明、strict JSON Schema 变体、解析截断长度全部派生；`ai-contract-single-source.test.ts` 守卫三面一致）
+- `src/lib/ai-context.ts`：上下文来源与可见范围声明（纯模块）、@ 提及规范化、trace 摘要
+- `src/lib/ai-context-service.ts`：`collectAIContext`（表结构 → 轮廓 → 历史 → 业务口径；服务端）
 - `src/lib/ai-service.ts`：可注入的 `AICompletionProvider` 和 OpenAI 兼容生产 provider；`generateAnalysis`（`generateSQL` 为兼容别名）
 - `src/lib/schema-service.ts`：生成当前连接 Schema 上下文与数据轮廓（scanDataProfile / buildDataProfileText）
 - `src/lib/query-compiler.ts`：QuerySpec → 参数化 SQL
@@ -42,7 +70,7 @@ AI 每项输出 `title`、`insight`、`querySpec` + `displayConfig`，或 `sql` 
 
 生产 provider 优先使用 `response_format.type = json_schema`、`strict = true`。提供方拒绝该类型时逐级降级：`json_object` → 不带 `response_format`（进程内记住可用档位并打日志，`AI_RESPONSE_FORMAT` 可显式指定起点）。根对象是 `{ items: [...] }`，每项为双变体 anyOf。支持 table、line、bar、pie、scatter、boxplot、heatmap、correlation、kpi、histogram。
 
-降级为纯提示词约束时，字段名（title/insight/querySpec/displayConfig/sql/chart/context/statTest）与根对象形状必须写在提示词里——否则模型会自造字段名（如 description），解析后 items 为空。
+降级为纯提示词约束时，字段名（title/insight/querySpec/displayConfig/sql/chart/context/statTest）与根对象形状必须写在提示词里——否则模型会自造字段名（如 description），解析后 items 为空。降级到 `json_object` 还要求提示词含 "json" 字样（提供方硬性要求），故契约段始终保留「只返回符合 JSON Schema 的对象」一句。
 
 运行时仍执行第二道校验：
 

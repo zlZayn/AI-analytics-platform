@@ -1,67 +1,39 @@
 import { NextRequest } from 'next/server'
 import { AIConfigurationError, describeAIError, generateAnalysis } from '@/lib/ai-service'
-import { buildDataProfileText, buildSchemaContext, scanAllDataProfiles, scanSchema } from '@/lib/schema-service'
+import { collectAIContext, summarizeContext } from '@/lib/ai-context-service'
+import { describeContextTrace } from '@/lib/ai-context'
 import { prisma } from '@/lib/prisma'
 import { apiFailure, apiSuccess } from '@/lib/api-response'
 
-// 生成分析推荐
+// AI 分析推荐：与 /api/ai 共用上下文采集与错误呈现；当前无前端调用方
+// （保留原因见 .agents/notes/2026-09-11-ai-assistant-contract-and-context.md P5）
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { connectionId, message, conversationHistory } = body
+    const { connectionId, message, conversationId, conversationHistory } = body
 
     if (!connectionId || !message) {
       return apiFailure({ code: 'INVALID_REQUEST', message: '缺少必填字段: connectionId, message', retryable: false }, 400)
     }
 
-    // 检查连接
-    const connection = await prisma.connection.findUnique({
-      where: { id: connectionId }
-    })
-
+    const connection = await prisma.connection.findUnique({ where: { id: connectionId } })
     if (!connection) {
       return apiFailure({ code: 'CONNECTION_NOT_FOUND', message: '连接不存在', retryable: false }, 404)
     }
 
-    // 获取或扫描 Schema
-    let schema = null
-    const cached = await prisma.schemaSnapshot.findFirst({
-      where: {
-        connectionId,
-        status: 'active'
-      },
-      orderBy: { version: 'desc' }
-    })
+    const context = await collectAIContext(connectionId, { conversationId, conversationHistory })
 
-    if (cached) {
-      schema = cached.schemaJson as unknown as Awaited<ReturnType<typeof scanSchema>>
-    } else {
-      schema = await scanSchema(connectionId)
-    }
-
-    // 构建 Schema 上下文
-    const schemaContext = buildSchemaContext(schema)
-
-    // 数据轮廓（辅助 AI 判断字段类型与基数；失败不阻断主流程）
-    let dataProfileText = ''
-    try {
-      const profiles = await scanAllDataProfiles(connectionId, 6)
-      dataProfileText = buildDataProfileText(profiles)
-    } catch {
-      dataProfileText = ''
-    }
-
-    // 生成分析（携带前端会话上下文，实现多轮对话）
     const result = await generateAnalysis(
       message,
-      schemaContext,
-      Array.isArray(conversationHistory) ? conversationHistory : undefined,
+      context.schemaContext,
+      context.history,
       undefined,
-      dataProfileText,
+      context.dataProfileText,
       "",
-      connectionId,
+      typeof conversationId === 'string' && conversationId.length > 0 ? conversationId : connectionId,
     )
 
+    console.info(`[ai] insights ${describeContextTrace(summarizeContext(context))} items=${result.items.length}`)
     return apiSuccess({ items: result.items })
   } catch (error) {
     console.error('生成分析推荐失败', error)

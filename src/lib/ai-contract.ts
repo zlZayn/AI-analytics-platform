@@ -121,6 +121,133 @@ const statTestSchema = {
   },
 } as const
 
+/**
+ * 洞察项契约的单一来源：提示词、strict JSON Schema、解析截断长度都从这里派生，改一处三面同步。
+ * - variants：字段属于哪个输出变体（querySpec = 优先；sql = 过渡回退）
+ * - example：生成提示词形状示例用
+ * - maxLength：与 schema 一致，解析时按它截断
+ */
+export type InsightVariant = "querySpec" | "sql"
+
+export const MAX_INSIGHT_ITEMS = 6
+
+interface InsightFieldSpec {
+  variants: readonly InsightVariant[]
+  schema: Record<string, unknown>
+  example: string
+  maxLength?: number
+  prompt?: string
+  details?: readonly string[]
+}
+
+const INSIGHT_FIELDS = {
+  title: {
+    variants: ["querySpec", "sql"],
+    schema: { type: "string", maxLength: 80 },
+    example: '"短标题"',
+    maxLength: 80,
+    prompt: "短标题",
+  },
+  insight: {
+    variants: ["querySpec", "sql"],
+    schema: { type: "string", maxLength: 1000 },
+    example: '"业务语言结论"',
+    maxLength: 1000,
+    prompt: "业务语言结论",
+  },
+  querySpec: {
+    variants: ["querySpec"],
+    schema: { type: "object", additionalProperties: true },
+    example: "{...}",
+    prompt: "结构化查询（优先变体必填）",
+    details: [
+      'querySpec 结构：{ "table": "表名", "dimensions": ["列名"], "measures": [{ "field": "列名", "aggregation": "sum|count|avg|min|max|count_distinct", "alias": "输出别名" }], "filters": [{ "field": "列名", "op": "eq|gt|...", "value": 值 }], "having": [...], "sort": [{ "field": "别名", "direction": "asc|desc" }], "limit": 数字, "joins": [{ "table": "表名", "type": "inner|left|right", "on": { "left": "a.id", "right": "b.id" } }] }',
+    ],
+  },
+  displayConfig: {
+    variants: ["querySpec"],
+    schema: {
+      type: "object",
+      additionalProperties: false,
+      required: ["chartType", "mapping"],
+      properties: {
+        chartType: { type: "string", enum: CHART_TYPES },
+        mapping: { anyOf: mappingSchemas },
+      },
+    },
+    example: "{...}",
+    prompt: "呈现配置（chartType + mapping）",
+    details: [
+      'displayConfig 结构：{ "chartType": "bar", "mapping": { "x": "类别别名", "y": "数值别名" } }，mapping 只能引用 querySpec 输出的别名。',
+    ],
+  },
+  sql: {
+    variants: ["sql"],
+    schema: { type: "string" },
+    example: '"SELECT ..."',
+    prompt: "单条只读 SQL（回退变体必填；优先变体不要输出，schema 会拒绝）",
+  },
+  chart: {
+    variants: ["sql"],
+    schema: { anyOf: chartSchemaVariants },
+    example: "{...}",
+    prompt: "图表建议（回退变体必填）",
+    details: ["chart 的 mapping 列必须引用 SQL 中显式 AS 的输出别名。"],
+  },
+  context: {
+    variants: ["querySpec", "sql"],
+    schema: contextSchema,
+    example: "[]",
+    prompt: "业务口径引用数组（无引用时输出空数组）",
+    details: ['应用了业务口径中的规则时逐条回传 { "source", "rule", "applied" }。'],
+  },
+  statTest: {
+    variants: ["querySpec", "sql"],
+    schema: statTestSchema,
+    example: "null",
+    prompt: "显著性检验建议（多数情况为 null）",
+    details: [
+      "当问题需要比较两组数值是否显著不同（ttest）、检验两数值列相关（cor）或检验类别分布关联（chisq）时输出 { kind, x, y, hypothesis }（x/y 引用 querySpec 输出别名）；其余情况 null。统计检验由平台在本地固定模板执行，你无需编写 R 代码。",
+    ],
+  },
+} as const satisfies Record<string, InsightFieldSpec>
+
+const VARIANT_ORDER: InsightVariant[] = ["querySpec", "sql"]
+
+function fieldsOf(variant: InsightVariant): [string, InsightFieldSpec][] {
+  return Object.entries(INSIGHT_FIELDS).filter(([, spec]) =>
+    (spec.variants as readonly InsightVariant[]).includes(variant),
+  )
+}
+
+/** strict 模式要求 required 覆盖 properties 全部键，故按变体成员一次性生成 */
+function buildVariantSchema(variant: InsightVariant) {
+  const fields = fieldsOf(variant)
+  return {
+    type: "object",
+    additionalProperties: false,
+    required: fields.map(([name]) => name),
+    properties: Object.fromEntries(fields.map(([name, spec]) => [name, spec.schema])),
+  }
+}
+
+/** 提示词里的输出契约段：形状示例、字段说明、变体成员、条数上限都来自同一份声明 */
+function buildContractSection(): string {
+  const shape = (variant: InsightVariant) =>
+    `{ "items": [ { ${fieldsOf(variant).map(([name, spec]) => `"${name}": ${spec.example}`).join(", ")} } ] }`
+  return [
+    `- 根对象形状（优先变体）：${shape("querySpec")}`,
+    `- 根对象形状（回退变体，仅当无法给出 querySpec 时使用）：${shape("sql")}`,
+    `- 最多 ${MAX_INSIGHT_ITEMS} 项，不要返回裸数组；字段名固定，不要自造（如 description/id）。`,
+    ...(Object.entries(INSIGHT_FIELDS) as [string, InsightFieldSpec][]).flatMap(([name, spec]) => [
+      ...(spec.prompt ? [`- ${name}：${spec.prompt}`] : []),
+      ...(spec.details ?? []),
+    ]),
+    // 只输出 JSON：既约束模型，也满足网关 json_object 模式要求提示词含「json」字样的前置条件
+    "- 只返回符合 JSON Schema 的对象：不输出 Markdown、代码围栏、解释性文字或对话式回答。",
+  ].join("\n")
+}
+
 export const AI_RESPONSE_JSON_SCHEMA = {
   name: "analytics_insights",
   strict: true,
@@ -132,47 +259,8 @@ export const AI_RESPONSE_JSON_SCHEMA = {
       items: {
         type: "array",
         minItems: 1,
-        maxItems: 6,
-        items: {
-          anyOf: [
-            // 新格式（优先）：结构化查询 + 呈现配置，sql 可省略
-            {
-              type: "object",
-              additionalProperties: false,
-              required: ["title", "insight", "querySpec", "displayConfig", "context", "statTest"],
-              properties: {
-                title: { type: "string", maxLength: 80 },
-                insight: { type: "string", maxLength: 1000 },
-                querySpec: { type: "object", additionalProperties: true },
-                displayConfig: {
-                  type: "object",
-                  additionalProperties: false,
-                  required: ["chartType", "mapping"],
-                  properties: {
-                    chartType: { type: "string", enum: CHART_TYPES },
-                    mapping: { anyOf: mappingSchemas },
-                  },
-                },
-                context: contextSchema,
-                statTest: statTestSchema,
-              },
-            },
-            // 旧格式回退（过渡期）：AI 直出 SQL + chart
-            {
-              type: "object",
-              additionalProperties: false,
-              required: ["title", "insight", "sql", "chart", "context", "statTest"],
-              properties: {
-                title: { type: "string", maxLength: 80 },
-                insight: { type: "string", maxLength: 1000 },
-                sql: { type: "string" },
-                chart: { anyOf: chartSchemaVariants },
-                context: contextSchema,
-                statTest: statTestSchema,
-              },
-            },
-          ],
-        },
+        maxItems: MAX_INSIGHT_ITEMS,
+        items: { anyOf: VARIANT_ORDER.map(buildVariantSchema) },
       },
     },
   },
@@ -191,14 +279,8 @@ export function buildSystemPrompt(schemaContext: string, dataProfileText = "", b
 
   return `你是数据分析工作台的 SQL 与图表建议助手。只依据下方当前连接 Schema 回答，不得假设行业、表、列或关系。
 
-输出契约（新格式，优先）：
-- 根对象是 { "items": [ ... ] }（最多 6 项），每项字段名固定：{"title": 短标题, "insight": 业务语言结论, "querySpec": 结构化查询, "displayConfig": 呈现配置, "sql": 可选回退 SQL, "chart": 可选回退图表, "context": [], "statTest": null}；不要自造字段名（如 description/id）。
-- 每个洞察项必须包含 querySpec（结构化查询）与 displayConfig（呈现配置）。
-- querySpec 结构：{ "table": "表名", "dimensions": ["列名"], "measures": [{ "field": "列名", "aggregation": "sum|count|avg|min|max|count_distinct", "alias": "输出别名" }], "filters": [{ "field": "列名", "op": "eq|gt|...", "value": 值 }], "having": [...], "sort": [{ "field": "别名", "direction": "asc|desc" }], "limit": 数字, "joins": [{ "table": "表名", "type": "inner|left|right", "on": { "left": "a.id", "right": "b.id" } }] }
-- displayConfig 结构：{ "chartType": "bar", "mapping": { "x": "类别别名", "y": "数值别名" } }，mapping 只能引用 querySpec 输出的别名。
-- 尽量同时输出 sql（过渡期字段，供旧客户端回退）；若 querySpec 已完整，sql 可省略。
-- context 必须输出数组（可为空 []）；应用了业务口径中的规则时逐条回传 { "source", "rule", "applied" }。
-- statTest 必须输出（可为 null）：当问题需要比较两组数值是否显著不同（ttest）、检验两数值列相关（cor）或检验类别分布关联（chisq）时，输出 { "kind", "x", "y", "hypothesis" }，x/y 引用 querySpec 输出别名；其余情况 null。统计检验由平台在本地固定模板执行，你无需编写 R 代码。
+输出契约：
+${buildContractSection()}
 ${businessSection}
 设计边界：
 - 业务聚合和数据整形必须在 SQL 中完成；图表不会猜测业务语义，也不会合并重复坐标。
@@ -206,8 +288,6 @@ ${businessSection}
 - SQL 必须是单条 PostgreSQL SELECT/WITH，不带分号，不得写入、锁表或调用副作用操作。
 - 所有图表使用的输出列必须显式 AS 为稳定别名，mapping 只能引用这些输出别名。
 - 不得静默截断、采样或改写业务数据。类别过多时应在 SQL 中合理聚合，并在 insight 中说明。
-- 只返回符合 JSON Schema 的对象，不输出 Markdown、代码围栏或额外文字。
-- 根对象必须是 { "items": [ ... ] }，items 为洞察项数组（最多 6 项），不要返回裸数组。
 
 图表合同：
 ${chartRules}
@@ -227,7 +307,7 @@ export function parseInsightItems(content: string): InsightItem[] {
   if (!isRecord(root) || !Array.isArray(root.items)) return []
 
   const items: InsightItem[] = []
-  for (const raw of root.items.slice(0, 6)) {
+  for (const raw of root.items.slice(0, MAX_INSIGHT_ITEMS)) {
     if (!isRecord(raw) || typeof raw.title !== "string" || typeof raw.insight !== "string") continue
 
     // 优先 querySpec + displayConfig（新契约）
@@ -239,8 +319,8 @@ export function parseInsightItems(content: string): InsightItem[] {
       // 过渡期：AI 同时输出 sql 时一并透传，供旧客户端（InsightCard）展示
       const sql = typeof raw.sql === "string" && validateSQL(raw.sql.trim()).valid ? raw.sql.trim() : undefined
       items.push({
-        title: raw.title.slice(0, 80),
-        insight: raw.insight.slice(0, 1000),
+        title: raw.title.slice(0, INSIGHT_FIELDS.title.maxLength),
+        insight: raw.insight.slice(0, INSIGHT_FIELDS.insight.maxLength),
         sql,
         chart: displayConfig.mapping,
         querySpec,
