@@ -3,7 +3,7 @@
 // 会话状态驱动的工作台（唯一实现）：
 // 状态是唯一真相：session 替代 sql / result / pendingChartMapping / aiHistory / error 五个独立 state。
 // 所有用户操作 → dispatch(SessionAction)；查询的编译与执行由 useSession 的三个副作用驱动。
-// AI 双变体：querySpec 优先（编译管线），缺失时 sql 直通（SET_COMPILED_SQL）。
+// AI 编排在 useAiAssistant（输入/请求状态）；结果→会话 action 的映射在 lib/ai-session-mapping.ts。
 
 import { useEffect, useMemo, useRef, useState } from "react"
 import dynamic from "next/dynamic"
@@ -12,17 +12,16 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { SessionView } from "@/components/SessionView"
-import type { InsightItem } from "@/components/insight-card"
 import { AiVisibilityHint } from "@/components/ai-visibility-hint"
 import { useToast } from "@/components/toast"
-import { fetchApi, ApiRequestError } from "@/lib/client-api"
+import { fetchApi } from "@/lib/client-api"
 import { useSession } from "@/hooks/useSession"
+import { useAiAssistant } from "@/hooks/useAiAssistant"
 import type { ApiResponse, SchemaData } from "@/types"
-import type { CompiledSql, ConversationMessage, SemanticDataset } from "@/types/session"
+import type { CompiledSql, SemanticDataset } from "@/types/session"
 import type { ChartMapping } from "@/components/chart"
 import { Play, Loader2, Send, Save } from "lucide-react"
 import { AiMentionInput } from "@/components/ai-mention-input"
-import { extractMentions } from "@/lib/mention"
 import { normalizeWorkspaceSql, workspaceSqlKey } from "@/lib/workspace-navigation"
 
 // 本地 monaco（惰性配置：SSR 安全，配置完成前编辑器渲染占位）
@@ -38,22 +37,12 @@ interface SessionWorkspaceProps {
   initialSql: string
 }
 
-function assistantMessage(content: string): ConversationMessage {
-  return { role: "assistant", content, createdAt: new Date() }
-}
-
 export function SessionWorkspace({ connectionId, initialSql }: SessionWorkspaceProps) {
   const [schema, setSchema] = useState<SchemaData | null>(null)
   const [sqlDraft, setSqlDraft] = useState(() => normalizeWorkspaceSql(initialSql))
-  const [aiInput, setAiInput] = useState("")
-  const [aiLoading, setAiLoading] = useState(false)
-  const [aiUnavailable, setAiUnavailable] = useState(false)
   const [saveDialogOpen, setSaveDialogOpen] = useState(false)
   const [saveName, setSaveName] = useState("")
   const [monacoReady, setMonacoReady] = useState(false)
-  // AI 多洞察：会话外临时状态（同 RWorkbench 开关哲学，不进 AnalysisSession）
-  const [insightItems, setInsightItems] = useState<InsightItem[]>([])
-  const [executingInsight, setExecutingInsight] = useState<number | null>(null)
   // Navigation can hydrate in more than one render. Track the applied input by
   // value so a late-arriving query is still loaded once without overwriting edits.
   const appliedInitialSqlKey = useRef<string | null>(null)
@@ -127,77 +116,15 @@ export function SessionWorkspace({ connectionId, initialSql }: SessionWorkspaceP
   const { status, compiledSql, displayConfig, conversationHistory, error, title, insight } = session
   const busy = status === "compiling" || status === "executing"
 
-  async function sendAi() {
-    if (!connectionId || !aiInput.trim() || aiLoading) return
-    const msg = aiInput.trim()
-    setAiInput("")
-    // 记录用户提问（含会话上下文），随后调用 AI
-    dispatch({ type: "ASK_AI", question: msg })
-    setAiLoading(true)
-    try {
-      // 携带会话上下文（上一轮及之前的历史），实现多轮对话；本次提问由后端拼在最后
-      const history = conversationHistory.map((m) => ({ role: m.role, content: m.content }))
-      const data = await fetchApi<ApiResponse<{ items: InsightItem[] }>>("/api/ai", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          connectionId,
-          // 会话标识：AI 网关据此路由与缓存（请求头模板的 {sessionId} 占位符消费）
-          conversationId: session.id,
-          message: msg,
-          conversationHistory: history,
-          // @提及的表作为显式上下文：只扫这些表的数据轮廓
-          referencedTables: extractMentions(msg),
-        }),
-      })
-      if (!data.success) {
-        throw new Error(data.error.message || "AI 分析失败")
-      }
-      const items = data.data.items
-      if (items.length === 0) {
-        dispatch({ type: "ADD_CONVERSATION", message: assistantMessage("未生成有效结果") })
-        toast("AI 未生成有效结果", "warning")
-        return
-      }
-      // 多洞察全部保留（洞察视图卡片流），第一条仍自动执行（结论前置 + 延续现状流程）
-      setInsightItems(items)
-      setResultTab("insights")
-      const item = items[0]
-      dispatch({
-        type: "INIT_FROM_AI",
-        payload: {
-          question: msg,
-          title: item.title,
-          insight: item.insight,
-          // 阶段三：AI 输出 querySpec + displayConfig 时由编译管线接管；
-          // 回退（AI 仅输出 sql）时 querySpec 留空占位，走下方 sql 直通。
-          querySpec: item.querySpec ?? { table: "" },
-          displayConfig: item.displayConfig ?? { chartType: item.chart.chartType, mapping: item.chart },
-        },
-      })
-      if (item.fallback || !item.querySpec) {
-        // 回退路径：AI 未输出 querySpec，直接注入 AI 生成的 SQL 触发执行
-        if (item.sql) {
-          dispatch({ type: "SET_COMPILED_SQL", compiledSql: { sql: item.sql, params: [] } })
-          setSqlDraft(item.sql)
-        }
-      }
-      dispatch({
-        type: "ADD_CONVERSATION",
-        message: assistantMessage(item.insight || item.title),
-      })
-      toast(`已生成 ${items.length} 条分析，执行第 1 条`, "success")
-    } catch (e) {
-      const message = e instanceof ApiRequestError ? e.message : "请求失败"
-      dispatch({ type: "ADD_CONVERSATION", message: assistantMessage(message) })
-      if (e instanceof ApiRequestError && e.code === "AI_NOT_CONFIGURED") {
-        setAiUnavailable(true)
-        toast("AI 服务未配置，请在 .env 文件中设置 AI_API_KEY", "warning")
-      }
-    } finally {
-      setAiLoading(false)
-    }
-  }
+  // AI 助手编排（输入/请求/洞察流）：结果→会话 action 的映射由 Hook 内部统一处理
+  const assistant = useAiAssistant({
+    connectionId,
+    session,
+    dispatch,
+    onSqlDraft: setSqlDraft,
+    onTabChange: setResultTab,
+    notify: toast,
+  })
 
   function runSql() {
     if (!connectionId || !sqlDraft.trim()) return
@@ -229,32 +156,6 @@ export function SessionWorkspace({ connectionId, initialSql }: SessionWorkspaceP
       type: "UPDATE_DISPLAY_CONFIG",
       displayConfig: { ...displayConfig, mapping },
     })
-  }
-
-  /** 执行第 index 条洞察：走与 sendAi 相同的编译/执行管线（卡片 loading 态由 executingInsight 驱动） */
-  function handleExecuteInsight(index: number) {
-    const item = insightItems[index]
-    if (!item) setExecutingInsight(null)
-    else {
-      setExecutingInsight(index)
-      dispatch({
-        type: "INIT_FROM_AI",
-        payload: {
-          question: item.title,
-          title: item.title,
-          insight: item.insight,
-          querySpec: item.querySpec ?? { table: "" },
-          displayConfig: item.displayConfig ?? { chartType: item.chart.chartType, mapping: item.chart },
-        },
-      })
-      if (item.fallback || !item.querySpec) {
-        // 回退路径：AI 未输出 querySpec，直接注入 AI 生成的 SQL 触发执行
-        if (item.sql) {
-          dispatch({ type: "SET_COMPILED_SQL", compiledSql: { sql: item.sql, params: [] } })
-          setSqlDraft(item.sql)
-        }
-      }
-    }
   }
 
   if (!connectionId) {
@@ -325,10 +226,10 @@ export function SessionWorkspace({ connectionId, initialSql }: SessionWorkspaceP
                 size="sm"
                 className="h-5 text-[10px]"
                 onClick={() => {
-                  setInsightItems([])
+                  assistant.clearInsights()
                   dispatch({ type: "RESET" })
                 }}
-                disabled={busy || aiLoading}
+                disabled={busy || assistant.asking}
               >
                 重置
               </Button>
@@ -336,13 +237,13 @@ export function SessionWorkspace({ connectionId, initialSql }: SessionWorkspaceP
           </div>
           <AiVisibilityHint />
           <div className="flex-1 overflow-auto p-3 space-y-2 min-h-0">
-            {aiUnavailable && (
+            {assistant.unavailable && (
               <div className="p-2 rounded bg-[var(--muted)] border border-[var(--border)] text-xs text-[var(--muted-foreground)] leading-relaxed">
                 AI 服务未配置。请在 <code className="font-mono bg-[var(--border)] px-1 rounded">.env</code> 中设置
                 {' '}<code className="font-mono bg-[var(--border)] px-1 rounded">AI_API_KEY</code>。
               </div>
             )}
-            {conversationHistory.length === 0 && !aiUnavailable && (
+            {conversationHistory.length === 0 && !assistant.unavailable && (
               <div className="flex items-center justify-center h-full text-[var(--muted-foreground)] text-xs">
                 用自然语言描述你想分析的内容
               </div>
@@ -362,7 +263,7 @@ export function SessionWorkspace({ connectionId, initialSql }: SessionWorkspaceP
                 </div>
               ),
             )}
-            {aiLoading && (
+            {assistant.asking && (
               <div className="flex justify-start">
                 <div className="bg-[var(--muted)] rounded-lg px-2.5 py-1.5 flex items-center gap-1 text-xs text-[var(--muted-foreground)]">
                   <Loader2 className="w-3 h-3 animate-spin" /> 思考中...
@@ -372,14 +273,14 @@ export function SessionWorkspace({ connectionId, initialSql }: SessionWorkspaceP
           </div>
           <div className="p-2 border-t flex gap-1.5">
             <AiMentionInput
-              value={aiInput}
-              onChange={setAiInput}
-              onSend={sendAi}
-              disabled={aiLoading}
+              value={assistant.input}
+              onChange={assistant.setInput}
+              onSend={assistant.ask}
+              disabled={assistant.asking}
               placeholder="输入 @ 选表，如：对比 @orders 与 @customers 的销售趋势"
               schema={schema}
             />
-            <Button size="sm" onClick={sendAi} disabled={aiLoading || !aiInput.trim()} className="h-7 w-7 p-0">
+            <Button size="sm" onClick={assistant.ask} disabled={assistant.asking || !assistant.input.trim()} className="h-7 w-7 p-0">
               <Send className="w-3 h-3" />
             </Button>
           </div>
@@ -396,10 +297,10 @@ export function SessionWorkspace({ connectionId, initialSql }: SessionWorkspaceP
                 toast("SQL 已复制", "success")
               }
             }}
-            insights={insightItems}
-            executingInsightIndex={busy ? executingInsight : null}
-            insightError={status === "error" && executingInsight !== null ? error ?? null : null}
-            onExecuteInsight={handleExecuteInsight}
+            insights={assistant.insights}
+            executingInsightIndex={busy ? assistant.executingIndex : null}
+            insightError={status === "error" && assistant.executingIndex !== null ? error ?? null : null}
+            onExecuteInsight={assistant.execute}
             tab={resultTab}
             onTabChange={setResultTab}
           />
