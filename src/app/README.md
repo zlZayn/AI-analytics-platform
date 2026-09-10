@@ -1,6 +1,6 @@
 # app/ — 页面与 Route Handler
 
-- `page.tsx`：连接选择入口。
+- `page.tsx`：连接选择入口。编辑连接先取 `/api/connections/[id]` 详情回填（列表响应不含 `username`/`ssl`），密码留空即不提交（载荷由 `lib/connection-payload.ts` 生成）。
 - `workspace/`：SQL 会话工作台，详见 [workspace/README.md](workspace/README.md)。
 - `explorer/`：Schema 浏览与工作台入口，详见 [explorer/README.md](explorer/README.md)。
 - `queries/`：收藏/历史查询与工作台入口，详见 [queries/README.md](queries/README.md)。

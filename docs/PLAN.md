@@ -7,10 +7,6 @@
 
 ## 未完成事项
 
-### 待修复
-
-- 连接编辑会改坏配置：`src/app/page.tsx` 的 `openEdit` 固定填 `username: "postgres"` / `password: ""` / `ssl: false`，而 PUT 只在 `password !== undefined` 时更新密文，保存空串会清空密码（见 [../AGENTS.md](../AGENTS.md) 活跃坑）。
-
 ### 已知界面缺口（2026-09-11 复核）
 
 - 探索页表预览硬编码 `schema: "public"` 且无分页（`src/app/explorer/page.tsx`）。
@@ -44,6 +40,6 @@
 
 ## 下一步
 
-1. 修连接编辑重置用户名/密码/SSL
-2. 真实只读账号完成人工验收
-3. 联网环境实测 statTest 成功路径与 InsightCard 统计区块
+1. 真实只读账号完成人工验收
+2. 联网环境实测 statTest 成功路径与 InsightCard 统计区块
+3. 按需实施可选增强项（R.wasm 预加载、统一图表高度契约）

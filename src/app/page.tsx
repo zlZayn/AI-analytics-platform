@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useId, useState, useEffect } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -17,8 +17,9 @@ import {
 import { Database, Plus, Pencil, Trash2, ArrowRight } from "lucide-react"
 import type { ApiResponse, Connection } from "@/types"
 import { ApiRequestError, fetchApi } from "@/lib/client-api"
+import { buildConnectionPayload, type ConnectionFormValues } from "@/lib/connection-payload"
 
-const defaultForm = {
+const defaultForm: ConnectionFormValues = {
   name: "",
   description: "",
   host: "localhost",
@@ -39,6 +40,7 @@ export default function Home() {
   const [editingId, setEditingId] = useState<string | null>(null)
   const [form, setForm] = useState(defaultForm)
   const [submitting, setSubmitting] = useState(false)
+  const [loadingDetail, setLoadingDetail] = useState(false)
   const [error, setError] = useState("")
   const [listError, setListError] = useState("")
 
@@ -60,7 +62,7 @@ export default function Home() {
       const data = await fetchApi<ApiResponse<Connection>>(url, {
         method,
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
+        body: JSON.stringify(buildConnectionPayload(form, editingId)),
       })
       if (data.success) {
         setDialogOpen(false)
@@ -92,19 +94,31 @@ export default function Home() {
       .catch((requestError) => setListError(requestError instanceof ApiRequestError ? requestError.message : "连接列表加载失败"))
   }
 
-  function openEdit(conn: Connection) {
-    setEditingId(conn.id)
-    setForm({
-      name: conn.name,
-      description: conn.description || "",
-      host: conn.host,
-      port: conn.port,
-      database: conn.database,
-      username: "postgres",
-      password: "",
-      ssl: false,
-    })
-    setDialogOpen(true)
+  async function openEdit(conn: Connection) {
+    // 列表响应不含 username/ssl：先取详情再填表，避免保存时把账号与 SSL 覆盖成默认值
+    setError("")
+    setLoadingDetail(true)
+    try {
+      const data = await fetchApi<ApiResponse<Connection>>(`/api/connections/${conn.id}`, {}, 8000)
+      if (!data.success) throw new Error(data.error.message || "连接详情加载失败")
+      const detail = data.data
+      setEditingId(conn.id)
+      setForm({
+        name: detail.name,
+        description: detail.description || "",
+        host: detail.host,
+        port: detail.port,
+        database: detail.database,
+        username: detail.username || "postgres",
+        password: "",
+        ssl: detail.ssl ?? false,
+      })
+      setDialogOpen(true)
+    } catch (requestError) {
+      setListError(requestError instanceof Error ? requestError.message : "连接详情加载失败")
+    } finally {
+      setLoadingDetail(false)
+    }
   }
 
   function enterConnection(conn: Connection) {
@@ -150,7 +164,7 @@ export default function Home() {
                 <Field label="数据库" value={form.database} onChange={(v) => setForm({ ...form, database: v })} placeholder="mydb" />
                 <div className="grid grid-cols-2 gap-3">
                   <Field label="用户名" value={form.username} onChange={(v) => setForm({ ...form, username: v })} />
-                  <Field label="密码" value={form.password} onChange={(v) => setForm({ ...form, password: v })} type="password" />
+                  <Field label="密码" value={form.password} onChange={(v) => setForm({ ...form, password: v })} type="password" placeholder={editingId ? "留空则不修改" : undefined} />
                 </div>
                 {error && <p className="text-xs text-[var(--destructive)]">{error}</p>}
               </div>
@@ -195,10 +209,10 @@ export default function Home() {
                   进入
                   <ArrowRight className="w-3 h-3 ml-1" />
                 </Button>
-                <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => openEdit(conn)}>
+                <Button variant="ghost" size="sm" className="h-7 w-7 p-0" aria-label="编辑连接" onClick={() => openEdit(conn)} disabled={loadingDetail}>
                   <Pencil className="w-3 h-3" />
                 </Button>
-                <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-[var(--muted-foreground)] hover:text-[var(--destructive)]" onClick={() => handleDelete(conn.id)}>
+                <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-[var(--muted-foreground)] hover:text-[var(--destructive)]" aria-label="删除连接" onClick={() => handleDelete(conn.id)}>
                   <Trash2 className="w-3 h-3" />
                 </Button>
               </div>
@@ -226,7 +240,7 @@ export default function Home() {
                 <Field label="数据库" value={form.database} onChange={(v) => setForm({ ...form, database: v })} placeholder="mydb" />
                 <div className="grid grid-cols-2 gap-3">
                   <Field label="用户名" value={form.username} onChange={(v) => setForm({ ...form, username: v })} />
-                  <Field label="密码" value={form.password} onChange={(v) => setForm({ ...form, password: v })} type="password" />
+                  <Field label="密码" value={form.password} onChange={(v) => setForm({ ...form, password: v })} type="password" placeholder={editingId ? "留空则不修改" : undefined} />
                 </div>
                 {error && <p className="text-xs text-[var(--destructive)]">{error}</p>}
               </div>
@@ -251,10 +265,12 @@ function Field({ label, value, onChange, type = "text", placeholder }: {
   type?: string
   placeholder?: string
 }) {
+  const id = useId()
   return (
     <div className="space-y-1">
-      <Label className="text-xs">{label}</Label>
+      <Label htmlFor={id} className="text-xs">{label}</Label>
       <Input
+        id={id}
         value={value}
         onChange={(e) => onChange(e.target.value)}
         type={type}

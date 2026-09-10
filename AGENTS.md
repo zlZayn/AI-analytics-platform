@@ -16,12 +16,11 @@ This version has breaking changes — APIs, conventions, and file structure may 
 - `npm test` · `npm run typecheck` · `npm run lint` · `npm run dev`
 
 ## 验证快照（2026-09-11，main 分支）
-- vitest: 35 files / 196 passed / 0 failed
+- vitest: 36 files / 199 passed / 0 failed
 - typecheck / lint: 0 errors
-- 生产 build: passed（清 `.next` 后）；生产端口离线 E2E（侧栏/探索/历史入口 SQL 填充、请求体、Monaco、结果区、明细原始行与移动端）: passed
+- 生产 build: passed（清 `.next` 后）；生产端口离线 E2E（侧栏/探索/历史入口 SQL 填充、请求体、Monaco、结果区、明细原始行、连接编辑回填与移动端）: passed
 
 ## 待办
-- [ ] 修连接编辑重置用户名/密码/SSL（活跃坑，见 [docs/PLAN.md](docs/PLAN.md)）
 - [ ] 真实只读账号人工验收：[docs/manual-acceptance.md](docs/manual-acceptance.md)（含 R 工作台，见第 5 节）
 - [ ] 联网实测 statTest 黑盒统计成功路径（离线 E2E 只覆盖错误路径），见 [docs/PLAN.md](docs/PLAN.md)
 - [ ] 可选：R.wasm 预加载优化，见 [docs/PLAN.md](docs/PLAN.md)
@@ -42,7 +41,6 @@ This version has breaking changes — APIs, conventions, and file structure may 
 - R 分析工作台（WebR 0.6）：COI 头已配置（COOP/COEP）；R.wasm（12.3MB）与 R 包从 `webr.r-wasm.org` CDN 按需加载，离线不可用；包下载后会话内缓存（模块级单例），刷新页面需重下
 - E2E 脚本 mock 路由必须与 API 路由同步：新增/修改 app 路由时同步更新 `scripts/offline_workspace_e2e.py` 的 `page.route`
 - 跨页工作台入口的 SQL 需经过 `workspace-navigation.ts` 规范化；工作台按 `connection + SQL` key 一次性应用，入口回归由离线 E2E 同时覆盖探索页与历史页
-- **连接编辑会改坏连接配置**：`src/app/page.tsx` 的 `openEdit` 固定填 `username: "postgres"` / `password: ""` / `ssl: false`，PUT 只在 `password !== undefined` 时更新密文，保存空串即清空密码——改连接前先确认，见 [docs/PLAN.md](docs/PLAN.md) 待修复
 - **平台 DATABASE_URL 元库与业务数据同库**：`npx prisma db push` 会 DROP schema 未定义的表（fact_*/dim_* 业务表，曾有 25285 行险遭删除）——schema 演进必须手写 `ALTER TABLE ... ADD COLUMN IF NOT EXISTS`（对照 information_schema 定向补列，如 2026-09-04 为 query_history 补 error_code），严禁 db push / --accept-data-loss / migrate
 
 ## 文档地图

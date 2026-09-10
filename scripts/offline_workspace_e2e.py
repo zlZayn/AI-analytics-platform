@@ -18,14 +18,35 @@ def envelope(data: object) -> dict[str, object]:
 
 
 def fulfill_connection(route: Route) -> None:
+    # 详情响应（GET/PUT 共用）：含 username/ssl，列表响应刻意不含
     route.fulfill(json=envelope({
         "id": "test",
         "name": "离线测试连接",
+        "description": None,
         "host": "localhost",
         "port": 5432,
         "database": "fixtures",
+        "username": "analyst",
+        "ssl": True,
         "status": "connected",
+        "tableCount": 4,
     }))
+
+
+def fulfill_connection_list(route: Route) -> None:
+    # 与真实 GET /api/connections 对齐：不返回 username/ssl
+    route.fulfill(json=envelope([
+        {
+            "id": "test",
+            "name": "离线测试连接",
+            "description": None,
+            "host": "localhost",
+            "port": 5432,
+            "database": "fixtures",
+            "status": "connected",
+            "tableCount": 4,
+        }
+    ]))
 
 
 def fulfill_query(route: Route) -> None:
@@ -290,6 +311,29 @@ def main() -> None:
         if page.evaluate("document.documentElement.scrollWidth > document.documentElement.clientWidth"):
             raise AssertionError("workspace has horizontal overflow at 360px")
         page.screenshot(path=str(OUTPUT_DIR / "workspace-mobile.png"), full_page=True)
+
+        # 连接编辑回归：列表不含 username/ssl → 先取详情回填；密码留空不提交（PUT 缺省即保留密文）
+        page.set_viewport_size({"width": 1440, "height": 1000})
+        page.route("**/api/connections", fulfill_connection_list)
+        page.goto(f"{BASE_URL}/", wait_until="networkidle")
+        page.get_by_role("button", name="编辑连接", exact=True).click()
+        dialog = page.get_by_role("dialog")
+        dialog.wait_for(state="visible", timeout=10_000)
+        if dialog.get_by_label("用户名").input_value() != "analyst":
+            raise AssertionError("edit dialog did not prefill username from the detail response")
+        if dialog.get_by_label("密码").get_attribute("placeholder") != "留空则不修改":
+            raise AssertionError("edit dialog does not mark the empty password as 'leave blank to keep'")
+        with page.expect_request(
+            lambda request: request.method == "PUT" and urlparse(request.url).path == "/api/connections/test"
+        ) as put_request:
+            dialog.get_by_role("button", name="保存", exact=True).click()
+        payload = json.loads(put_request.value.post_data or "{}")
+        if "password" in payload:
+            raise AssertionError(f"empty password must be omitted from the update payload: {payload}")
+        if payload.get("username") != "analyst" or payload.get("ssl") is not True:
+            raise AssertionError(f"update payload lost username/ssl: {payload}")
+        page.screenshot(path=str(OUTPUT_DIR / "connection-edit.png"), full_page=True)
+
         # WebR CDN 被故意 abort 产生的资源加载错误属预期内，其余报错才算失败
         unexpected = [e for e in errors if not (e == "Failed to load resource: net::ERR_FAILED" and webr_aborted)]
         if unexpected:

@@ -8,6 +8,7 @@ export interface Connection {
   port: number
   database: string
   username?: string
+  ssl?: boolean
   status: string
   tableCount?: number
   lastConnectedAt?: string
