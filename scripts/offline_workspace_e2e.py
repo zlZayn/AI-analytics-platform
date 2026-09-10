@@ -303,7 +303,29 @@ def main() -> None:
         page.get_by_test_id("chart-surface").wait_for(state="visible", timeout=20000)
         if page.get_by_role("tab", name="探索", exact=True).get_attribute("aria-selected") != "true":
             raise AssertionError("executing an insight did not select the explore tab")
+
+        # 执行必须落地（回归）：卡片「执行」按钮离开加载态，且同一张卡片再次执行会真的再发一次查询。
+        # 曾经同一份 querySpec 被编译去重吞掉 → 状态停在 compiling → 卡片永久转圈。
+        settle = """() => {
+            const buttons = [...document.querySelectorAll('button')].filter((b) => b.textContent.includes('执行'));
+            return buttons.length > 0 && buttons.every((b) => !b.disabled);
+        }"""
+        page.wait_for_function(settle, timeout=15_000)
+        # 点卡片会切到「探索」，回到洞察 Tab 再执行同一张卡片：必须真的再发一次查询（回归点）
+        page.get_by_role("tab", name="洞察 2", exact=True).click()
+        with page.expect_request("**/api/query"):
+            page.get_by_role("tabpanel").get_by_role("button", name="执行", exact=True).first.click()
+        page.wait_for_function(settle, timeout=15_000)
         page.screenshot(path=str(OUTPUT_DIR / "insights-tab.png"), full_page=True)
+
+        # 持久化（回归）：切页再回来，AI 对话与洞察卡片仍在；结果行不持久化，故图表区为空态
+        page.get_by_role("link", name="数据探索", exact=True).click()
+        page.wait_for_url("**/explorer**")
+        page.goto(f"{BASE_URL}/workspace?connection=test", wait_until="networkidle")
+        page.get_by_role("tab", name="洞察 2", exact=True).wait_for(state="visible", timeout=20_000)
+        page.get_by_role("tabpanel").filter(has_text="华东区销售占比最高").wait_for(state="visible", timeout=20_000)
+        if page.get_by_test_id("chart-surface").count() != 0:
+            raise AssertionError("query result must not be persisted: chart surface should be empty until re-run")
 
         page.screenshot(path=str(OUTPUT_DIR / "workspace-all-charts.png"), full_page=True)
         page.set_viewport_size({"width": 360, "height": 800})

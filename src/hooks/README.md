@@ -1,6 +1,6 @@
 # hooks/ — 会话与交互状态
 
-- `useSession.ts`：编译、执行和重查副作用编排。
+- `useSession.ts`：编译、执行和重查副作用编排；编译按 `runId + querySpec` 去重，保证显式执行请求必定真的执行。
 - `useAiAssistant.ts`：AI 助手编排（输入/请求/洞察流）；结果→会话 action 的映射用 [lib/ai-session-mapping.ts](../lib/ai-session-mapping.ts)。
 - `sessionReducer.ts`：`AnalysisSession` 唯一状态转换入口。
 - `useMentionInput.ts`：@ 提及输入状态机。面板开 = `hasMention && !dismissed && filtered.length > 0`；↑↓ 循环、Enter/Tab 选中、Escape 关闭不清输入、面板关时 Enter 提交；外部点击用 document `mousedown` 判定（blur 无法区分面板内外）。

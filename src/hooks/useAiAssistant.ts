@@ -26,6 +26,8 @@ export interface UseAiAssistantOptions {
   onSqlDraft: (sql: string) => void
   onTabChange: (tab: string) => void
   notify: (message: string, tone: AssistantTone) => void
+  /** 恢复出来的洞察流（工作台持久化，见 lib/workspace-store.ts） */
+  initialInsights?: InsightItem[]
 }
 
 export interface AiAssistant {
@@ -43,6 +45,7 @@ export interface AiAssistant {
   clearInsights: () => void
 }
 
+
 function assistantMessage(content: string): ConversationMessage {
   return { role: "assistant", content, createdAt: new Date() }
 }
@@ -54,11 +57,12 @@ export function useAiAssistant({
   onSqlDraft,
   onTabChange,
   notify,
+  initialInsights,
 }: UseAiAssistantOptions): AiAssistant {
   const [input, setInput] = useState("")
   const [asking, setAsking] = useState(false)
   const [unavailable, setUnavailable] = useState(false)
-  const [insights, setInsights] = useState<InsightItem[]>([])
+  const [insights, setInsights] = useState<InsightItem[]>(initialInsights ?? [])
   const [executingIndex, setExecutingIndex] = useState<number | null>(null)
 
   /** 把一条洞察写进会话：首条与卡片执行共用同一映射 */

@@ -23,6 +23,7 @@ import type { ChartMapping } from "@/components/chart"
 import { Play, Loader2, Send, Save } from "lucide-react"
 import { AiMentionInput } from "@/components/ai-mention-input"
 import { normalizeWorkspaceSql, workspaceSqlKey } from "@/lib/workspace-navigation"
+import { loadWorkspace, saveWorkspace } from "@/lib/workspace-store"
 
 // 本地 monaco（惰性配置：SSR 安全，配置完成前编辑器渲染占位）
 import { configureMonaco } from "@/lib/monaco-setup"
@@ -38,16 +39,23 @@ interface SessionWorkspaceProps {
 }
 
 export function SessionWorkspace({ connectionId, initialSql }: SessionWorkspaceProps) {
+  // 恢复上次离开时的工作台（按连接）：会话骨架 + 洞察流；结果行不持久化，回来点一次「执行」即可重看
+  const restored = useMemo(() => loadWorkspace(connectionId), [connectionId])
   const [schema, setSchema] = useState<SchemaData | null>(null)
-  const [sqlDraft, setSqlDraft] = useState(() => normalizeWorkspaceSql(initialSql))
+  const [sqlDraft, setSqlDraft] = useState(
+    () => normalizeWorkspaceSql(initialSql) || restored?.lastSql || "",
+  )
   const [saveDialogOpen, setSaveDialogOpen] = useState(false)
   const [saveName, setSaveName] = useState("")
   const [monacoReady, setMonacoReady] = useState(false)
   // Navigation can hydrate in more than one render. Track the applied input by
   // value so a late-arriving query is still loaded once without overwriting edits.
   const appliedInitialSqlKey = useRef<string | null>(null)
-  // 结果区当前 Tab（受控）：新洞察到达切「洞察」（结论前置），执行卡片切「探索」
-  const [resultTab, setResultTab] = useState("explore")
+  // 结果区当前 Tab（受控）：新洞察到达切「洞察」（结论前置），执行卡片切「探索」；
+  // 恢复场景没有结果可看，直接停在「洞察」，否则用户回来面对的是一块空的结果区
+  const [resultTab, setResultTab] = useState(() =>
+    restored?.insights?.length ? "insights" : "explore",
+  )
   const { toast } = useToast()
 
   // 配置本地 monaco（幂等；客户端首帧后异步完成，避免 loader.init 回退 CDN）
@@ -98,6 +106,7 @@ export function SessionWorkspace({ connectionId, initialSql }: SessionWorkspaceP
     connectionId,
     schema,
     executeCompiled,
+    initialSession: restored?.session,
   })
 
   // 自动执行：从 /explorer「在工作台执行」/ /queries「执行」带 ?sql= 跳转到达时，
@@ -124,7 +133,17 @@ export function SessionWorkspace({ connectionId, initialSql }: SessionWorkspaceP
     onSqlDraft: setSqlDraft,
     onTabChange: setResultTab,
     notify: toast,
+    initialInsights: restored?.insights,
   })
+
+  // 持久化：会话骨架 + 洞察流，立即写（会话对象只在 dispatch 时变化，粒度足够粗）；
+  // 不做防抖——组件卸载时定时器会被 cleanup 取消，反而丢掉最后一刻的状态。
+  // 空会话不写，避免留下无意义快照。
+  useEffect(() => {
+    if (!connectionId) return
+    if (session.status === "idle" && session.conversationHistory.length === 0 && assistant.insights.length === 0) return
+    saveWorkspace(connectionId, { session, insights: assistant.insights })
+  }, [connectionId, session, assistant.insights])
 
   function runSql() {
     if (!connectionId || !sqlDraft.trim()) return

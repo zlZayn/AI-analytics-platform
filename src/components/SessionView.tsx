@@ -71,6 +71,9 @@ export function SessionView({
     return bindDataToChart(result, displayConfig)
   }, [result, displayConfig])
 
+  // 洞察是 AI 输出，独立于查询结果：结果未保留（切页/刷新回来）时仍要能看到卡片
+  const hasResult = Boolean(result && bound)
+  const showTabs = hasResult || insights.length > 0
   const sql = session.compiledSql?.sql?.trim() || ""
   const statusText = busy
     ? "执行中"
@@ -100,7 +103,7 @@ export function SessionView({
         </div>
       </div>
 
-      {!result || !bound ? (
+      {!showTabs ? (
         <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-3 px-6 text-center">
           {busy ? (
             <Loader2 className="h-6 w-6 animate-spin text-[var(--muted-foreground)]" aria-hidden="true" />
@@ -160,6 +163,8 @@ export function SessionView({
             </TabsContent>
 
             <TabsContent value="explore" keepMounted className={`${PANEL_SCROLL} space-y-2`}>
+              {result && bound ? (
+                <>
               {session.validationIssues?.map((issue) => (
                 <ChartNotice
                   key={`${issue.code}-${issue.field ?? ""}`}
@@ -185,13 +190,21 @@ export function SessionView({
                 onMappingChange={onMappingChange}
                 embedded
               />
+                </>
+              ) : (
+                <p className="text-[11px] text-[var(--muted-foreground)]">查询结果未保留，点击编辑器「执行」重看本次结果。</p>
+              )}
             </TabsContent>
 
             <TabsContent value="data" keepMounted className={PANEL_FILL}>
-              {/* 明细取原始查询结果：图表绑定会按数值槽位过滤行，不能作为明细的数据源 */}
-              <div className="h-full min-h-0 overflow-hidden rounded-lg border border-[var(--border)] bg-[var(--card)]">
-                <Chart mapping={{ chartType: "table" }} data={result.rows} fillHeight />
-              </div>
+              {result && bound ? (
+                /* 明细取原始查询结果：图表绑定会按数值槽位过滤行，不能作为明细的数据源 */
+                <div className="h-full min-h-0 overflow-hidden rounded-lg border border-[var(--border)] bg-[var(--card)]">
+                  <Chart mapping={{ chartType: "table" }} data={result.rows} fillHeight />
+                </div>
+              ) : (
+                <p className="text-[11px] text-[var(--muted-foreground)]">查询结果未保留，点击编辑器「执行」重看本次结果。</p>
+              )}
             </TabsContent>
           </Tabs>
         </>

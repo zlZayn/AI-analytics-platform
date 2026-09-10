@@ -3,5 +3,6 @@
 - `session-workspace.tsx`：SQL 编辑器、AI 助手、执行按钮、结果区和保存查询（AI 编排委托 [useAiAssistant](../../hooks/useAiAssistant.ts)，视图只负责挂载与布局）。
 - 被 `/workspace` 路由依赖；初始 SQL 来自 `connection` 与 `sql` 查询参数。
 - 执行入口：手动 SQL、探索页、查询管理页均调用统一 `buildWorkspaceUrl`；跨页 SQL 使用完整文档导航，到达后统一触发 `SET_COMPILED_SQL`。
+- 持久化：进入时按连接恢复会话骨架与洞察流（[lib/workspace-store.ts](../../lib/workspace-store.ts)），状态变化立即写回；结果行与执行物（compiledSql/querySpec）不恢复，避免进入即重跑，恢复后默认停在「洞察」Tab、点一次「执行」重看结果。
 - 改动后必测：会话与导航测试（见 [../../hooks/__tests__/README.md](../../hooks/__tests__/README.md)、[../../lib/__tests__/README.md](../../lib/__tests__/README.md) 的会话与导航类）与浏览器验收脚本（见 [scripts/README.md](../../../scripts/README.md)）。
 - 规则 → [AGENTS.md](AGENTS.md)；设计 → [docs/ARCHITECTURE.md](../../../docs/ARCHITECTURE.md)。
