@@ -2,7 +2,7 @@ import { act } from "react"
 import { createRoot } from "react-dom/client"
 import { afterEach, describe, expect, it, vi } from "vitest"
 import type { InsightItem } from "@/lib/ai-contract"
-import { InsightCard } from "./insight-card"
+import { InsightCard } from "../insight-card"
 
 const baseItem: InsightItem = {
   title: "销售趋势",

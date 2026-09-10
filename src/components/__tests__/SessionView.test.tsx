@@ -13,7 +13,7 @@ vi.mock("@/components/chart", () => ({
   ),
 }))
 
-import { SessionView } from "./SessionView"
+import { SessionView } from "../SessionView"
 
 /** sales 第二行为空串：图表绑定会过滤，明细必须保留 */
 const result = {

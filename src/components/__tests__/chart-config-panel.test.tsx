@@ -2,7 +2,7 @@ import { act } from "react"
 import { createRoot } from "react-dom/client"
 import { afterEach, describe, expect, it, vi } from "vitest"
 import type { ChartMapping } from "@/components/chart"
-import { ChartConfigPanel } from "./chart-config-panel"
+import { ChartConfigPanel } from "../chart-config-panel"
 
 const columns = [
   { name: "day", type: "date" },
