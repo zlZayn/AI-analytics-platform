@@ -25,14 +25,18 @@
 - 传递依赖里的原生 / 安装脚本：`esbuild`（vitest→vite、webr→tsx）、`sharp`（next 可选；本项目未用 `next/image`）、`@prisma/engines`（prisma CLI）、`unrs-resolver`（eslint-config-next）。npm 12 默认拦截这些脚本、Node 22 自带的 npm 10 会执行——两种状态下构建、测试、运行都已验证。
 - 外部运行时依赖：`webr` 运行时从 `webr.r-wasm.org` 拉 R.wasm 与 R 包，离线不可用（见根 [AGENTS.md](../AGENTS.md) 活跃坑）。
 
-已知错位与风险（本次治理只诊断，修复在后续提交）：
+边界纪律（治理后的一次性约定，新增依赖时照着放）：
 
-| 项 | 现状 | 风险 |
-| :--- | :--- | :--- |
-| `monaco-editor` | 源码直接 import，但未声明；由 `@monaco-editor/react` 的 peer 自动装入（0.55.1） | 任何不自动安装 peer 的安装方式（严格 node_modules、`--legacy-peer-deps`）会让编辑器静默失效 |
-| `prisma`（CLI） | 在 `dependencies` | 生产安装多装 CLI 与 engines；角色应为 devDependency |
-| `shadcn`（脚手架） | 在 `dependencies` | 同上，运行时用不到 |
-| `@vitest/coverage-v8` | 已声明但无任何覆盖率配置或命令引用 | 未使用的开发依赖 |
+- 只有 `next start` 真正加载的包进 `dependencies`；CLI、代码生成、脚手架、类型、测试工具一律 `devDependencies`。
+- 源码里直接 `import` 的包必须显式声明，不依赖 peer 自动安装（`monaco-editor` 曾经只靠 `@monaco-editor/react` 的 peer 存在）。
+- 安装脚本策略：CI 用 `npm ci --ignore-scripts`，本地 npm 12 默认拦截依赖的 pre/postinstall——两边一致，都已验证构建/测试/运行成立。新增依赖若确实需要 `postinstall`（原生二进制等），先本地验证，再决定是放开该依赖还是换包。
+- 装脚本 / 原生依赖的传递来源：`esbuild`（vitest→vite、webr→tsx）、`sharp`（next 可选，未用 `next/image`）、`@prisma/engines`（prisma CLI）、`unrs-resolver`（eslint-config-next）。
+
+更新策略：
+
+- 日常：Dependabot 每周一按「生产 / 开发」两组提 minor+patch PR（见 [`.github/dependabot.yml`](../.github/dependabot.yml)），CI 全绿才合并；安全公告优先于常规批次。
+- 框架与工具链 major（Next/React/Prisma/Tailwind/TypeScript/ESLint）不自动升，按需人工评估并写决策记录。
+- 任何依赖变更必须走 `package.json` + 锁文件一起改的 PR；禁止手改锁文件，禁止本地 `npm ci` 失败后强推。
 
 ## 元库初始化与漂移检查
 

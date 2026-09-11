@@ -33,6 +33,8 @@ This version has breaking changes — APIs, conventions, and file structure may 
 ## 活跃坑（只留判定，细节在各自 home）
 - **元库与业务表同库**：严禁 `prisma db push` / migrate（会 DROP `fact_*`/`dim_*`），schema 演进手写 `ALTER TABLE ... ADD COLUMN IF NOT EXISTS`（见 [prisma/README.md](prisma/README.md)）
 - `.next` 缓存 dev/prod 混用会致 build 失败；增删 app 路由后 typecheck 可能被旧生成类型绊住 → 清 `.next` 再验（见 [scripts/README.md](scripts/README.md)）
+- 残留的 `next start` 子进程会锁住 `node_modules/@next/swc*.node`：`npm ci` 报 EPERM、新实例报 EADDRINUSE → 先按端口找占用 PID 杀掉再装/起（见 [scripts/README.md](scripts/README.md)）
+- 安装脚本策略：CI 用 `npm ci --ignore-scripts`，本地 npm 12 也默认拦截依赖 pre/postinstall；两边都已验证可构建可运行，新增依赖若真需要 postinstall 要先验证（见 [docs/operations.md](docs/operations.md)）
 - `next start` 跑旧构建：改了没变化先确认 `.next` 是否为最新（新鲜度检测见 [scripts/README.md](scripts/README.md)）
 - 浏览器脚本依赖 `scripts/requirements.txt`（playwright，已锁版本）；离线 E2E 已在 CI 的 `e2e` job 跑，改 app 路由仍必须同步脚本的 `page.route` mock（见 [scripts/README.md](scripts/README.md)）
 - `.cmd` 必须 CRLF + GBK + 无 BOM；`if (...)` 块内日志不得用未转义圆括号（见 [决策记录](.agents/notes/2026-09-03-windows-script-encoding-rules.md)）

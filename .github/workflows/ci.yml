@@ -21,8 +21,10 @@ jobs:
           node-version-file: .node-version
           cache: npm
 
+      # --ignore-scripts：与本地 npm 12 默认拦截依赖安装脚本的行为一致（已验证构建/测试/运行都成立），
+      # 也让安装步骤不执行第三方生命周期脚本；新增依赖若确实需要 postinstall，会在这里响亮失败而不是静默出错。
       - name: Install dependencies
-        run: npm ci
+        run: npm ci --ignore-scripts
 
       - name: Generate Prisma client
         run: npx prisma generate
@@ -75,7 +77,7 @@ jobs:
           python-version: "3.12"
 
       - name: Install dependencies
-        run: npm ci
+        run: npm ci --ignore-scripts
 
       - name: Generate Prisma client
         run: npx prisma generate
