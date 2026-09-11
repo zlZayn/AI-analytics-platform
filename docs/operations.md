@@ -2,6 +2,13 @@
 
 - 定位：部署与运行时的唯一事实来源（参数、限额、密钥、隔离）；对外接口语义见 [api.md](api.md)。
 
+## 运行时与工具链基线
+
+- Node 基线 **22**：唯一来源是 [`.node-version`](../.node-version)（fnm/asdf/mise/nodenv 读它），CI 用 `node-version-file` 读同一文件，`package.json` 的 `engines.node` 为 `>=22 <25`——升基线只改这三处并同步 README 徽章。
+- 本机 Node 24 仍在 `engines` 允许区间内，但**验收以 CI 的 Node 22 为准**；本地与 CI 结果不一致时先核对版本。
+- 包管理固定 npm + 单一 `package-lock.json`（lockfileVersion 3）：CI 用 `npm ci`，锁文件与 `package.json` 不一致即失败；升级依赖走 PR 而不是本地手改锁文件。
+- 生命周期脚本：npm 12 默认拦截依赖的 pre/postinstall（本项目当前依赖被拦截时仍可构建、测试、运行），npm 10（Node 22 自带）会执行它们——两边都验证过，差异与取舍见决策记录。
+
 ## 连接池与并发
 
 - 连接池注册表最多保留 12 个连接池，支持并发创建去重、5 分钟闲置回收和 LRU 淘汰。

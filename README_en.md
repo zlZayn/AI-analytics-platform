@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/zlZayn/AI-analytics-platform/actions/workflows/ci.yml/badge.svg)](https://github.com/zlZayn/AI-analytics-platform/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Node](https://img.shields.io/badge/node-22-brightgreen)](package.json)
+[![Node](https://img.shields.io/badge/node-22-brightgreen)](.node-version)
 [![Next.js 16](https://img.shields.io/badge/Next.js-16-black)](https://nextjs.org)
 
 English | [简体中文](README.md)
@@ -46,7 +46,7 @@ analyze @sales_2026
 **Any platform**:
 
 ```bash
-npm install
+npm ci                      # reproducible install (Node version in .node-version, currently 22)
 # copy .env.example to .env, fill DATABASE_URL and ENCRYPTION_KEY
 npx prisma migrate deploy   # initialize the metadata database (never db push: it drops business tables)
 npm run dev                 # http://localhost:3000

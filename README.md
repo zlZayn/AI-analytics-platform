@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/zlZayn/AI-analytics-platform/actions/workflows/ci.yml/badge.svg)](https://github.com/zlZayn/AI-analytics-platform/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Node](https://img.shields.io/badge/node-22-brightgreen)](package.json)
+[![Node](https://img.shields.io/badge/node-22-brightgreen)](.node-version)
 [![Next.js 16](https://img.shields.io/badge/Next.js-16-black)](https://nextjs.org)
 
 [English](README_en.md) | 简体中文
@@ -44,7 +44,7 @@ AI 只基于当前连接的**表结构**、**数据轮廓**与**图表契约**�
 **通用**：
 
 ```bash
-npm install
+npm ci                      # 可复现安装（Node 版本见 .node-version，当前基线 22）
 # 复制 .env.example 为 .env，填 DATABASE_URL 与 ENCRYPTION_KEY
 npx prisma migrate deploy   # 初始化元数据库（勿用 db push，会 DROP 业务表）
 npm run dev                 # http://localhost:3000
