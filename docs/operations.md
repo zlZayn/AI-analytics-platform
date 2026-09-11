@@ -37,6 +37,7 @@
 - 日常：Dependabot 每周一按「生产 / 开发」两组提 minor+patch PR（见 [`.github/dependabot.yml`](../.github/dependabot.yml)），CI 全绿才合并；安全公告优先于常规批次。
 - 框架与工具链 major（Next/React/Prisma/Tailwind/TypeScript/ESLint）不自动升，按需人工评估并写决策记录。
 - 任何依赖变更必须走 `package.json` + 锁文件一起改的 PR；禁止手改锁文件，禁止本地 `npm ci` 失败后强推。
+- 合并通道：main 受 ruleset 保护（必须走 PR，必需检查 `Lint · Typecheck · Test · Build · Docs` 与 `Offline E2E (browser)`，禁删禁强推），PR 分支合并后删除；经 API 合并改动 `.github/workflows/` 的 PR 需要 `gh` token 具备 `workflow` scope（否则报 "refusing to allow an OAuth App to create or update workflow"），没有该 scope 时在网页端合并。
 
 ## 元库初始化与漂移检查
 

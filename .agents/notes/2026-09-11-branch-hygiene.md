@@ -1,57 +1,62 @@
 # 决策：分支卫生与依赖 PR 节奏（线性分支策略）
 
 - 日期：2026-09-11
-- 状态：已实施（清理 + 策略落地；三处待维护者定夺）
-- 范围：远程分支、[`.github/dependabot.yml`](../../.github/dependabot.yml)、根 [AGENTS.md](../../AGENTS.md)
+- 状态：已实施（清理与策略落地；4 个 Actions PR 待授权后合并）
+- 范围：远程分支、[`.github/dependabot.yml`](../../.github/dependabot.yml)、main ruleset、根 [AGENTS.md](../../AGENTS.md)、[docs/operations.md](../../docs/operations.md)
 
 ## 问题
 
 1. 远程积压 12 个非 main 分支：9 个是 Dependabot 首次启用时一次冒出的 PR 分支，2 个是历史遗留（`refactor-plan`、`trae/agent-HFEMnl`）。
-2. 多阶段治理期间没有成文的分支约定，容易被理解成"每个阶段开一个分支"，与项目实际做法（main 上小步提交）不一致。
+2. 多阶段治理期间没有成文的分支约定，容易被理解成"每个阶段开一个分支"，与项目实际做法（当前分支小步提交）不一致。
 3. 生产分组 PR 里混进了一个会让 CI 失败的依赖，按"分组一起合"处理会连带卡住其余 7 个更新。
+4. main 此前无任何保护，本地误操作可直推。
 
 ## 决策
 
-- **线性分支策略**：默认在 main 上小步提交（一件事一个 commit，可独立 revert）；实验性改造用本地分支或 worktree，完成后立刻删除，不把长期分支推到 origin。
-- **分支清理判据**：`git rev-list --count main..origin/<branch>` 为 0（已完全被 main 包含）→ 直接删；大于 0 → 先看 diff 与最后更新时间，能证明被取代才删，无法判断价值就问维护者。
-- **Dependabot 节奏**：npm 每周一按生产/开发两组提 PR（仅 minor+patch，并发 ≤5）；Actions 每月、并发 ≤3；框架与工具链 major（含 `@types/node`）不自动提；每个 PR 必须过 CI 的 verify + e2e 两个 job 才考虑合并。
-- **本次清理结果**：删除 `refactor-plan`（相对 main 0 个未合并提交，tip 提交即"mark refactor-plan as merged into main"）；9 个 Dependabot 分支保留（对应 9 个待 review 的 PR）；`trae/agent-HFEMnl` 暂留待维护者判断。
-- **分组不宜过大**：分组 PR 里只要有一个包不兼容就整组被卡。已知例：生产分组 #6 因 `monaco-editor` 0.56 改了 ESM 路径而 typecheck 失败（`Cannot find module 'monaco-editor/esm/vs/basic-languages/r/r.contribution.js'`），其余 7 个更新（`next` 16.3.4、`react`/`react-dom` 19.2.8、`pg`、`recharts`、`@base-ui/react`、`lucide-react`）在本 PR 里没有报错。
+- **main 受 ruleset 保护**：必须走 PR、必需检查 `Lint · Typecheck · Test · Build · Docs` 与 `Offline E2E (browser)`、禁止删除与强推、允许 squash/merge 两种合并方式、无需人工 approve（`required_approving_review_count: 0`）。ruleset 由 `gh api` 维护（id 见"验证"节），不用网页手工配置。
+- **短命分支 + 线性历史**：改动在临时分支上线性推进（每步一个独立 commit），squash 合并后删除分支；**阶段治理＝在当前分支连续提交，不新建长命分支**。本地实验用分支或 worktree，完成后删除，不推长期分支到 origin。
+- **分支清理判据**：`git rev-list --count main..<branch>` 为 0（已完全被 main 包含）且最后更新 > 30 天 → 可删；不满足则先看 diff 与时间，能证明被取代才删，无法判断价值就问维护者。
+- **Dependabot 节奏**：npm 每周一按生产/开发两组提 PR（仅 minor+patch，并发 ≤5）；Actions 每月、并发 ≤3；框架与工具链 major（`next`/`react`/`prisma*`/`tailwindcss`/`typescript`/`eslint`/`vitest`/`openai`）与 `@types/node` major 不自动提；生产分组用 `exclude-patterns` 排除 `monaco-editor`（0.56 改了 ESM 路径，混组会让整组 typecheck 失败）。
+- **合并通道的已知限制**：经 API 合并"改动 `.github/workflows/`"的 PR 需要 `gh` token 具备 `workflow` scope；没有该 scope 时只能网页端合并（本轮 #2–#5 即卡在这里）。
 
-## 待维护者定夺（本轮不擅自处理）
+## 处置结果（2026-09-11）
 
-1. `trae/agent-HFEMnl`：1 个未合并提交，内容是两份 Handoff 文档（`docs/handoff_refactor_2026-09-02.md`、`.uploads/…完整 Handoff.md`），对应 2026-09-02 的重构计划，而该计划在 main 上已落地（落后 98 个提交）。三选一：直接删 / 先归档进 `docs/archive/` 再删 / 保留。
-2. 9 个 Dependabot PR：4 个 npm（生产分组 #6 失败、开发分组 #7 全绿、`openai` 7 与 `vitest` 5 为 major）+ 5 个 Actions major（checks 绿）；按策略 major 不自动合并，需人工判断。
-3. 是否把 `monaco-editor` 从生产分组 `exclude-patterns` 排除（让它单独出 PR，其余 7 个更新可正常走），以及是否为 main 开启分支保护。
+- 历史分支：删除 `refactor-plan`（0 未合并提交）与 `trae/agent-HFEMnl`（仅两份 Handoff 文档、落后 main 98 个提交、无代码，计划已在 main 落地）。
+- 已合并：PR #7（开发分组 3 个更新）、PR #1（`actions/checkout` 4→7）；Dependabot 已自动删除对应分支。
+- 已关闭：PR #9（`openai` 6→7 major）、PR #10（`vitest` 4→5 major）、PR #6（生产分组：`monaco-editor` 0.56 使 typecheck 失败）；三者分支已清空，前两者的 major 已加入 ignore、`monaco-editor` 已从分组排除，因此不会原样重开。
+- 待授权合并：PR #2–#5（`upload-artifact`/`setup-node`/`cache`/`setup-python` 的 major，checks 全绿）——需要 `gh auth refresh -s workflow` 或在网页端合并。
+- 远程现状：`main` + 4 个待合并的 Actions PR 分支。
 
 ## 替代方案（强制）
 
-- **每个阶段开一个长命分支**：单人项目 + CI 约 3 分钟，分支的隔离收益低于合并与同步成本；历史遗留分支（`refactor-plan`、`trae/agent-HFEMnl`）正是这么攒下来的。
+- **每个阶段开一个长命分支**：单人项目 + CI 约 3 分钟，分支隔离收益低于合并与同步成本；历史遗留分支正是这么攒下来的。
+- **继续无保护直推 main**：本地误操作无兜底；本轮已用 ruleset 收口，且 ruleset 走 `gh api` 而不用网页手配，避免配置与实际检查名漂移。
 - **Git Flow（develop / release / hotfix）**：没有并行发布与多角色协作，纯开销。
-- **一次性 `git push --delete` 清掉全部 Dependabot 分支**：PR 会失去 head 分支，等于丢掉 9 个仍在评审队列里的更新信息，且 Dependabot 会重建。
-- **把 major 也交给 Dependabot 自动合并**：本轮已验证 major 需人工判断（`vitest` 5、`openai` 7、Actions 大版本）；CI 只能证明"能编过"，不能证明"该升"。
-- **本轮直接开 main 保护**：涉及仓库设置，按 handoff 边界只记待办、不自行开启。
+- **一次性 `git push --delete` 清掉全部 Dependabot 分支**：PR 失去 head 分支等于丢掉评审队列里的信息，且 Dependabot 会重建。
+- **major 交给 Dependabot 自动合**：`vitest` 5、`openai` 7、Actions 大版本都需要人工判断；CI 只能证明"能编过"。
+- **把 `monaco-editor` 直接 ignore 掉**：会同时丢掉它的小版本修复；改用 `exclude-patterns` 让它单独出 PR，升级信息不丢。
 
 ## 影响与风险
 
-- 收益：远程分支回到"main + 待 review 的 PR 分支"这一可解释状态；分支与提交约定成文，后续治理不再产生长命分支。
-- 风险 1：分组 PR 被单个不兼容包卡住 → 用 `exclude-patterns` 拆出问题包（待维护者确认后改配置）。
-- 风险 2：删除 `refactor-plan` 后，本地若仍有指向它的分支/worktree 会失效 → 用 `git branch -vv` 核对，必要时从 main 重拉。
-- 未开启 main 保护：本地误操作可直推 main，当前靠纪律而非机制（已记入 AGENTS 待办）。
+- 收益：远程分支回到"main + 待合并 PR"的可解释状态；分支、提交与合并通道成文；main 有机器兜底。
+- 风险 1：ruleset 的必需检查名必须与 workflow 的 job 名逐字一致（本轮踩过：写成 `verify`/`e2e` 时所有 PR 永久 BLOCKED）→ 改 job 名或 ruleset 时必须同步。
+- 风险 2：token 缺 `workflow` scope 时，改动 CI 的 PR 无法经 API 合并 → 需补 scope 或网页合并。
+- 风险 3：生产分组即使排除 `monaco-editor`，其余包仍可能单独不兼容 → 单包失败时按同样方式拆组，不整组合并。
 
 ## 验证
 
-- 清理前：`git rev-list --count main..origin/refactor-plan` = 0 且 `git merge-base --is-ancestor origin/refactor-plan main` 为真。
-- 清理后：`git for-each-ref refs/remotes/origin` 只剩 main + 9 个 Dependabot 分支 + `trae/agent-HFEMnl`。
-- PR 侧：`gh pr checks` 逐个核对——开发分组 #7 全绿；生产分组 #6 因 monaco 失败；其余 7 个 checks 绿但按策略属人工判断。
+- 清理前：`git rev-list --count main..origin/refactor-plan` = 0 且 `git merge-base --is-ancestor` 为真；`trae/agent-HFEMnl` 的 diff 只有两份 markdown。
+- ruleset：`gh api repos/zlZayn/AI-analytics-platform/rulesets --jq '.[] | "\(.id) \(.name) \(.enforcement)"'` → `22918503 main-branch-protection active`；`gh pr view 7 --json mergeStateStatus` 由 `BLOCKED` 变 `CLEAN`。
+- 合并后：`git for-each-ref refs/remotes/origin` 只剩 `main` + 4 个待合并 Actions 分支。
 - 文档侧：链接校验与行尾校验通过（见提交信息）。
 
 ## 回滚
 
-- 分支删除可恢复：`git push origin <sha>:refs/heads/refactor-plan`（该 tip 仍在 main 历史中）。
+- 分支删除可恢复：`git push origin <sha>:refs/heads/<branch>`（被删分支的 tip 仍在 main 历史或 PR 记录里）。
+- ruleset 可整体回退：`gh api repos/zlZayn/AI-analytics-platform/rulesets/22918503 -X DELETE`。
 - 配置与文档：`git revert` 对应提交。
 
 ## 关联
 
 - [2026-09-11-toolchain-governance.md](2026-09-11-toolchain-governance.md)（Node 基线、元库、CI 门禁、npm 纪律与 Dependabot 初版配置）
-- [../../docs/operations.md](../../docs/operations.md)（依赖更新策略）
+- [../../docs/operations.md](../../docs/operations.md)（依赖更新策略与合并通道）

@@ -14,6 +14,10 @@ updates:
       production-minor-patch:
         dependency-type: production
         update-types: ["minor", "patch"]
+        # monaco-editor 0.56 改了 ESM 路径（src/lib/monaco-setup.ts 直接 import esm/vs/basic-languages/r/…），
+        # 混进分组会让整组 typecheck 失败；拆出去单独出 PR、单独评估。
+        exclude-patterns:
+          - monaco-editor
       development-minor-patch:
         dependency-type: development
         update-types: ["minor", "patch"]
@@ -40,6 +44,11 @@ updates:
         update-types: ["version-update:semver-major"]
       # 类型定义必须跟随 Node 基线（.node-version），不能自动跨主版本
       - dependency-name: "@types/node"
+        update-types: ["version-update:semver-major"]
+      # 大版本 SDK / 测试框架需人工评估（对应 PR 已关闭，不再自动提）
+      - dependency-name: openai
+        update-types: ["version-update:semver-major"]
+      - dependency-name: vitest
         update-types: ["version-update:semver-major"]
 
   - package-ecosystem: github-actions

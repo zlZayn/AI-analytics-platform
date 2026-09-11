@@ -31,7 +31,6 @@ This version has breaking changes — APIs, conventions, and file structure may 
 - [ ] 联网实测 statTest 黑盒统计成功路径（离线只覆盖错误路径）：[docs/PLAN.md](docs/PLAN.md)
 - [ ] 可选：R.wasm 预加载、统一图表高度契约：[docs/PLAN.md](docs/PLAN.md)
 - [ ] 确认生产部署形态（进程管理 / 反向代理保留 COOP+COEP / 服务器 Node 版本 / 元库备份）并补写 [docs/operations.md](docs/operations.md)「部署（待确认）」：[docs/operations.md](docs/operations.md)
-- [ ] 建议为 main 开启分支保护（要求 CI 两个 job 通过、禁止直推），仓库设置由维护者决定；同时待定：`trae/agent-HFEMnl` 去留、9 个 Dependabot PR 的处理、是否把 `monaco-editor` 拆出生产分组：[决策记录](.agents/notes/2026-09-11-branch-hygiene.md)
 
 ## 活跃坑（只留判定，细节在各自 home）
 - **元库与业务表同库**：严禁 `prisma db push` / migrate（会 DROP `fact_*`/`dim_*`），schema 演进手写 `ALTER TABLE ... ADD COLUMN IF NOT EXISTS`（见 [prisma/README.md](prisma/README.md)）
@@ -48,7 +47,7 @@ This version has breaking changes — APIs, conventions, and file structure may 
 - 跨页入口 SQL 经 `workspace-navigation.ts` 规范化，工作台按 `connection + SQL` 一次性应用（见 [src/lib/README.md](src/lib/README.md)）
 - 统一历史两类权威源都在元库（SQL=`query_history`、AI/R=`analysis_history`），客户端 `lib/history-client.ts` 不落副本；R 历史回放 = 清空后重新执行（图片不持久化、只记 `imageCount`），`?r=` 取不到时面板提示「未找到」而非换一条（见 [决策记录](.agents/notes/2026-09-11-history-persistence-and-r-replay-rerun.md)）
 - 文档校验脚本以 skill 版（maintenance-flow）为源头，只改项目 `scripts/` 副本会在下次同步被覆盖（见 [决策记录](.agents/notes/2026-09-11-doc-reference-link-convention.md)）
-- **阶段治理 ≠ 新建分支**：多阶段改造直接在主分支小步提交（一件事一个 commit，可独立 revert），不开长命分支；分支清理判据与 Dependabot 节奏见 [决策记录](.agents/notes/2026-09-11-branch-hygiene.md)
+- **主分支受保护 + 阶段治理不开长命分支**：main 有 ruleset（必须走 PR；必需检查 `Lint · Typecheck · Test · Build · Docs` 与 `Offline E2E (browser)`；禁删禁强推）；改动在短命 PR 分支上小步提交、squash 合并后删分支。经 API 合并改动 `.github/workflows/` 的 PR 需要 `gh` 的 `workflow` scope（见 [决策记录](.agents/notes/2026-09-11-branch-hygiene.md)）
 
 ## 文档地图
 - 用途与用法：[README.md](README.md) · [README_en.md](README_en.md)
