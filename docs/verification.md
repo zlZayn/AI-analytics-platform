@@ -7,13 +7,15 @@
 ## 本地验证
 
 ```bash
-npm run typecheck
-npm run lint
-npm test
+npm run verify        # typecheck + lint + test（与 CI 的 verify job 同口径）
 npm run build
-npx prisma generate   # 若 src/generated/prisma 不存在
+npm run db:check      # 元库结构与 schema.prisma 的漂移检查（需要 .env 指向元库）
+python scripts/offline_workspace_e2e.py   # 浏览器面回归（需先 build 并在 4321 起服务）
 git diff --check
 ```
+
+CI 两个 job：`verify`（typecheck / lint / test / build / 文档链接 / diff 检查）与 `e2e`（离线浏览器 E2E，全程 mock API、不需要数据库与外网）。
+自动化覆盖不到的（真实数据库业务语义、真实 AI 供应商、R.wasm 的 CDN 加载）见下文「人工验收」。
 
 ## 布局与索引
 

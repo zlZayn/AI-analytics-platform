@@ -1,0 +1,4 @@
+# 浏览器验收脚本的 Python 依赖（本地与 CI 共用同一版本，保证可复现）
+#   python -m pip install -r scripts/requirements.txt
+#   python -m playwright install --with-deps chromium   # 首次需要下载浏览器
+playwright==1.60.0

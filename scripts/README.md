@@ -9,7 +9,10 @@
 - `check-db-drift.mjs`：只读比对 `schema.prisma` 与库中表/列；入口 `npm run db:check`，漂移退出码 1
 - `bump-version.mjs`：按语义 bump `package.json` 的 version（`major|minor|patch|X.Y.Z`，低位置零，只改一行）；档位规则见根 [AGENTS.md](../AGENTS.md) 全局规则，改后必须重建
 - 运行方式：浏览器脚本用 `BASE_URL` 覆盖地址，默认 `http://localhost:4321`（Next.js 16 拒绝跨来源 HMR）
-- 坑位：浏览器脚本需本地 chromium 且 CI 不跑；改 app 路由必须同步 `page.route` mock，否则 500
+- 依赖：浏览器脚本要 `python -m pip install -r scripts/requirements.txt` + `python -m playwright install --with-deps chromium`（版本锁定在 requirements.txt）
+- CI：`offline_workspace_e2e.py` 已在 CI 的 `e2e` job 跑（mock 全部 API、主动 abort WebR CDN，不需要数据库/密钥/外网）；`final_ui_smoke.py` 与联网项仍本地跑
+- 坑位：跑 E2E 前确认 4321 未被旧的 `next start` 占用——新实例会 EADDRINUSE 退出，脚本就打到旧构建上（`Start Dev.cmd` 会自动结束占端口的旧 PID）
+- 坑位：改 app 路由必须同步 `page.route` mock，否则 500
 - 坑位：`.next` dev/prod 混用会致 build 失败，增删 app 路由后 typecheck 会被旧生成类型绊住 → 清 `.next` 再验
 - 坑位：`next start` 跑旧构建产物（用 `freshness.js` 判定 OK/STALE/NOT_BUILT）；`Start Dev.cmd` 构建后会结束占用端口的旧 PID 再启动
 - 坑位：`Start Dev.cmd` 的 `if (...)` 块内日志不得用未转义圆括号（CMD 报 `was unexpected at this time` 并闪退），改完用 `cmd.exe /d /c` 验证

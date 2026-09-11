@@ -10,6 +10,7 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
+    "verify": "npm run typecheck && npm run lint && npm test",
     "db:init": "node --env-file=.env scripts/db-init.mjs",
     "db:check": "node --env-file=.env scripts/check-db-drift.mjs"
   },

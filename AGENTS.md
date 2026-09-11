@@ -14,7 +14,7 @@ This version has breaking changes — APIs, conventions, and file structure may 
 - 改根 [README.md](README.md) 必须同改 [README_en.md](README_en.md)（冲突时以中文为准）
 
 ## 常用命令
-- `npm test` · `npm run typecheck` · `npm run lint` · `npm run dev`（端口 3000；浏览器脚本默认 4321）
+- `npm run verify`（typecheck + lint + test，与 CI 同口径）· `npm run dev`（端口 3000；浏览器脚本默认 4321）
 - `npm run db:init`（幂等初始化/补齐元库）· `npm run db:check`（只读漂移检查）· Node 基线 22（`.node-version`）
 
 ## 验证快照（2026-09-11，main）
@@ -34,7 +34,7 @@ This version has breaking changes — APIs, conventions, and file structure may 
 - **元库与业务表同库**：严禁 `prisma db push` / migrate（会 DROP `fact_*`/`dim_*`），schema 演进手写 `ALTER TABLE ... ADD COLUMN IF NOT EXISTS`（见 [prisma/README.md](prisma/README.md)）
 - `.next` 缓存 dev/prod 混用会致 build 失败；增删 app 路由后 typecheck 可能被旧生成类型绊住 → 清 `.next` 再验（见 [scripts/README.md](scripts/README.md)）
 - `next start` 跑旧构建：改了没变化先确认 `.next` 是否为最新（新鲜度检测见 [scripts/README.md](scripts/README.md)）
-- 浏览器脚本需本地 chromium 且 CI 不跑；改 app 路由必须同步脚本的 `page.route` mock（见 [scripts/README.md](scripts/README.md)）
+- 浏览器脚本依赖 `scripts/requirements.txt`（playwright，已锁版本）；离线 E2E 已在 CI 的 `e2e` job 跑，改 app 路由仍必须同步脚本的 `page.route` mock（见 [scripts/README.md](scripts/README.md)）
 - `.cmd` 必须 CRLF + GBK + 无 BOM；`if (...)` 块内日志不得用未转义圆括号（见 [决策记录](.agents/notes/2026-09-03-windows-script-encoding-rules.md)）
 - `node_modules/@prisma/client` 损坏时 typecheck 报缺模型属性 → 重装后 `npx prisma generate`（见 [prisma/README.md](prisma/README.md)）
 - Monaco 已本地托管：新编辑器接入先 `await configureMonaco()` 再渲染，勿顶层 import（见 [src/AGENTS.md](src/AGENTS.md)）
