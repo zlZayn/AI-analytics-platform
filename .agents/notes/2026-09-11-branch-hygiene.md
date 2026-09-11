@@ -25,7 +25,7 @@
 - 已合并：PR #7（开发分组 3 个更新）、PR #1（`actions/checkout` 4→7）；Dependabot 已自动删除对应分支。
 - 已关闭：PR #9（`openai` 6→7 major）、PR #10（`vitest` 4→5 major）、PR #6（生产分组：`monaco-editor` 0.56 使 typecheck 失败）；三者分支已清空，前两者的 major 已加入 ignore、`monaco-editor` 已从分组排除，因此不会原样重开。
 - 待授权合并：PR #2–#5（`upload-artifact`/`setup-node`/`cache`/`setup-python` 的 major，checks 全绿）——需要 `gh auth refresh -s workflow` 或在网页端合并。
-- 远程现状：`main` + 4 个待合并的 Actions PR 分支。
+- **配置生效后的 Dependabot 复跑（同日）**：新出 PR #12 生产分组（8 个更新，**不含 `monaco-editor`**，verify 绿）、#13 开发分组补丁、#14 `monaco-editor` 单独 PR（verify 失败，不兼容被隔离成单包信号）、#15 `jsdom` 30 major（非分组，属人工判断范围）——"拆组"达到预期：一组不再被单包连坐，major 仍以 PR 形式可见但不自动合。
 
 ## 替代方案（强制）
 
@@ -47,7 +47,7 @@
 
 - 清理前：`git rev-list --count main..origin/refactor-plan` = 0 且 `git merge-base --is-ancestor` 为真；`trae/agent-HFEMnl` 的 diff 只有两份 markdown。
 - ruleset：`gh api repos/zlZayn/AI-analytics-platform/rulesets --jq '.[] | "\(.id) \(.name) \(.enforcement)"'` → `22918503 main-branch-protection active`；`gh pr view 7 --json mergeStateStatus` 由 `BLOCKED` 变 `CLEAN`。
-- 合并后：`git for-each-ref refs/remotes/origin` 只剩 `main` + 4 个待合并 Actions 分支。
+- 合并后（2026-09-11 快照）：`git for-each-ref refs/remotes/origin` = `main` + 4 个待合并 Actions 分支 + Dependabot 复跑新开的 PR 分支；长期口径是"`main` + 待合并 PR 分支"，具体清单不入文档。
 - 文档侧：链接校验与行尾校验通过（见提交信息）。
 
 ## 回滚
