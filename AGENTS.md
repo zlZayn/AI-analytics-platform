@@ -8,7 +8,7 @@ This version has breaking changes — APIs, conventions, and file structure may 
 
 ## 全局规则
 - Next.js 16 有破坏性变更：写代码前先读 `node_modules/next/dist/docs/` 对应指南
-- 文档职责与引用契约见 [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) 文档网节；决策记录 [.agents/notes/](.agents/notes/)
+- 文档职责与引用契约见 [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)；决策记录 [.agents/notes/](.agents/notes/)
 - 文档同步后跑 `python scripts/check-links.py . --fragments --refs`（锚点/引用未成链为警告级）；行尾与编码规则见 [决策记录](.agents/notes/2026-09-03-windows-script-encoding-rules.md)
 - 版本号按语义 bump（修复/文档=patch、功能/行为=minor、破坏性=major）：`node scripts/bump-version.mjs {major|minor|patch|X.Y.Z}`，**bump 后必须重建**才在侧栏徽标生效
 - 改根 [README.md](README.md) 必须同改 [README_en.md](README_en.md)（冲突时以中文为准）
@@ -23,7 +23,7 @@ This version has breaking changes — APIs, conventions, and file structure may 
 - R 图像输出（浏览器 + 联网，webr 0.6）: passed（ggplot 真实渲染；R 代码不得自行开/关图形设备，见 [决策记录](.agents/notes/2026-09-11-unified-history-store-and-r-canvas-ownership.md)）
 
 ## 待办
-- [ ] 联网人工验收 R 历史回放与 `injecting` 提示（图像输出已于 2026-09-11 浏览器确认）：[docs/verification.md](docs/verification.md) 第 5 节
+- [ ] 联网人工验收 R 历史回放与 `injecting` 提示（图像输出已于 2026-09-11 浏览器确认）：[docs/verification.md](docs/verification.md)
 - [ ] 真实只读账号人工验收：[docs/verification.md](docs/verification.md)
 - [ ] 联网实测 statTest 黑盒统计成功路径（离线只覆盖错误路径）：[docs/PLAN.md](docs/PLAN.md)
 - [ ] 可选：R.wasm 预加载、统一图表高度契约：[docs/PLAN.md](docs/PLAN.md)
