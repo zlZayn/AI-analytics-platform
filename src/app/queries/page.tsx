@@ -9,7 +9,8 @@ import { HistoryTimeline } from "@/components/history-timeline"
 import { useToast } from "@/components/toast"
 import { ApiRequestError, fetchApi } from "@/lib/client-api"
 import { buildHistoryWorkspaceUrl, buildWorkspaceUrl } from "@/lib/workspace-navigation"
-import { listHistory } from "@/lib/history-store"
+import { importLegacyLocalHistory, listHistory } from "@/lib/history-client"
+import type { HistoryEntry } from "@/types/history"
 import { filterTimeline, mergeHistoryTimeline, type TimelineItem } from "@/lib/history-merge"
 import type { ApiResponse, QueryHistoryItem, SavedQuery } from "@/types"
 import { Play, Trash2, Copy, Search, Bookmark, Clock } from "lucide-react"
@@ -21,6 +22,7 @@ export default function QueriesPage() {
 
   const [savedQueries, setSavedQueries] = useState<SavedQuery[]>([])
   const [queryHistory, setQueryHistory] = useState<QueryHistoryItem[]>([])
+  const [analysisHistory, setAnalysisHistory] = useState<HistoryEntry[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState("")
   const [error, setError] = useState("")
@@ -28,30 +30,35 @@ export default function QueriesPage() {
   useEffect(() => {
     if (!connectionId) return
     let active = true
-    async function loadQueries() {
+    async function loadQueries(id: string) {
       setLoading(true)
       setError("")
       try {
-        const [saved, history] = await Promise.all([
-          fetchApi<ApiResponse<SavedQuery[]>>(`/api/query/saved?connectionId=${connectionId}`),
-          fetchApi<ApiResponse<QueryHistoryItem[]>>(`/api/query/history?connectionId=${connectionId}`),
+        // 旧浏览器历史（v2 localStorage）先一次性导入服务端，再统一读取两类历史
+        await importLegacyLocalHistory(id)
+        const [saved, history, analysis] = await Promise.all([
+          fetchApi<ApiResponse<SavedQuery[]>>(`/api/query/saved?connectionId=${id}`),
+          fetchApi<ApiResponse<QueryHistoryItem[]>>(`/api/query/history?connectionId=${id}`),
+          listHistory(id),
         ])
-        if (active && saved.success) setSavedQueries(saved.data)
-        if (active && history.success) setQueryHistory(history.data)
+        if (!active) return
+        if (saved.success) setSavedQueries(saved.data)
+        if (history.success) setQueryHistory(history.data)
+        setAnalysisHistory(analysis)
       } catch (requestError) {
         if (active) setError(requestError instanceof ApiRequestError ? requestError.message : "查询列表加载失败")
       } finally {
         if (active) setLoading(false)
       }
     }
-    void loadQueries()
+    void loadQueries(connectionId)
     return () => { active = false }
   }, [connectionId])
 
-  // 统一历史时间线：后端 SQL 历史 + 前端 AI/R 历史（sessionStorage，同标签页共享）合并展示
+  // 统一历史时间线：SQL（query_history）+ AI/R（analysis_history）读取期合并，权威源都在服务端
   const mergedTimeline = useMemo(
-    () => mergeHistoryTimeline(queryHistory, connectionId ? listHistory(connectionId) : []),
-    [queryHistory, connectionId],
+    () => mergeHistoryTimeline(queryHistory, analysisHistory),
+    [queryHistory, analysisHistory],
   )
   const timeline = useMemo(() => filterTimeline(mergedTimeline, search), [mergedTimeline, search])
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import type { HistoryEntry } from "../history-store"
+import type { HistoryEntry } from "@/types/history"
 import { aiOpenableSql, filterTimeline, mergeHistoryTimeline } from "../history-merge"
 import type { QueryHistoryItem } from "@/types"
 

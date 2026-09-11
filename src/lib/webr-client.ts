@@ -51,6 +51,8 @@ export interface WebRClientState {
   output: ROutputItem[]
   images: ImageBitmap[]
   lastExecMs: number | null
+  /** 最近一次执行产出的图片张数（图片只在内存里；历史条目据此判断是否含图） */
+  lastImageCount: number
   listeners: Set<() => void>
 }
 
@@ -72,6 +74,7 @@ export class WebRClient {
     output: [],
     images: [],
     lastExecMs: null,
+    lastImageCount: 0,
     listeners: new Set(),
   }
 
@@ -179,12 +182,17 @@ export class WebRClient {
         mapped.push({ id: this.nextOutputId(), type: String(o.type), data: await safeOutputData(o.data) })
       }
       this.patch({ output: [...this.state.output, ...mapped] })
-      if (capture.images.length > 0) {
-        this.patch({ images: [...this.state.images, ...capture.images] })
-      }
+      // 图片累积展示（一次会话可出多张图），但"本次执行出了几张"单独记，历史条目用得上
+      this.patch({
+        images: capture.images.length > 0 ? [...this.state.images, ...capture.images] : this.state.images,
+        lastImageCount: capture.images.length,
+      })
     } catch (e) {
       const msg = e instanceof Error ? e.message : "R 代码执行失败"
-      this.patch({ output: [...this.state.output, { id: this.nextOutputId(), type: "error", data: msg }] })
+      this.patch({
+        output: [...this.state.output, { id: this.nextOutputId(), type: "error", data: msg }],
+        lastImageCount: 0,
+      })
     } finally {
       this.patch({ busy: false, lastExecMs: Math.round(performance.now() - start) })
     }
@@ -256,14 +264,14 @@ export class WebRClient {
 
   clearOutput() {
     this.state.images.forEach((img) => img.close())
-    this.patch({ output: [], images: [] })
+    this.patch({ output: [], images: [], lastImageCount: 0 })
   }
 
   destroy() {
     this.instance = null
     this.installed.clear()
     this.state.images.forEach((img) => img.close())
-    this.patch({ status: "idle", packages: [], output: [], images: [], error: undefined, lastExecMs: null })
+    this.patch({ status: "idle", packages: [], output: [], images: [], error: undefined, lastExecMs: null, lastImageCount: 0 })
   }
 
   /** 数据集是否超过注入阈值（导出给工具/测试） */

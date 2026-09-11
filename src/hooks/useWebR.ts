@@ -13,6 +13,8 @@ export interface UseWebRReturn {
   output: ROutputItem[]
   images: ImageBitmap[]
   lastExecMs: number | null
+  /** 最近一次执行产出的图片张数（与累积展示的 images 区分） */
+  lastImageCount: number
 
   init: () => Promise<void>
   ensurePackages: (pkgs: string[]) => Promise<void>
@@ -70,6 +72,7 @@ export function useWebR(): UseWebRReturn {
     output: state.output,
     images: state.images,
     lastExecMs: state.lastExecMs,
+    lastImageCount: state.lastImageCount,
     ...actions,
   }
 }

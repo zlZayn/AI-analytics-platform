@@ -6,6 +6,7 @@ import {
   exportCSV,
   formatRValue,
   generateRTemplate,
+  stripDataFrameAssignment,
 } from "@/lib/r-bridge"
 import type { SemanticDataset } from "@/types/session"
 
@@ -41,6 +42,34 @@ describe("escapeRName", () => {
   it("wraps Chinese or special names in backticks", () => {
     expect(escapeRName("订单金额")).toBe("`订单金额`")
     expect(escapeRName("order id")).toBe("`order id`")
+  })
+})
+
+describe("stripDataFrameAssignment", () => {
+  it("剥掉多行数据加载块，保留其余分析代码", () => {
+    const code = [buildDataFrameCode(makeDataset()), "", "library(ggplot2)", "summary(df)"].join("\n")
+
+    const stripped = stripDataFrameAssignment(code)
+
+    expect(stripped).not.toContain("df <- data.frame(")
+    expect(stripped).toContain("library(ggplot2)")
+    expect(stripped).toContain("summary(df)")
+  })
+
+  it("单行数据加载块同样只剥自己，不吞后续代码（回归）", () => {
+    const code = ["df <- data.frame(x = 1)", "plot(df)", "summary(df)"].join("\n")
+
+    expect(stripDataFrameAssignment(code)).toBe(["plot(df)", "summary(df)"].join("\n"))
+  })
+
+  it("取值里的括号与引号不干扰块边界", () => {
+    const code = ['df <- data.frame(label = c("a(b", "c)\"d"))', "plot(df)"].join("\n")
+
+    expect(stripDataFrameAssignment(code)).toBe("plot(df)")
+  })
+
+  it("无数据块时原样返回（去掉前导空行）", () => {
+    expect(stripDataFrameAssignment("\n\nplot(df)")).toBe("plot(df)")
   })
 })
 

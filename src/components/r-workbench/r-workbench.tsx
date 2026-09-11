@@ -10,7 +10,7 @@
 // - WebR 仍是模块级单例（useWebR），刷新页面才重置；数据集变化且已打开时重新注入
 // - 快捷键：Ctrl+Enter 运行 / Esc 关闭 / Ctrl+Shift+C 清空 / Ctrl+Shift+E 中断
 
-import { useEffect, useRef, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import type * as React from "react"
 import { RWorkbenchHeader } from "./r-workbench-header"
 import { RWorkbenchToolbar } from "./r-workbench-toolbar"
@@ -22,7 +22,7 @@ import { useSplitRatio } from "@/hooks/useSplitRatio"
 import { SplitHandle } from "@/components/ui/split-handle"
 import { SPLIT_PRESETS } from "@/lib/split"
 import { buildDataFrameCode, generateRTemplate, stripDataFrameAssignment } from "@/lib/r-bridge"
-import { appendHistory, latestRHistory, rHistoryById, toPersistedOutput } from "@/lib/history-store"
+import { appendHistory, listRHistory, toPersistedOutput } from "@/lib/history-client"
 import { withTimeout } from "@/lib/webr-client"
 import type { SemanticDataset } from "@/types/session"
 
@@ -36,7 +36,7 @@ interface RWorkbenchProps {
   sessionId: string
   /** 当前结果集来源的 SQL：随 R 执行历史落库，历史面板据此带回工作台重跑 df */
   sourceSql: string
-  /** 历史回放条目 id（来自 URL `?r=`）：打开面板时优先载入该条代码而非最近一条 */
+  /** 历史回放条目 id（来自 URL `?r=`）：打开面板时载入并**重新执行**该条代码（而非最近一条） */
   replayId?: string
 }
 
@@ -56,7 +56,8 @@ export function RWorkbench({ dataset, open, onClose, connectionId, sessionId, so
   const codeRef = useRef("")
   const loggedExecRef = useRef<number | null>(null)
   const restoredOutputRef = useRef(false)
-  const replayConsumedRef = useRef(false)
+  /** 已自动重跑的条目 id：回放 = 重新执行，同一条只重跑一次 */
+  const replayRunRef = useRef<string | null>(null)
   const sourceSqlRef = useRef(sourceSql)
   const viewportRef = useRef<HTMLElement | null>(null)
 
@@ -84,25 +85,45 @@ export function RWorkbench({ dataset, open, onClose, connectionId, sessionId, so
   // actions 为稳定引用（useWebR useMemo）；effect 依赖它们不会因渲染变化重触发
   const { init, ensurePackages, injectData, clearOutput, interrupt, execute, reportError, restoreOutput } = webR
 
+  /** 统一执行入口（手动运行与历史回放共用）：超时输出 error 后尝试中断 */
+  const runCode = useCallback(
+    async (source: string) => {
+      try {
+        await withTimeout(execute(source), 60_000)
+      } catch {
+        await interrupt()
+      }
+    },
+    [execute, interrupt],
+  )
+
   // 打开时：初始化 WebR + 注入数据 + 填充模板
   useEffect(() => {
     if (!open) return
     let cancelled = false
 
     async function bootstrap() {
-      // 代码来源：用户改过 → 保留；否则优先回放指定条目（URL `?r=`，本面板生命周期内只消费一次）、
-      // 其次恢复最近一条历史（去掉旧数据块，df 必须来自当前注入），
-      // 无历史时用按当前数据集生成的模板。运行时不初始化（离线/CDN 不可用）也能读、改、复制。
+      // 代码来源：用户改过 → 保留；否则优先回放指定条目（URL `?r=`）、其次恢复最近一条历史
+      //（去掉旧数据块，df 必须来自当前注入），无历史时用按当前数据集生成的模板。
+      // 历史取自服务端（api/history），取不到就退化成模板——运行时不初始化也能读、改、复制。
       const template = generateRTemplate(dataset)
-      const replay = replayId && !replayConsumedRef.current ? rHistoryById(connectionId, replayId) : null
-      if (replay) replayConsumedRef.current = true
-      const history = replay ?? (connectionId ? latestRHistory(connectionId) : null)
-      setCode((prev) => {
-        if (prev.trim().length > 0 && prev !== template) return prev
-        if (!history?.code.trim()) return template
+      const rHistory = connectionId ? await listRHistory(connectionId) : []
+      if (cancelled) return
+      const replay = replayId ? rHistory.find((entry) => entry.id === replayId) ?? null : null
+      // URL 带了回放 id、库里却没有这条记录（被清理/换连接）：明确提示，不退化成最近一条而不吭声
+      const replayMissing = Boolean(replayId) && Boolean(connectionId) && !replay
+      const history = replay ?? rHistory[0] ?? null
+      const current = codeRef.current
+      let nextCode = template
+      if (current.trim().length > 0 && current !== template) {
+        nextCode = current
+      } else if (history?.code.trim()) {
         const analysisOnly = stripDataFrameAssignment(history.code)
-        return analysisOnly.trim() ? `${buildDataFrameCode(dataset)}\n\n${analysisOnly}` : template
-      })
+        if (analysisOnly.trim()) nextCode = `${buildDataFrameCode(dataset)}\n\n${analysisOnly}`
+      }
+      codeRef.current = nextCode
+      setCode(nextCode)
+
       try {
         await init()
         if (cancelled) return
@@ -111,10 +132,22 @@ export function RWorkbench({ dataset, open, onClose, connectionId, sessionId, so
         await injectData(dataset)
         if (cancelled) return
         setInjectedFor(dataset)
-        // 回放上次的文本输出（图片不持久化）：本组件生命周期内只回放一次，避免覆盖本次会话的输出
+        // 回放 = 重新执行：图片（ImageBitmap）不可序列化，只能靠重跑重绘；
+        // 先清掉上一次的输出与图片，避免旧文本/旧图被当成这条历史的结果（历史面板的「执行」即此语义）
+        if (replay) {
+          if (replayRunRef.current === replay.id) return
+          replayRunRef.current = replay.id
+          clearOutput()
+          await runCode(nextCode)
+          return
+        }
+        // 普通打开：回放上次的文本输出（图片不持久化）：本组件生命周期内只回放一次，避免覆盖本次会话的输出
         if (!restoredOutputRef.current && history?.output.length) {
           restoredOutputRef.current = true
           restoreOutput(history.output)
+        }
+        if (replayMissing) {
+          reportError("未找到这条 R 历史（可能已被清理或不在当前浏览器），已改为恢复最近一条")
         }
       } catch {
         // init/inject 失败：错误写入输出区（离开「等待运行…」占位），
@@ -122,6 +155,11 @@ export function RWorkbench({ dataset, open, onClose, connectionId, sessionId, so
         // StrictMode 双跑时两轮 await 同一份失败的 initPromise，本轮已被 cleanup 取消则不再重复报错
         if (cancelled) return
         reportError("R 环境初始化失败，请检查网络后刷新页面重试")
+        // 运行时起不来：至少把这条历史当时的文本输出显示出来，回放不至于空白
+        if (replay && !restoredOutputRef.current && replay.output.length) {
+          restoredOutputRef.current = true
+          restoreOutput(replay.output)
+        }
       }
     }
 
@@ -129,7 +167,7 @@ export function RWorkbench({ dataset, open, onClose, connectionId, sessionId, so
     return () => {
       cancelled = true
     }
-  }, [open, dataset, init, ensurePackages, injectData, reportError, restoreOutput, connectionId, replayId])
+  }, [open, dataset, init, ensurePackages, injectData, reportError, restoreOutput, clearOutput, runCode, connectionId, replayId])
 
   // 数据集变化且工作台已打开：重新注入（维护已打开状态下的数据新鲜度）
   useEffect(() => {
@@ -175,12 +213,13 @@ export function RWorkbench({ dataset, open, onClose, connectionId, sessionId, so
     return () => document.removeEventListener("keydown", onKeyDown)
   }, [open, onClose, clearOutput, interrupt])
 
-  // 每次执行完成（lastExecMs 变化）落一条 R 历史：文本输出可回放，图片不持久化
+  // 每次执行完成（lastExecMs 变化）落一条 R 历史：文本输出可回放，图片不持久化（回放靠重跑重绘）
   useEffect(() => {
     if (webR.lastExecMs === null || loggedExecRef.current === webR.lastExecMs || !connectionId) return
     loggedExecRef.current = webR.lastExecMs
     const textItems = webR.output.filter((item) => typeof item.data === "string")
-    if (textItems.length === 0) return
+    // 只出图、没有文本的执行同样落库，否则纯绘图代码在历史里彻底消失
+    if (textItems.length === 0 && webR.lastImageCount === 0) return
     appendHistory({
       kind: "r",
       connectionId,
@@ -188,17 +227,13 @@ export function RWorkbench({ dataset, open, onClose, connectionId, sessionId, so
       code: codeRef.current,
       sourceSql: sourceSqlRef.current || undefined,
       output: toPersistedOutput(textItems),
+      imageCount: webR.lastImageCount,
       ok: !textItems.some((item) => item.type === "error"),
     })
-  }, [webR.lastExecMs, webR.output, connectionId, sessionId])
+  }, [webR.lastExecMs, webR.output, webR.lastImageCount, connectionId, sessionId])
 
-  async function handleRun() {
-    try {
-      await withTimeout(execute(code), 60_000)
-    } catch {
-      // 超时：WebRClient 内部已输出 error；此处尝试中断
-      await interrupt()
-    }
+  function handleRun() {
+    void runCode(code)
   }
 
   async function handleCopy() {

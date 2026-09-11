@@ -2,18 +2,18 @@
 //
 // 把两个来源的历史合成一条按时间倒序的统一时间线，供查询管理页「历史」标签展示：
 // - 来源 A：后端 QueryHistory（SQL 执行历史，权威源，跨会话持久）
-// - 来源 B：前端 history-store（AI 提问 + R 执行，会话级 sessionStorage）
+// - 来源 B：后端 AnalysisHistory（AI 提问 + R 执行，权威源，同库同轴；见 api/history）
 // 两个来源各存各的，本模块只做读取期的合并与归一，绝不双写。
 // 合并键：createdAt（ISO 字符串）倒序；同刻按来源稳定排序（SQL 在前）。
 
-import type { HistoryEntry } from "@/lib/history-store"
+import type { HistoryEntry } from "@/types/history"
 import type { QueryHistoryItem } from "@/types"
 
 /** 时间线条目：统一展示模型，kind 区分来源与动作 */
 export interface TimelineItem {
   /** 列表 key：来源前缀 + 原始 id，避免两来源 id 撞车 */
   key: string
-  /** 原始 id（R 条目回放时经 URL 带回工作台，按 id 从 history-store 取回） */
+  /** 原始 id（R 条目回放时经 URL 带回工作台，按 id 从 /api/history 取回） */
   id: string
   kind: "sql" | "ai" | "r"
   createdAt: string
@@ -79,6 +79,8 @@ function fromEntry(entry: HistoryEntry): TimelineItem {
     title: summarize(entry.code),
     code: entry.code,
     copyText: entry.code,
+    // 图片不持久化：只提示这条当时有几张图，回放会重新执行重绘
+    note: entry.imageCount ? `含图 ${entry.imageCount} 张（回放时重新执行重绘）` : undefined,
     openSql: entry.sourceSql ?? null,
   }
 }

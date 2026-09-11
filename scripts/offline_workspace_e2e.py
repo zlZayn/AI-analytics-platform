@@ -141,6 +141,25 @@ def fulfill_saved_queries(route: Route) -> None:
     route.fulfill(json=envelope([]))
 
 
+# 有状态 mock：AI/R 历史权威源是服务端 analysis_history 表，POST 落库、GET 读回
+analysis_history: list[dict[str, object]] = []
+
+
+def fulfill_analysis_history(route: Route) -> None:
+    if route.request.method == "POST":
+        body = json.loads(route.request.post_data or "{}")
+        entry = {
+            **body,
+            "id": f"analysis-{len(analysis_history) + 1}",
+            "createdAt": body.get("createdAt", "2026-01-01T00:00:00Z"),
+        }
+        analysis_history.insert(0, entry)
+        route.fulfill(json=envelope(entry))
+        return
+    kind = parse_qs(urlparse(route.request.url).query).get("kind", [None])[0]
+    route.fulfill(json=envelope([entry for entry in analysis_history if not kind or entry.get("kind") == kind]))
+
+
 def fulfill_query_history(route: Route) -> None:
     route.fulfill(json=envelope([
         {
@@ -221,6 +240,7 @@ def main() -> None:
         page.route("**/api/query/preview", fulfill_preview)
         page.route("**/api/query/saved*", fulfill_saved_queries)
         page.route("**/api/query/history*", fulfill_query_history)
+        page.route("**/api/history*", fulfill_analysis_history)
         page.route("**/api/schema/test*", fulfill_schema)
         page.route("**/api/ai", fulfill_ai)
         # R 工作台：mock 掉 WebR CDN，制造确定性初始化失败（P1-5b 回归断言，不依赖真实网络）
@@ -344,7 +364,7 @@ def main() -> None:
         if page.get_by_test_id("chart-surface").count() != 0:
             raise AssertionError("query result must not be persisted: chart surface should be empty until re-run")
 
-        # 统一历史时间线（回归）：查询管理「历史」同时呈现后端 SQL 历史与前端 AI 历史（同连接作用域）
+        # 统一历史时间线（回归）：查询管理「历史」同时呈现 SQL 历史（query_history）与服务端 AI/R 历史（analysis_history，本次提问应已 POST 落库）
         page.goto(f"{BASE_URL}/queries?connection=test", wait_until="networkidle")
         page.get_by_role("tab", name="历史", exact=True).click()
         page.get_by_text("SQL", exact=True).first.wait_for(state="visible", timeout=10_000)

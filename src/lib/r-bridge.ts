@@ -73,23 +73,33 @@ function escapeString(s: string): string {
  *
  * 恢复历史必须用它：旧块会把 df 换成上一次的数据（用户反馈过"df 没更新"）。
  * 恢复时用当前数据集重新注入，只保留用户的分析代码。
+ * 块边界按括号配平判定（先剥字符串字面量）、单行与多行写法都识别——
+ * 早期实现只认"块尾是单独一行 `)`"，碰到 `df <- data.frame(x = 1)` 这类单行写法
+ * 会把其后的分析代码整段吞掉（回放只剩模板，正是"回放代码不对"的来源）。
  */
 export function stripDataFrameAssignment(code: string): string {
-  const lines = code.split("\n")
   const kept: string[] = []
-  let skipping = false
-  for (const line of lines) {
-    if (!skipping && /^df\s*<-\s*data\.frame\(/.test(line.trim())) {
-      skipping = true
+  let depth = 0
+  for (const line of code.split("\n")) {
+    const startsBlock = depth === 0 && /^df\s*<-\s*data\.frame\(/.test(line.trim())
+    if (depth === 0 && !startsBlock) {
+      kept.push(line)
       continue
     }
-    if (skipping) {
-      if (line.trim() === ")") skipping = false
-      continue
-    }
-    kept.push(line)
+    depth = Math.max(0, depth + parenDelta(line))
   }
   return kept.join("\n").replace(/^\n+/, "")
+}
+
+/** 一行的括号净增量：先剥掉字符串字面量，避免取值里的括号干扰配平 */
+function parenDelta(line: string): number {
+  const withoutStrings = line.replace(/"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'/g, "")
+  let delta = 0
+  for (const char of withoutStrings) {
+    if (char === "(") delta += 1
+    else if (char === ")") delta -= 1
+  }
+  return delta
 }
 
 /** 数据集 → R data.frame 构建代码（列向量形式） */

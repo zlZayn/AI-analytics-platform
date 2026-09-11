@@ -93,6 +93,25 @@ describe("WebRClient", () => {
     expect(s.busy).toBe(false)
   })
 
+  it("execute 记录本次产出图片数，与累积展示的 images 区分", async () => {
+    const { client } = makeClient()
+    await client.init()
+    const bitmap = { width: 640, height: 480, close: vi.fn() } as unknown as ImageBitmap
+    fake.shelter.captureR.mockResolvedValueOnce({ result: {}, output: [], images: [bitmap] })
+    await client.execute("plot(1)")
+    expect(client.getState().lastImageCount).toBe(1)
+    expect(client.getState().images).toHaveLength(1)
+
+    fake.shelter.captureR.mockResolvedValueOnce({ result: {}, output: [{ type: "stdout", data: "ok" }], images: [] })
+    await client.execute("summary(df)")
+    expect(client.getState().lastImageCount).toBe(0)
+    // 累积展示不回退：上一张图仍在输出区
+    expect(client.getState().images).toHaveLength(1)
+
+    client.clearOutput()
+    expect(client.getState().lastImageCount).toBe(0)
+  })
+
   it("execute failure surfaces as error output without throwing", async () => {
     const { client } = makeClient()
     await client.init()

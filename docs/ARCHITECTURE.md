@@ -54,9 +54,9 @@
 - R 分析以**右侧停靠面板**呈现（`fixed`，不占用结果区 flex 流；关闭即平移出屏但保持挂载以保留代码与输出），代码/输出高度与面板宽度可拖拽并持久化
 - R 画布所有权：`ImageBitmap` 归 `WebRClient`（组件只 `drawImage` + 零尺寸守卫，**永不 `close()`**——StrictMode 双跑后关掉的位图会让画布退回默认 300×150 空白）；**R 代码不得自行开/关图形设备**（`webr::canvas()` / `dev.off()`）——webR 在求值后按 `setdiff(canvas_cache(), old_cache)` 收集执行期间新产生的画布，自行 `dev.off()` 会先把画布移出缓存、差集为空 → 面板无图）；顶层表达式由 captureR 的 `withAutoprint` 自动打印
 - R 数据注入与执行串行化：`injectData` 未完成时 `execute()` 先 `await pendingInjection`，`injecting` 对外可见——否则换查询后立刻运行会用旧 `df`
-- 历史记录单一入口 `lib/history-store.ts`：AI 提问与 R 执行共用一份带版本号/上限的**连接级**历史（仅文本，输出截断，**图片不持久化**；`sessionId` 仅溯源）；与 `lib/workspace-store.ts` 分工 = 过往记录 vs 当前状态（键、生命周期、恢复语义都不同，不得合并）
-- 统一历史时间线：后端 SQL 历史（权威源 = `QueryHistory` 表）与前端 AI/R 历史（权威源 = sessionStorage）**各存各的，读取期由 `lib/history-merge.ts` 纯函数合并**，绝不双写；回放动作按能力降级——SQL 直达执行、AI 仅有 `sqlValid` 回退 SQL 时可执行、R 仅在有 `sourceSql` 时经 `?r=<id>` 带回工作台自动开面板回放
-- R 历史恢复必须与当前结果集一致：回放代码前 `stripDataFrameAssignment` 剥离旧 `df <- data.frame(...)` 并用当前数据集重建；文本输出只在面板生命周期内回放一次
+- 历史记录都在元库：AI 提问与 R 执行的权威源是 `AnalysisHistory` 表（`/api/history` 读写，连接级作用域、每连接 50 条上限，仅文本、**图片不持久化**只记张数 `imageCount`，`sessionId` 仅溯源），客户端 `lib/history-client.ts` 只读不落副本；与 `lib/workspace-store.ts` 分工 = 过往记录（服务端）vs 当前状态（浏览器，用于"接着用"），键与生命周期都不同，不得合并
+- 统一历史时间线：SQL 历史（权威源 = `QueryHistory` 表）与 AI/R 历史（权威源 = `AnalysisHistory` 表）**各存各的，读取期由 `lib/history-merge.ts` 纯函数合并**，绝不双写；回放动作按能力降级——SQL 直达执行、AI 仅有 `sqlValid` 回退 SQL 时可执行、R 仅在有 `sourceSql` 时经 `?r=<id>` 带回工作台**重新执行该条代码**（图片靠重绘，不做图片持久化）
+- R 历史恢复必须与当前结果集一致：回放代码前 `stripDataFrameAssignment` 剥离旧 `df <- data.frame(...)`（按括号配平识别单行/多行写法）并用当前数据集重建；回放 = 先清空输出与图片再重跑，运行时不可用才退回该条历史文本；普通打开才回放最近一次文本输出（面板生命周期内一次）
 - AI 输出预算覆盖推理开销（`AI_MAX_TOKENS`，推理 token 也计入）；解析失败只做一次有界修复，失败分类与用户可读提示由后端给出（前端不做判断）
 - 执行入口唯一落地：编辑器执行、导航带 SQL、洞察卡片执行都必须经 `SET_COMPILED_SQL` 真正发起一次执行；会话用 `runId` 标记显式执行请求，编译去重不得吞掉执行意图
 - 工作台按连接持久化会话骨架与洞察流（`lib/workspace-store.ts`，sessionStorage）：不持久化结果行，瞬态状态（compiling/executing）恢复为 ready；恢复不带 compiledSql/querySpec（否则进入即自动重跑），持久化立即写不防抖（卸载时 cleanup 会取消定时器）

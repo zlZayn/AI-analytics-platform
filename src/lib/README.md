@@ -2,8 +2,8 @@
 
 - `workspace-navigation.ts`：跨页面工作台 URL、SQL 换行规范化、一次性 payload key；历史回放的 `buildHistoryWorkspaceUrl`（R 条目追加 `?r=<id>`）与 `parseRHistoryParam`。
 - `split.ts`：分割比例纯逻辑（夹紧 + 本地持久化）与四处 `SPLIT_PRESETS`。
-- `history-store.ts`：统一历史记录（AI 与会话 + R 执行，**连接级作用域**，单命名空间/版本/上限；与 workspace-store 的分工写在模块头）。
-- `history-merge.ts`：后端 SQL 历史 + 前端 AI/R 历史的读取期合并（纯函数，时间线归一/排序/过滤/回放能力判定；不双写）。
+- `history-client.ts`：统一历史（AI 提问 + R 执行）读写客户端——读取 `/api/history`、追加落库（失败静默）、旧浏览器记录一次性导入、文本输出截断；与 workspace-store 的分工写在模块头。
+- `history-merge.ts`：后端 SQL 历史 + 前端 AI/R 历史的读取期合并（纯函数，时间线归一/排序/过滤/回放能力判定/R 含图提示；不双写）。
 - `workspace-store.ts`：工作台按连接的会话骨架 + 洞察流持久化（不存结果行；瞬态状态恢复为 ready）。
 - `query-compiler.ts` / `sql-validator.ts`：QuerySpec 编译与只读 SQL 校验。
 - `query-engine.ts` / `pool-registry.ts`：数据库查询执行与连接池生命周期。

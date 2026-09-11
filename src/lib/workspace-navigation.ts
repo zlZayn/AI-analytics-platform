@@ -21,7 +21,7 @@ export function buildWorkspaceUrl(connectionId: string | null, sql = ""): string
 
 /**
  * 历史回放的导航 URL：SQL 走统一入口；R 历史额外带 `r=<history id>`。
- * R 代码不进 URL（体积大且 sessionStorage 同标签页共享），工作台按 id 从 history-store 取回。
+ * R 代码不进 URL（体积大，历史已在服务端），工作台按 id 从 /api/history 取回并重新执行。
  */
 export function buildHistoryWorkspaceUrl(
   connectionId: string | null,
