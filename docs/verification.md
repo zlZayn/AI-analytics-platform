@@ -1,8 +1,50 @@
-# 最终人工使用验收
+# 验证 — 测试约定与人工验收
+
+- 定位：开发与维护者的验证入口，自动化测试约定 + 上线前人工验收清单。
+- 自动化覆盖不到的（真实数据库业务语义、浏览器交互与无障碍、R 运行时的 CDN 依赖）走本文「人工验收」节。
+- 每次改动要勾选的清单见 [maintenance-checklist.md](maintenance-checklist.md)；用例索引见各目录 `__tests__/README.md`。
+
+## 本地验证
+
+```bash
+npm run typecheck
+npm run lint
+npm test
+npm run build
+npx prisma generate   # 若 src/generated/prisma 不存在
+git diff --check
+```
+
+## 布局与索引
+
+- 测试与被测模块同目录的 `__tests__/`（`vitest.config.ts` include 为 `src/**/*.test.ts(x)`），无独立 `tests/` 目录。
+- 命名：测试文件与被测模块同名（`x.ts` → `x.test.ts(x)`），从源文件即可定位测试。
+- 每个 `__tests__/` 目录自带两份说明：`AGENTS.md`（该目录的写法约束）、`README.md`（覆盖范围与运行方式）；引用一律指向目录 README，不在此处复制文件清单。
+- 新增或移动测试必须同步所在目录 README 的覆盖范围；目录集合即 `src/**/__tests__/`。
+
+## 测试分类
+
+- Vitest + jsdom：纯算法、请求封装、会话状态、组件合同（jsdom + `createRoot`）。
+- Playwright 脚本：浏览器布局与端到端（`scripts/`，CI 不跑，需本地 chromium）。
+- 算法测试必须覆盖空值、非有限值、常量列、并列值、重复坐标、极端值和大数据边界。
+- 全局契约：主题由亮色契约测试守卫（防暗色分支回流）；AI 测试一律注入 fake provider，禁止真实 API；启动脚本与版本 bump 各有契约测试——分类清单见 [lib/__tests__/README.md](../src/lib/__tests__/README.md)。
+- R 工作台：纯函数与状态机在 vitest 跑；真实 R 执行依赖 CDN 与浏览器，CI 不跑，按本文「人工验收」第 5 节验证。
+
+关键回归场景：查询超时与真实取消、5,000 行截断、连接池失效、Schema 唯一快照、非 JSON API 错误、请求竞态、图表算法、窗口化表格、AI 结构化输出与降级、亮色一致性、窄屏布局。
+
+## CI（GitHub Actions）
+
+`.github/workflows/ci.yml` 在每次推送与 PR 上执行：install（`npm ci`）→ prisma generate → typecheck → lint → test → build → 文档链接校验（`scripts/check-links.py`）→ diff 检查。build 步骤注入占位 `ENCRYPTION_KEY`/`DATABASE_URL`（模块加载时校验密钥）。浏览器脚本不在 CI 跑。
+
+## 浏览器脚本
+
+先在 4321 端口启动应用，再运行 `scripts/` 下的验收脚本；用法、视口与输出目录见 [scripts/README.md](../scripts/README.md)。开发服务器运行离线 E2E 时用 `BASE_URL=http://localhost:4321`，生产服务器用默认地址。
+
+## 人工验收
 
 本清单用于在真实 PostgreSQL 数据库和实际浏览器中完成自动测试无法替代的业务验收。建议使用只读测试账号，并准备一张超过 5,000 行、包含数值、日期、类别、空值和重复类别的数据表。
 
-## 启动
+### 启动
 
 ```powershell
 # 在项目根目录执行
@@ -13,7 +55,7 @@ npm run dev
 
 打开终端显示的本地地址。浏览器开发者工具的 Console 和 Network 面板应保持可见。
 
-## 1. 连接与 Schema
+### 1. 连接与 Schema
 
 1. 新建一个只读 PostgreSQL 连接，先故意填写错误密码，确认测试失败后界面退出加载状态并显示安全错误。
 2. 改成正确密码并保存，刷新页面，确认连接仍存在且可选择。
@@ -21,7 +63,7 @@ npm run dev
 4. 修改连接名称或配置，确认侧栏立即显示新信息；删除测试连接前确认有二次确认。
 5. 在探索页选择表并打开预览，确认 Network 请求是 `/api/query/preview` 且 body 只有 connectionId/schema/table，没有客户端拼接 SQL；含空格或双引号的表名也不得越界。
 
-## 2. 查询稳定性
+### 2. 查询稳定性
 
 1. 执行简单 `SELECT`，确认结果行数、列数和耗时正确，首次结果默认显示表格。
 2. 执行返回超过 5,000 行的查询，确认只显示前 5,000 行并明确提示截断。
@@ -30,7 +72,7 @@ npm run dev
 5. 让查询失败，确认上一次成功结果仍保留，错误信息可重试且没有泄露连接密码。
 6. 在 5,000 行表格中滚动到底部，确认滚动流畅、粘性表头不跳动；用方向键/PageUp/PageDown/Home/End 滚动，并用列头手柄调整列宽，刷新后宽度应保留。
 
-## 3. 图表与算法
+### 3. 图表与算法
 
 1. 对同一结果依次选择 KPI、直方图、折线、柱状、饼/环、散点、箱线、热力和相关矩阵。
    每次点击后图表类型必须保持选中，字段映射控件必须出现，不得自动跳回表格。
@@ -41,14 +83,14 @@ npm run dev
 6. 柱状图带分组字段时分别选择“分组/堆叠/百分比”，确认图形只随显式选项变化；折线空值处不得跨越连线。
 7. 使用超过 2,000 个散点和超过 8 个饼图类别，确认界面分别显示确定性抽样和“其他”合并数量。
 
-## 4. AI、保存与删除
+### 4. AI、保存与删除
 
 1. 未配置 `AI_API_KEY` 时请求 AI，确认出现可操作提示且页面不崩溃。
 2. 配置 AI 后生成洞察，确认 SQL 只引用当前 Schema 和显式 `AS` 输出别名；格式损坏、未知图表或错误字段不会生成可执行卡片，现有结果保持表格。
 3. 保存查询后刷新“查询管理”，确认名称与 SQL 正确；复制 SQL 后粘贴核对全文。
 4. 删除保存查询时取消一次、确认一次，确认取消不删除、确认后列表更新。
 
-## 5. R 分析工作台（WebR）
+### 5. R 分析工作台（WebR）
 
 1. 对任意查询结果点击「R 分析」，确认面板以**右侧停靠**方式出现（不挤压结果区），标题显示行数 × 列数；拖动面板左边缘句柄可改宽度（420–1200px），关闭再开宽度保持。
 2. 首次打开确认有加载说明（数据注入/包下载）；已下载后关闭再开，确认不重复下载（包状态保留）。
@@ -58,7 +100,7 @@ npm run dev
 6. 恢复与历史：关闭面板→改查询并执行→重开面板，确认代码是上次的、`df` 是**当前**结果集（旧数据加载块被剥离重建），并回放出上次的文本输出（图片不持久化）。
 7. 面板关闭后查询与图表主链路不受影响；刷新页面后 R 运行时需重新下载（预期行为）。
 
-## 6. 布局、视觉与无障碍
+### 6. 布局、视觉与无障碍
 
 1. 分别在 360、768、1280 和 1440 像素宽度检查首页、工作台、探索页和查询管理页。
 2. 360 像素下检查导航抽屉、SQL/AI 区域、图表配置和表格横向滚动，页面本身不得横向溢出。
@@ -71,5 +113,8 @@ npm run dev
 ## 通过标准
 
 上述步骤全部通过，且真实业务数据的图表含义与 SQL 聚合含义一致，才可视为本轮人工验收完成。任何失败都应记录页面、连接、SQL、视口、复现步骤和 request-id。
-## 文档导航
-- 测试说明 [testing.md](testing.md) · 使用入口 [README.md](../README.md)
+
+## 相关文档
+
+- 每次改动勾选清单 [maintenance-checklist.md](maintenance-checklist.md) · 设计决策 [ARCHITECTURE.md](ARCHITECTURE.md) · AI 合同 [ai-integration.md](ai-integration.md)
+- 用例索引 [src/lib/__tests__/README.md](../src/lib/__tests__/README.md) · 脚本用法 [scripts/README.md](../scripts/README.md) · 被测模块 [src/README.md](../src/README.md) · 使用入口 [README.md](../README.md)

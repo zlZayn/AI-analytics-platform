@@ -64,8 +64,24 @@
 - 连接池：有限 PoolRegistry、并发创建去重、闲置/LRU 回收、认证错误失效
 - 每次文档同步后跑链接校验（scripts/check-links.py），引用不写死本机路径
 
-## 文档约定
+## 文档网（职责与引用）
 
-- 分层：README=用法，AGENTS.md=维护索引，本文件=设计决策，.agents/notes/=决策记录
-- 详细接口：见 [api.md](api.md)；AI 合同：[ai-integration.md](ai-integration.md)
-- 项目结构、页面路由清单：见 [src/README.md](../src/README.md)；API 路由总表：[api.md](api.md)
+同一事实只有一个 home；写入前先按下表判定，别处一律链接。
+
+| 文档 | 只写 | 不写 |
+| :--- | :--- | :--- |
+| 根 [README.md](../README.md)（+ [英文版](../README_en.md)） | 用途、功能、安装与上手 | 维护规则、设计理由、测试命令 |
+| 根 [AGENTS.md](../AGENTS.md) | 全局规则 + 仪表盘（验证快照/待办/活跃坑）+ 文档地图 | 细节与长示例（只给指针） |
+| 本文件 | 设计哲学、不变决策、防错清单、校验体系、本表 | 步骤式 how-to、文件级清单 |
+| [api.md](api.md) | 对外 HTTP 契约（路由、请求响应、错误码） | 运行参数与限额（→ [operations.md](operations.md)）、AI 合同细节（→ [ai-integration.md](ai-integration.md)） |
+| [ai-integration.md](ai-integration.md) | AI 合同、配置、失败语义 | 文件职责（→ 子 README）、测试约定（→ [verification.md](verification.md)） |
+| [operations.md](operations.md) | 运行参数与限额、密钥生命周期、数据隔离、日志 | 接口语义（→ [api.md](api.md)） |
+| [verification.md](verification.md) | 测试命令与约定、CI、浏览器脚本、人工验收清单 | 每次改动的勾选清单（→ [maintenance-checklist.md](maintenance-checklist.md)） |
+| [maintenance-checklist.md](maintenance-checklist.md) | 每次改动的勾选项 | 说明与命令细节（→ 各文档） |
+| [PLAN.md](PLAN.md) | 进行中计划与已知缺口 | 已达成的设计（→ notes）、验收步骤（→ verification） |
+| 子目录 README / AGENTS | 文件职责与改动路由 / 该子树规则 | 互为对方的内容（README 不写规则，AGENTS 不列文件） |
+| [.agents/notes/](../.agents/notes/) | 为什么这样设计、替代方案、验证要求 | 计划、验收清单、spec 式叙述 |
+
+- 引用方向：子 README → 同目录 AGENTS + 本文件；docs 每份顶部一行「定位」+ 页脚「相关文档」；本文件不反向指子 README
+- 判定「新内容写哪」：为什么 → 本文件；取舍与被否方案 → notes；怎么用 → README；接口/参数 → api、operations、ai-integration；怎么验 → verification；勾选 → maintenance-checklist
+- 每次文档同步后跑 `scripts/check-links.py`；引用不写死本机路径

@@ -62,7 +62,7 @@
 
 - 单测：`src/lib/__tests__/history-store.test.ts`（顺序/版本与 scope 隔离/坏记录忽略/截断/清空）、`src/lib/__tests__/split.test.ts`（四个预设契约）。
 - 离线 E2E：R 面板开/关、分割句柄数量、切页不自动重跑等回归。
-- **未能离线验证**：ggplot 图像输出与 `injecting` 提示需要联网加载 R 包，已写入 [docs/manual-acceptance.md](../../docs/manual-acceptance.md) 第 5 节人工验收。
+- **未能离线验证**：ggplot 图像输出与 `injecting` 提示需要联网加载 R 包，已写入 [docs/verification.md](../../docs/verification.md) 人工验收第 5 节。
 
 ## 关联
 

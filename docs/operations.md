@@ -1,10 +1,28 @@
-# 运维说明
+# 运维 — 运行参数、密钥与数据隔离
 
-连接池注册表最多保留 12 个连接池，支持并发创建去重、5 分钟闲置回收和 LRU 淘汰。连接配置变更、删除或不可恢复认证错误必须调用失效清理。查询超时由 PostgreSQL `statement_timeout` 负责；HTTP Abort 会通过独立连接调用 `pg_cancel_backend`，确认原查询结束后才回滚并释放 client。
+- 定位：部署与运行时的唯一事实来源（参数、限额、密钥、隔离）；对外接口语义见 [api.md](api.md)。
 
-日志使用 requestId 关联客户端错误和服务端异常；向用户隐藏密码、连接字符串和数据库堆栈。Schema 快照只保留一个 active 版本，历史版本用于审计和问题定位。
+## 连接池与并发
 
-默认查询上限为 5,000 行、默认超时 10 秒、最大超时 60 秒。探索预览固定 100 行。调整这些常量时必须同步 API、负载测试和用户提示。
+- 连接池注册表最多保留 12 个连接池，支持并发创建去重、5 分钟闲置回收和 LRU 淘汰。
+- 连接配置变更、删除或不可恢复认证错误必须调用失效清理（接口语义见 [api.md](api.md)「连接与 Schema」）。
+- 查询超时由 PostgreSQL `statement_timeout` 负责；HTTP Abort 会通过独立连接调用 `pg_cancel_backend`，确认原查询结束后才回滚并释放 client。
+
+## 运行参数与限额
+
+| 参数 | 值 | 说明 |
+| :--- | :--- | :--- |
+| 查询默认行上限 `rowLimit` | 5,000 | 服务端额外读取一行判断 `truncated`；响应字段见 [api.md](api.md) |
+| 查询默认超时 | 10 秒 | 由 `statement_timeout` 执行 |
+| 查询最大超时 | 60 秒 | 超出请求被拒 |
+| 探索表预览上限 | 100 行 | `/api/query/preview` 固定值，客户端不得拼接 SQL |
+
+调整这些常量时必须同步 API 响应说明、负载测试和用户提示。
+
+## 日志与可观测
+
+- 日志使用 requestId 关联客户端错误和服务端异常；向用户隐藏密码、连接字符串和数据库堆栈。
+- Schema 快照只保留一个 active 版本，历史版本用于审计和问题定位。
 
 ## 加密密钥生命周期
 
@@ -18,5 +36,6 @@
 
 `scripts/seed.py` 只接受 `SEED_DATABASE_URL`，故意不回退到应用 `DATABASE_URL`。种子账号和目标库应独立于生产环境，并允许创建测试表和写入测试数据。
 
-## 文档导航
-- 设计决策 [ARCHITECTURE.md](ARCHITECTURE.md) · 使用入口 [README.md](../README.md)
+## 相关文档
+
+- 对外接口 [api.md](api.md) · 设计决策 [ARCHITECTURE.md](ARCHITECTURE.md) · 元数据表与 schema 演进 [prisma/README.md](../prisma/README.md) · 使用入口 [README.md](../README.md)

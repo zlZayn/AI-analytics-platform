@@ -1,5 +1,7 @@
 # 决策：工作台执行生命周期（2026-09-04）
 
+> 已归档（2026-09-11）：执行契约已被 [2026-09-11-unified-run-contract-and-workspace-persistence.md](../2026-09-11-unified-run-contract-and-workspace-persistence.md) 取代；仍生效的只有 `.cmd` 圆括号约束与构建后重启行为。
+
 已实施/已否决：已实施
 
 ## 问题

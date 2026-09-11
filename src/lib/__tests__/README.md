@@ -8,5 +8,5 @@
   - AI：契约单一来源与运行时校验、上下文与可见范围声明、provider 配置/请求头/响应格式降级（一律注入 fake provider，禁止真实 API）
   - R：`r-bridge` 纯函数、`webr-client` 状态机、黑盒统计模板
   - 全局契约：亮色主题（防暗色分支回流）、启动脚本、版本 bump
-- 运行：`npx vitest run src/lib/__tests__`（全量 `npm test`，约定与 CI 见 [docs/testing.md](../../../docs/testing.md)）
+- 运行：`npx vitest run src/lib/__tests__`（全量 `npm test`，约定与 CI 见 [docs/verification.md](../../../docs/verification.md)）
 - 被测模块与改动路由 → [../README.md](../README.md)；工作约束 → [AGENTS.md](AGENTS.md)

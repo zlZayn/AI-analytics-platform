@@ -1,4 +1,4 @@
-# API 约定
+# API 约定 — 对外 HTTP 契约
 
 ## 路由总表
 
@@ -23,7 +23,7 @@
 
 `POST /api/query` 接收 `{ connectionId, sql, timeout? }`。只允许单条 `SELECT`/`WITH`，数据库侧使用只读事务和有界 `statement_timeout`。请求取消或断开时调用 `pg_cancel_backend`，等待原查询结束后才释放连接。
 
-结果包含 `columns`、`rows`、`rowCount`、`returnedRowCount`、`truncated`、`rowLimit` 和 `executionTimeMs`。`rowCount` 与 `returnedRowCount` 均表示实际返回行数；默认 `rowLimit` 为 5,000，服务端额外读取一行判断 `truncated`。
+结果包含 `columns`、`rows`、`rowCount`、`returnedRowCount`、`truncated`、`rowLimit` 和 `executionTimeMs`。`rowCount` 与 `returnedRowCount` 均表示实际返回行数；`rowLimit` 默认值与截断判定见 [operations.md](operations.md)。
 
 `POST /api/query/preview` 接收 `{ connectionId, schema, table }`。标识符仅在服务端引用，预览固定最多 100 行并复用同一查询引擎；客户端不得拼接预览 SQL。
 
@@ -31,7 +31,7 @@
 
 ## 连接与 Schema
 
-连接更新、删除和不可恢复认证错误会失效对应连接池。`PUT /api/connections/[id]` 只更新请求体中出现的字段：编辑时不提交 `password` 即保留原密文，`username`/`ssl` 由客户端先取详情回填后再提交。Schema 刷新在单个事务中停用旧快照并创建新快照，数据库部分唯一索引保证每个连接最多一个 active 快照。
+连接更新、删除和不可恢复认证错误会失效对应连接池（池参数见 [operations.md](operations.md)）。`PUT /api/connections/[id]` 只更新请求体中出现的字段：编辑时不提交 `password` 即保留原密文，`username`/`ssl` 由客户端先取详情回填后再提交。Schema 刷新在单个事务中停用旧快照并创建新快照，数据库部分唯一索引保证每个连接最多一个 active 快照。
 
 ## AI
 
@@ -41,4 +41,5 @@
 
 ## 文档导航
 
-- 设计决策 [ARCHITECTURE.md](ARCHITECTURE.md) · 使用入口 [README.md](../README.md)
+- 定位：对外 HTTP 契约（路由、请求响应、错误码）；运行参数与限额见 [operations.md](operations.md)。
+- 相关文档：设计决策 [ARCHITECTURE.md](ARCHITECTURE.md) · AI 合同 [ai-integration.md](ai-integration.md) · 使用入口 [README.md](../README.md)

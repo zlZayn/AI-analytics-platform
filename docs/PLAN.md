@@ -1,7 +1,7 @@
 # 进行中计划（跨会话延续）
 
 更新时间：2026-09-11
-当前产品版本：`1.32.2`
+当前产品版本：`1.32.3`
 
 用途：WIP 手账，跨会话延续上下文。验证数字、待办与活跃坑见 [../AGENTS.md](../AGENTS.md)；阶段成果与"为什么这样设计"见 [.agents/notes/](../.agents/notes/) 决策记录，不重复列出。
 
@@ -15,10 +15,10 @@
 
 ### 人工验收
 
-- 真实只读 PostgreSQL 账号验证写拒绝 / 长查询取消 / 认证失效池清理 / 连接删除，见 [manual-acceptance.md](manual-acceptance.md)（含 R 工作台，第 5 节）
-- 5,000+ 行、空值、重复坐标、高基数数据集按 [manual-acceptance.md](manual-acceptance.md) 核对业务语义
+- 真实只读 PostgreSQL 账号验证写拒绝 / 长查询取消 / 认证失效池清理 / 连接删除，见 [verification.md](verification.md)（人工验收，第 5 节）
+- 5,000+ 行、空值、重复坐标、高基数数据集按 [verification.md](verification.md) 的人工验收清单核对业务语义
 - 真实 AI provider 验收：strict json_schema 对 `context`/`statTest` 字段的输出符合性
-- 联网验收 R 图像输出与历史回放：ggplot 图必须真实渲染（`captureGraphics`）、注入期间状态栏显示 `injecting`、重开面板 `df` 与当前结果集一致，见 [manual-acceptance.md](manual-acceptance.md) 第 5 节
+- 联网验收 R 图像输出与历史回放：ggplot 图必须真实渲染（`captureGraphics`）、注入期间状态栏显示 `injecting`、重开面板 `df` 与当前结果集一致，见 [verification.md](verification.md) 第 5 节
 - 轮换曾写入旧脚本或历史文档的 AI/API 与数据库凭据（Git 历史中的旧值视为泄露）
 
 ### 可选增强
@@ -29,9 +29,15 @@
 
 ## 已拍板决策
 
+蓝图阶段 1-4 已完成（结果区三层 Tabs / 多洞察+业务上下文 / WebR 黑盒统计 / 体验打磨），过程记录见 [.agents/notes/](../.agents/notes/)。
+
 - 结果区三层 Tabs（洞察 / 探索 / 明细）：阶段 1 已实施，见 [决策记录](../.agents/notes/2026-09-03-result-area-three-layer-tabs.md)
 - 数据表单一 owner：`table` 退出探索的图表类型，明细独占数据表，见 [决策记录](../.agents/notes/2026-09-11-detail-table-single-owner.md)
 - WebR 黑盒统计引擎（固定模板，替代 AI 直接生成 R）：阶段 3 已实施，见 [决策记录](../.agents/notes/2026-09-03-webr-blackbox-stat-engine.md)
+
+## 相关文档
+
+- 验证快照/待办/活跃坑 [AGENTS.md](../AGENTS.md) · 设计决策 [ARCHITECTURE.md](ARCHITECTURE.md) · 维护清单 [maintenance-checklist.md](maintenance-checklist.md) · 人工验收 [verification.md](verification.md)
 
 ## Git 状态
 

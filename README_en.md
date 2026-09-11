@@ -2,6 +2,8 @@
 
 English | [简体中文](README.md)
 
+> The Chinese [README.md](README.md) is authoritative; keep both files in sync in the same change.
+
 A natural-language data analytics platform for business users: connect PostgreSQL, ask questions in plain language, get charts and insights.
 
 ## What Problems It Solves
@@ -55,7 +57,7 @@ CLI instructions below; use **`Build.cmd`** for a type-check + production build 
 ```bash
 npm install
 # copy .env.example to .env (Windows: copy .env.example .env), fill DATABASE_URL, ENCRYPTION_KEY
-npx prisma db push      # initialize the metadata database
+npx prisma migrate deploy   # initialize the metadata database (never db push: it drops business tables)
 npm run dev             # http://localhost:3000
 ```
 
@@ -77,9 +79,12 @@ Only single `SELECT`/`WITH` statements are allowed, run inside a read-only trans
 
 ## Docs
 
-- Usage/interaction: this file + [scripts/README.md](scripts/README.md) (launcher/build entry points)
-- Developer handbook: [src/README.md](src/README.md) (directory duties, page routes, change routing) · [src/components/charts/README.md](src/components/charts/README.md) (chart algorithms and limits) · [prisma/README.md](prisma/README.md)
-- Architecture & decisions: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) · [.agents/notes/](.agents/notes/) (decision records)
-- Interfaces & specs: [docs/api.md](docs/api.md) (API contract) · [docs/ai-integration.md](docs/ai-integration.md) (AI contract) · [docs/operations.md](docs/operations.md) (ops)
-- Testing & acceptance: [docs/testing.md](docs/testing.md) (incl. CI) · [docs/manual-acceptance.md](docs/manual-acceptance.md) (manual acceptance)
-- Maintainer index & rules: [AGENTS.md](AGENTS.md) · current plan: [docs/PLAN.md](docs/PLAN.md)
+For users:
+
+- Launcher/build entry points [scripts/README.md](scripts/README.md) · design philosophy and boundaries [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
+
+For maintainers (full map: [AGENTS.md](AGENTS.md) documentation map):
+
+- Developer handbooks [src/README.md](src/README.md) (directory duties, page routes, change routing) · charts [src/components/charts/README.md](src/components/charts/README.md) · data layer [prisma/README.md](prisma/README.md)
+- Interfaces / AI contract / runtime parameters [docs/api.md](docs/api.md) · [docs/ai-integration.md](docs/ai-integration.md) · [docs/operations.md](docs/operations.md)
+- Verification & maintenance [docs/verification.md](docs/verification.md) (tests + manual acceptance) · [docs/maintenance-checklist.md](docs/maintenance-checklist.md) · current plan [docs/PLAN.md](docs/PLAN.md)

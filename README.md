@@ -55,7 +55,7 @@ AI 只基于当前连接的**表结构**、**数据轮廓**与**图表契约**�
 ```bash
 npm install
 # 复制 .env.example 为 .env（Windows: copy .env.example .env），填 DATABASE_URL、ENCRYPTION_KEY
-npx prisma db push      # 初始化元数据库
+npx prisma migrate deploy   # 初始化元数据库（勿用 db push，会 DROP 业务表）
 npm run dev             # http://localhost:3000
 ```
 
@@ -77,9 +77,12 @@ npm run dev             # http://localhost:3000
 
 ## 文档
 
-- 使用/交互：本文件 + [scripts/README.md](scripts/README.md)（启动/构建入口）
-- 开发者手册：[src/README.md](src/README.md)（目录职责、页面路由、改动路由）· [src/components/charts/README.md](src/components/charts/README.md)（图表算法与限额）· [prisma/README.md](prisma/README.md)
-- 架构与决策：[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) · [.agents/notes/](.agents/notes/)（决策记录）
-- 接口与规范：[docs/api.md](docs/api.md)（API 合约）· [docs/ai-integration.md](docs/ai-integration.md)（AI 合同）· [docs/operations.md](docs/operations.md)（运维）
-- 测试与验收：[docs/testing.md](docs/testing.md)（含 CI）· [docs/manual-acceptance.md](docs/manual-acceptance.md)（人工验收）
-- 维护者索引与规则：[AGENTS.md](AGENTS.md) · 进行中计划：[docs/PLAN.md](docs/PLAN.md)
+用户向：
+
+- 启动与构建入口 [scripts/README.md](scripts/README.md) · 设计哲学与边界 [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
+
+维护者向（完整地图见 [AGENTS.md](AGENTS.md) 文档地图）：
+
+- 开发者手册 [src/README.md](src/README.md)（目录职责、页面路由、改动路由）· 图表算法 [src/components/charts/README.md](src/components/charts/README.md) · 数据层 [prisma/README.md](prisma/README.md)
+- 接口 / AI 合同 / 运行参数 [docs/api.md](docs/api.md) · [docs/ai-integration.md](docs/ai-integration.md) · [docs/operations.md](docs/operations.md)
+- 验证与维护 [docs/verification.md](docs/verification.md)（测试约定 + 人工验收）· [docs/maintenance-checklist.md](docs/maintenance-checklist.md) · 进行中计划 [docs/PLAN.md](docs/PLAN.md)

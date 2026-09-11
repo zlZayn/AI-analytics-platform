@@ -6,7 +6,7 @@
 ## 测试
 
 - 命名：`x.ts` → `x.test.ts(x)`，与源文件同名便于定位；目录集合即 `src/**/__tests__/`，不要另开 `tests/`。
-- 约定、分类与 CI → [docs/testing.md](../docs/testing.md)；任何改动后跑 `npm test`，数字更新到根 [AGENTS.md](../AGENTS.md) 验证快照。
+- 约定、分类与 CI → [docs/verification.md](../docs/verification.md)；任何改动后跑 `npm test`，数字更新到根 [AGENTS.md](../AGENTS.md) 验证快照。
 
 ## 目录职责
 

@@ -1,4 +1,6 @@
-# AI 集成
+# AI 集成 — AI 合同与配置
+
+- 定位：AI 合同唯一来源（提示词、输出契约、配置、失败语义）；文件职责见 [src/lib/README.md](../src/lib/README.md) 与 [src/hooks/README.md](../src/hooks/README.md)。
 
 ## 边界
 
@@ -112,8 +114,8 @@ AI 每项输出 `title`、`insight`、`querySpec` + `displayConfig`，或 `sql` 
 
 ## 离线回归
 
-AI 契约测试用固定夹具覆盖提示词领域中立性、原生 Schema、双变体解析、sql 回退、未知图表、缺失映射、未知别名、非法 SQL、损坏 JSON 与数据轮廓注入；测试分类与运行方式见 [testing.md](testing.md)，用例索引见 [src/lib/__tests__/README.md](../src/lib/__tests__/README.md)。日常测试禁止使用真实 AI API。
+AI 契约测试用固定夹具覆盖提示词领域中立性、原生 Schema、双变体解析、sql 回退、未知图表、缺失映射、未知别名、非法 SQL、损坏 JSON 与数据轮廓注入；测试分类与运行方式见 [verification.md](verification.md)，用例索引见 [src/lib/__tests__/README.md](../src/lib/__tests__/README.md)。日常测试禁止使用真实 AI API。
 
-## 文档导航
+## 相关文档
 
-- 设计决策 [ARCHITECTURE.md](ARCHITECTURE.md) · 使用入口 [README.md](../README.md)
+- 设计决策 [ARCHITECTURE.md](ARCHITECTURE.md) · 测试与人工验收 [verification.md](verification.md) · 接口契约 [api.md](api.md) · 使用入口 [README.md](../README.md)
