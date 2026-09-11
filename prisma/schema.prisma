@@ -29,6 +29,7 @@ model User {
   connections   Connection[]
   savedQueries  SavedQuery[]
   queryHistory  QueryHistory[]
+  analysisHistory AnalysisHistory[]
   dashboards    Dashboard[]
   conversations AIConversation[]
 
@@ -74,6 +75,7 @@ model Connection {
   schemaSnapshots   SchemaSnapshot[]
   savedQueries      SavedQuery[]
   queryHistory      QueryHistory[]
+  analysisHistory   AnalysisHistory[]
   dashboards        Dashboard[]
   conversations     AIConversation[]
 
@@ -182,6 +184,38 @@ model QueryHistory {
   @@index([connectionId])
   @@index([createdAt(sort: Desc)])
   @@map("query_history")
+}
+
+// 分析历史（AI 提问 + R 执行）
+// 与 query_history（SQL 执行历史）同库同轴：连接级作用域，读取期由前端合并成统一时间线，绝不双写
+model AnalysisHistory {
+  id              String    @id @default(uuid())
+  userId          String    @map("user_id")
+  connectionId    String    @map("connection_id")
+  sessionId       String    @map("session_id")
+
+  kind            String    // ai | r
+  ok              Boolean   @default(true)
+
+  // kind = ai
+  question        String?
+  summary         String?
+  items           Json?
+
+  // kind = r
+  code            String?
+  sourceSql       String?   @map("source_sql")
+  output          Json?
+  imageCount      Int?      @map("image_count")
+
+  createdAt       DateTime  @default(now()) @map("created_at")
+
+  // 关联
+  user            User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  connection      Connection @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+
+  @@index([connectionId, createdAt(sort: Desc)])
+  @@map("analysis_history")
 }
 
 // 仪表板

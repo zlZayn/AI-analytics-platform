@@ -9,7 +9,8 @@
 | GET | `/api/schema/[connectionId]` | Schema 扫描/缓存 |
 | POST | `/api/query` | 执行 SQL |
 | POST | `/api/query/preview` | 安全表预览（schema/table 标识符） |
-| GET | `/api/query/history` | 查询历史 |
+| GET | `/api/query/history` | 查询历史（SQL 执行） |
+| GET/POST | `/api/history` | 统一历史（AI 提问 + R 执行）读写 |
 | GET/POST | `/api/query/saved` | 保存的查询 |
 | POST | `/api/ai` | AI 分析 (结构化 JSON 输出) |
 
@@ -28,6 +29,12 @@
 `POST /api/query/preview` 接收 `{ connectionId, schema, table }`。标识符仅在服务端引用，预览固定最多 100 行并复用同一查询引擎；客户端不得拼接预览 SQL。
 
 常用错误码：`INVALID_REQUEST`、`INVALID_QUERY`、`INVALID_IDENTIFIER`、`QUERY_CANCELLED`、`QUERY_TIMEOUT`、`QUERY_FAILED`、`CONNECTION_NOT_FOUND`。
+
+## 统一历史（AI + R）
+
+`GET /api/history?connectionId=<id>&kind=ai|r` 返回该连接最近 50 条（新的在前，`kind` 缺省不过滤）；`POST /api/history` 追加一条，请求体为 `{ connectionId, sessionId, kind, ok, ... }`——AI 记录带 `question/summary/items`，R 记录带 `code/sourceSql/output/imageCount`，`createdAt` 缺省用服务端时间（仅导入旧浏览器记录时透传）。权威源是元库 `analysis_history` 表；SQL 执行历史在 `query_history`，两者读取期由 `lib/history-merge.ts` 合并成时间线，不双写。写入只追加，超出 50 条的旧记录按连接清理。
+
+常用错误码：`INVALID_REQUEST`、`HISTORY_FETCH_FAILED`、`HISTORY_CREATE_FAILED`。
 
 ## 连接与 Schema
 
