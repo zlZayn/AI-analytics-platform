@@ -110,12 +110,30 @@ describe("buildDataFrameCode", () => {
 })
 
 describe("generateRTemplate", () => {
-  it("includes canvas, dev.off, libraries", () => {
+  it("loads packages, prints the plot, and never opens/closes the device itself", () => {
     const tpl = generateRTemplate(makeDataset())
-    expect(tpl).toContain("webr::canvas()")
-    expect(tpl).toContain("dev.off()")
     expect(tpl).toContain("library(dplyr)")
     expect(tpl).toContain("library(ggplot2)")
+    // ggplot 只是对象，必须 print 才会画到设备上
+    expect(tpl).toContain("print(p)")
+    // 回归：自开设备或在末尾 dev.off()，会让 webR 的 captureGraphics 事后收集到空画布 → 面板没图。
+    // 只查可执行行：注释里点名这两个调用是有意为之（提示用户别写）。
+    const executable = tpl
+      .split("\n")
+      .filter((line) => !line.trimStart().startsWith("#"))
+      .join("\n")
+    expect(executable).not.toContain("webr::canvas()")
+    expect(executable).not.toContain("dev.off()")
+  })
+
+  it("falls back to base plot without print when no plottable column exists", () => {
+    const ds = makeDataset({
+      columns: [{ name: "note", type: "text", semanticType: "text" }],
+      rows: [{ note: "a" }],
+    })
+    const tpl = generateRTemplate(ds)
+    expect(tpl).toContain("plot(df)")
+    expect(tpl).not.toContain("print(p)") // p 未定义，不能出现
   })
 
   it("picks boxplot for numeric + categorical", () => {
