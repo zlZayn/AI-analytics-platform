@@ -18,8 +18,9 @@ This version has breaking changes — APIs, conventions, and file structure may 
 - `npm run db:init`（幂等初始化/补齐元库）· `npm run db:check`（只读漂移检查）· Node 基线 22（`.node-version`）
 
 ## 验证快照（2026-09-11，main）
-- vitest: 50 files / 288 passed / 0 failed；typecheck / lint: 0 errors、0 warnings（1.36.0 新增 R 回放契约、历史客户端与迁移 SQL 用例）
-- 生产 build: passed（清 `.next` 后）；离线 E2E passed（入口 SQL 填充、请求体、Monaco、结果区、明细原始行、连接编辑回填、AI 编排、洞察执行、切页恢复、统一历史时间线 SQL+AI 合并、分割句柄含 R 面板宽度、R 面板停靠/关闭、移动端）
+- 本地门禁 `npm run verify`：vitest 50 files / 288 passed / 0 failed；typecheck / lint: 0 errors、0 warnings
+- 生产 build: passed（清 `.next` 后）；离线 E2E passed 且已进 CI（`e2e` job：入口 SQL 填充、请求体、Monaco、结果区、明细原始行、连接编辑回填、AI 编排、洞察执行、切页恢复、统一历史时间线合并、分割句柄含 R 面板宽度、R 面板停靠/关闭、移动端）
+- 依赖与元库（1.37.0）：`npm ci --ignore-scripts` 从锁文件全量重装 878 包通过；空库 `npm run db:init` 建出 12 表 + 35 索引、`npm run db:check` 无漂移；现有库两次 `db:init` 幂等且行数不变
 - 真实 AI 调用（opencode zen go / `deepseek-flash`）: passed（`json_schema` → `json_object` → 无 `response_format` 降级；3 条洞察、reason=ok；输出预算须覆盖 reasoning token）
 - R 图像输出（浏览器 + 联网，webr 0.6）: passed（ggplot 真实渲染；R 代码不得自行开/关图形设备，见 [决策记录](.agents/notes/2026-09-11-unified-history-store-and-r-canvas-ownership.md)）
 - R 历史回放 + 服务端历史（浏览器 + 联网，真实连接 `dim_date`）: passed（历史页 R 条目「含图 1 张」→ 点「执行」自动开面板、未点运行即重跑出图；条目在元库 `analysis_history`，刷新/换浏览器仍在，见 [决策记录](.agents/notes/2026-09-11-history-persistence-and-r-replay-rerun.md)）
@@ -29,6 +30,7 @@ This version has breaking changes — APIs, conventions, and file structure may 
 - [ ] 真实只读账号人工验收：[docs/verification.md](docs/verification.md)
 - [ ] 联网实测 statTest 黑盒统计成功路径（离线只覆盖错误路径）：[docs/PLAN.md](docs/PLAN.md)
 - [ ] 可选：R.wasm 预加载、统一图表高度契约：[docs/PLAN.md](docs/PLAN.md)
+- [ ] 确认生产部署形态（进程管理 / 反向代理保留 COOP+COEP / 服务器 Node 版本 / 元库备份）并补写 [docs/operations.md](docs/operations.md)「部署（待确认）」：[docs/operations.md](docs/operations.md)
 
 ## 活跃坑（只留判定，细节在各自 home）
 - **元库与业务表同库**：严禁 `prisma db push` / migrate（会 DROP `fact_*`/`dim_*`），schema 演进手写 `ALTER TABLE ... ADD COLUMN IF NOT EXISTS`（见 [prisma/README.md](prisma/README.md)）

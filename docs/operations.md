@@ -78,6 +78,16 @@
 
 `scripts/seed.py` 只接受 `SEED_DATABASE_URL`，故意不回退到应用 `DATABASE_URL`。种子账号和目标库应独立于生产环境，并允许创建测试表和写入测试数据。
 
+## 部署（待确认）
+
+本轮治理不改变部署流程；以下项仍未确认，部署前需拍板并补写本节：
+
+- 进程管理：systemd / pm2 / 容器 / Windows 服务？仓库当前只提供 `next start` 与 `Start Dev.cmd`（开发用）。
+- 反向代理：必须原样透传 `Cross-Origin-Opener-Policy: same-origin` 与 `Cross-Origin-Embedder-Policy: require-corp`（由 `next.config.ts` 下发）；被剥离或改写会让 R 工作台的 SharedArrayBuffer 通道失效，R 直接不可用。
+- 服务器 Node 版本：必须满足 `engines.node`（`>=22 <25`）并与 `.node-version` 一致；构建产物与运行环境的 Node 主版本不要跨。
+- 数据库：元库与业务表同库；生产只读账号、备份与恢复策略、`SEED_DATABASE_URL` 与生产的隔离边界都未定义。
+- 上线前动作：`npm ci --ignore-scripts` → `npx prisma generate` → `npm run build` → `npm run db:check`（对目标库）→ `next start`。
+
 ## 相关文档
 
 - 对外接口 [api.md](api.md) · 设计决策 [ARCHITECTURE.md](ARCHITECTURE.md) · 元数据表与 schema 演进 [prisma/README.md](../prisma/README.md) · 使用入口 [README.md](../README.md)

@@ -28,7 +28,8 @@
 - [ ] **bump 版本**：`node scripts/bump-version.mjs {major|minor|patch}`（只改 package.json 的 version 一行、低位置零；sidebar 徽标与烟测断言自动跟随）
 - [ ] **重建 + 重启**：版本号只在构建产物里生效——清 `.next` 后 `npm run build`（或 Start Dev.cmd 询问选"是"）
 - [ ] 浏览器验收（Ctrl+Shift+R 硬刷新）：徽标显示新版本号 + 核心路径走查（探索页「在工作台执行」→ 自动执行等）
-- [ ] 改 Prisma schema → **严禁 `npx prisma db push` / migrate**，手写 `ALTER TABLE ... ADD COLUMN IF NOT EXISTS`（见 [prisma/README.md](../prisma/README.md)）
+- [ ] 改 Prisma schema → **严禁 `npx prisma db push` / migrate**；固定动作：改 `schema.prisma` → 补 `prisma/bootstrap.sql` → 补 `prisma/migrations/` 增量 → `npm run db:init` → `npm run db:check` → `npx prisma generate`（见 [prisma/README.md](../prisma/README.md)）
+- [ ] 改依赖 → `package.json` 与锁文件同一提交，`npm ci --ignore-scripts` + `npm run verify` 通过（更新节奏见 [operations.md](operations.md)）
 
 ## C. 启动与收尾（每次会话）
 
