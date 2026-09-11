@@ -5,8 +5,14 @@
                             [--encoding ENC] [--quiet] [--verbose] [--github]
 - 路径：目录（递归）或单个 .md 文件，均可混合；默认当前目录。
 - 默认跳过 .git / node_modules / .venv / dist 等目录；--no-ignore 关闭跳过。
-- 外链(http/https/mailto/data/tel)、纯锚点(#x)、模板占位符({...}) 跳过。
+- 外链(http/https/mailto/data/tel)、模板占位符({...}) 跳过。
 - 错误 = 链接目标不存在；警告 = 锚点未找到(--fragments)。
+- --fragments 校验锚点（警告级）：跨文件锚点 file.md#x 与文内锚点 #x 一并检查。
+  算法对齐 GitHub（github-slugger）：保留下划线、标点删除而非替换、空格逐个转短横、
+  同名标题依次补 -1/-2；围栏代码块内的 # 不算标题；显式 <a id="..."> 视为有效锚点。
+- --refs 校验「文档引用未做成链接」（警告级）：不设词表，行内出现 .md 即为候选。
+  不报的只有三类：已成链的、围栏代码块内的、以及解析不到真实文件或链回自己的。
+  只提示不阻断，真假交由读者判断。
 - --github: 模拟 GitHub 解析（Linux 语义）——
   大小写敏感逐组件比对 + 链接目标须被 git 跟踪（目录链接放行）。
   Windows 本地存在不敏感，此模式在推送前补查 GitHub 上会 404 的链接。
@@ -19,6 +25,7 @@ import os
 import re
 import subprocess
 import sys
+import unicodedata
 
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
@@ -26,9 +33,14 @@ if hasattr(sys.stdout, "reconfigure"):
 EXCLUDE_DIRS = {
     ".git", ".hg", ".svn", "node_modules", ".venv", "venv", "__pycache__",
     ".idea", ".vscode", "dist", "build", ".pytest_cache", ".ruff_cache",
+    ".workbuddy",  # 项目数据（会话记忆等），不属文档网络
 }
 LINK_RE = re.compile(r"\[[^\]]*\]\(([^)\s]+)\)")
 FENCE_RE = re.compile(r"^(`{3,}|~{3,})")
+ATTR_ID_RE = re.compile(r'<a\s+id="([^"]+)"')
+LINKISH_RE = re.compile(r"\[.*?\]\([^()]*\)")  # 非贪婪，链接文字里套方括号也能整条剥掉
+BRACKET_RE = re.compile(r"\[[^\[\]]*\]")
+DOC_TOKEN_RE = re.compile(r"[\w./\\-]+\.md\b")
 
 
 def iter_md_files(paths, exclude, no_ignore):
@@ -54,39 +66,91 @@ def _excluded(path, patterns):
                for pat in patterns)
 
 
-def strip_code_blocks(text):
+def strip_fences(text):
+    """把围栏代码块（``` / ~~~）内的行置空；保留行号与行内代码，供锚点与逐行判定使用。"""
     out, fence = [], None
     for line in text.splitlines():
         if fence:
-            if FENCE_RE.match(line):
-                fence = None
+            fence = None if FENCE_RE.match(line) else fence
+            out.append("")
             continue
-        m = FENCE_RE.match(line)
-        if m:
-            fence = m.group(1)[0]
+        if FENCE_RE.match(line):
+            fence = line.strip()[0]
+            out.append("")
             continue
         out.append(line)
-    return re.sub(r"`[^`\n]+`", "", "\n".join(out))
+    return "\n".join(out)
 
 
-def slugify(anchor):
-    return re.sub(r"[^a-z0-9\u4e00-\u9fff]+", "-", anchor.lower()).strip("-")
+def strip_code_blocks(text):
+    """链接提取用：先去掉围栏代码块，再去掉行内代码，避免把示例误判成链接。"""
+    return re.sub(r"`[^`\n]+`", "", strip_fences(text))
 
 
-def heading_anchors(path):
-    anchors = set()
+def slugify(text):
+    """GitHub 锚点算法（对齐 github-slugger）。
+
+    保留字母 / 数字 / 组合符（L、N、M）、连接标点下划线（Pc）、短横、空格、表情；
+    其余标点直接删除（不替换成短横）；空格逐个转短横；不折叠、不裁剪。
+    """
+
+    def keep(ch):
+        cat = unicodedata.category(ch)
+        return (cat[0] in "LNM" or cat == "Pc" or ch in "- \u200d"
+                or ord(ch) >= 0x1F000)
+
+    return "".join(ch for ch in text.lower() if keep(ch)).replace(" ", "-")
+
+
+def heading_anchors(path, encoding="utf-8"):
+    """文件内可用锚点：标题 slug（同名按 GitHub 规则补 -1/-2）+ 显式 <a id="...">。"""
+    anchors, seen = set(), {}
     try:
-        with open(path, encoding="utf-8") as f:
-            for line in f:
-                s = line.strip()
-                if s.startswith("#"):
-                    anchors.add(slugify(s.lstrip("#").strip()))
-                m = re.search(r'<a\s+id="([^"]+)"', line)
-                if m:
-                    anchors.add(m.group(1))
+        with open(path, encoding=encoding) as f:
+            lines = strip_fences(f.read()).splitlines()
     except OSError:
-        pass
+        return anchors
+    for line in lines:
+        s = line.strip()
+        if s.startswith("#"):
+            base = slugify(s.lstrip("#").strip())
+            n = seen.get(base, 0)
+            seen[base] = n + 1
+            anchors.add(base if n == 0 else f"{base}-{n}")
+        m = ATTR_ID_RE.search(line)
+        if m:
+            anchors.add(m.group(1))
     return anchors
+
+
+def strip_links(text):
+    """剥掉行内所有 Markdown 链接，只留非链接文字。
+
+    逐个模式替换到不动点（整条链接 → 残留方括号），
+    这样链接文字里再套一层方括号（如 [`[id]/README.md`](...)）也能剥干净。
+    """
+    for pattern in (LINKISH_RE, BRACKET_RE):
+        while True:
+            stripped = pattern.sub(" ", text)
+            if stripped == text:
+                break
+            text = stripped
+    return text
+
+
+def bare_doc_refs(line):
+    """返回该行里「提到某份 .md、却没做成链接」的名称（保序去重）。
+
+    不设词表：只要行内出现 .md 就是候选（反引号内也算），真假交由读者判断。
+    已成链的部分先剥掉，仅此而已——那已不是「未成链」。
+    """
+    text = strip_links(line)
+    seen, refs = set(), []
+    for name in DOC_TOKEN_RE.findall(text):
+        if name not in seen:
+            seen.add(name)
+            refs.append(name)
+    return refs
 
 
 # ── GitHub 语义（--github）──
@@ -169,6 +233,7 @@ def main():
     ap = argparse.ArgumentParser(description="Markdown 相对链接校验")
     ap.add_argument("paths", nargs="*", default=["."], help="目录或 .md 文件（默认当前目录）")
     ap.add_argument("--fragments", action="store_true", help="同时校验 #锚点（警告级）")
+    ap.add_argument("--refs", action="store_true", help="校验文档引用未做成链接（警告级）")
     ap.add_argument("--exclude", action="append", default=[], help="排除模式（fnmatch，可多次）")
     ap.add_argument("--no-ignore", action="store_true", help="不跳过 .git/node_modules 等目录")
     ap.add_argument("--encoding", default="utf-8", help="文件解码编码（默认 utf-8）")
@@ -183,10 +248,11 @@ def main():
         files += 1
         try:
             with open(md, encoding=args.encoding) as f:
-                text = strip_code_blocks(f.read())
+                raw_text = f.read()
         except OSError as e:
             warnings.append(f"{md}: 读取失败 {e}")
             continue
+        text = strip_code_blocks(raw_text)
         base = os.path.dirname(md)
         file_links = 0
         for target in LINK_RE.findall(text):
@@ -199,22 +265,29 @@ def main():
                 continue
             if "{" in raw or "}" in raw:  # 模板占位符，跳过
                 continue
-            anchor = None
+            target_path, anchor = raw, None
             if "#" in raw:
-                raw, anchor = raw.split("#", 1)
-            if not raw:
-                continue
-            path = os.path.normpath(os.path.join(base, raw))
-            if args.github:
-                ok, message = github_target_status(path)
-                if not ok:
-                    errors.append(f"{md}: 链接目标 {message} -> {raw}")
+                target_path, anchor = raw.split("#", 1)
+            # 空 target_path = 文内锚点，校验对象是当前文件
+            path = os.path.normpath(os.path.join(base, target_path)) if target_path else md
+            if target_path:
+                if args.github:
+                    ok, message = github_target_status(path)
+                    if not ok:
+                        errors.append(f"{md}: 链接目标 {message} -> {target_path}")
+                        continue
+                elif not os.path.exists(path):
+                    errors.append(f"{md}: 链接目标不存在 -> {target_path}")
                     continue
-            elif not os.path.exists(path):
-                errors.append(f"{md}: 链接目标不存在 -> {raw}")
-                continue
-            if anchor and args.fragments and anchor not in heading_anchors(path):
-                warnings.append(f"{md}: 锚点未找到 #{anchor} -> {raw}")
+            if anchor and args.fragments and anchor not in heading_anchors(path, args.encoding):
+                warnings.append(f"{md}: 锚点未找到 #{anchor} -> {target_path or '(本文)'}")
+        if args.refs:
+            for lineno, line in enumerate(strip_fences(raw_text).splitlines(), 1):
+                for name in bare_doc_refs(line):
+                    target = os.path.normpath(os.path.join(base, name))
+                    # 自指不必成链（链回自己无意义），其余必须解析到真实文件才报
+                    if target != os.path.normpath(md) and os.path.exists(target):
+                        warnings.append(f"{md}:{lineno}: 引用未做成链接 -> {name}")
         if args.verbose and not args.quiet:
             print(f"{md}: {file_links} 链接")
 
