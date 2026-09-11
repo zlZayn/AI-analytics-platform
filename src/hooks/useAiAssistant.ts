@@ -83,7 +83,9 @@ export function useAiAssistant({
     dispatch({ type: "ASK_AI", question })
     setAsking(true)
     try {
-      const data = await fetchApi<ApiResponse<{ items: InsightItem[] }>>("/api/ai", {
+      const data = await fetchApi<
+        ApiResponse<{ items: InsightItem[]; diagnostics?: { reason: string; message: string; attempts: number } }>
+      >("/api/ai", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -105,8 +107,10 @@ export function useAiAssistant({
       }
       const items = data.data.items
       if (items.length === 0) {
-        dispatch({ type: "ADD_CONVERSATION", message: assistantMessage("未生成有效结果") })
-        notify("AI 未生成有效结果", "warning")
+        // 失败原因由后端给出（空响应 / 截断 / 非法 JSON / 不符合契约），前端只负责显示
+        const hint = data.data.diagnostics?.message || "AI 未生成有效结果"
+        dispatch({ type: "ADD_CONVERSATION", message: assistantMessage(hint) })
+        notify(hint, "warning")
         return
       }
       // 多洞察全部保留（洞察视图卡片流），第一条自动执行（结论前置）

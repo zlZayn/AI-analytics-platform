@@ -95,6 +95,26 @@ AI 每项输出 `title`、`insight`、`querySpec` + `displayConfig`，或 `sql` 
 - 未声明 `User-Agent` 时补 `ai-analytics-platform/<version>`（部分网关拒绝通用 SDK 标识）
 - 网关要求稳定会话头时写法示例：`AI_API_HEADERS={"x-opencode-session":"{sessionId}"}`
 
+## JSON Output 纪律（对齐提供方文档）
+
+1. `response_format` 按能力降级：`json_schema` → `json_object` → 无（当前网关只到 `json_object`）
+2. 提示词必须含 "json" 字样并给出目标 JSON 样例：样例由 `INSIGHT_FIELDS` 生成，不手写
+3. 合理设置输出预算 `AI_MAX_TOKENS`（默认 8000，夹在 1000..32000）：**推理模型的 reasoning token 也算在预算里**，预算过小会把 JSON 砍在半句
+4. 提供方有概率返回空 content：首次解析失败时追加一条纠正指令，做**一次**有界修复（不是 agent loop，不引入工具与多轮规划）
+5. 提示词按「宁可少而完整」约束：一次最多 3 条、每条 insight ≤ 200 字，避免为凑数量写长结论导致截断
+
+## 失败分类与诊断
+
+解析失败时接口回传 `diagnostics: { reason, message, attempts }`：`message` 是给用户的一句话，前端直接显示不做判断；原始响应片段只进服务端日志。日志一行给出 `items/reason/attempts/finish/tokens(reasoning)`。
+
+| reason | 何时 | 用户可见提示 |
+| :--- | :--- | :--- |
+| `ok` | 有可用条目 | 无 |
+| `empty` | 内容为空（提供方偶发） | AI 未返回内容，请再试一次 |
+| `truncated` | `finish_reason=length` | 输出被截断，把问题拆小一点再问一次 |
+| `invalid_json` | 不是合法 JSON | 返回的不是合法 JSON，换个更具体的问法再试 |
+| `no_valid_item` | JSON 合法但无条目通过契约 | 返回不符合输出契约，换个更具体的问法再试 |
+
 ## 错误呈现
 
 上游调用失败时接口返回具体原因，而不是「稍后重试」：`message` 形如 `AI 分析失败：HTTP 400 MissingSessionID：<提供方原文>`，保留状态码与错误类型、抹掉密钥片段、截断 300 字，工作台显示在 AI 气泡里。

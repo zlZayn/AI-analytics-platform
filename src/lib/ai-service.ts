@@ -23,10 +23,21 @@ export function parseResponseFormatChain(raw: string | undefined): ResponseForma
   return RESPONSE_FORMAT_CHAIN.slice(index >= 0 ? index : 0)
 }
 
+/**
+ * 输出预算：推理模型的 reasoning token 也算在这里，预算过小会把 JSON 砍在半句。
+ * 默认 8000（实测 deepseek-flash 一条 6 项回答约用 2600 completion token，其中 1700 是推理）。
+ */
+export function parseMaxTokens(raw: string | undefined): number {
+  const parsed = Number.parseInt((raw || "").trim(), 10)
+  if (!Number.isFinite(parsed) || parsed < 1000) return 8000
+  return Math.min(parsed, 32_000)
+}
+
 const AI_CONFIG = {
   apiBase: process.env.AI_API_BASE || "",
   apiKey: process.env.AI_API_KEY || "",
   model: process.env.AI_MODEL || "",
+  maxTokens: parseMaxTokens(process.env.AI_MAX_TOKENS),
   /** 请求头模板（JSON）：值支持 {sessionId}/{version} 占位符，代码不内置任何网关专属头名 */
   headers: parseHeaderTemplates(process.env.AI_API_HEADERS),
   /** 结构化输出档位起点（默认从原生 strict schema 起，按需降级） */
@@ -46,17 +57,79 @@ export interface AIMessage {
   content: string
 }
 
+export interface AIUsage {
+  promptTokens?: number
+  completionTokens?: number
+  /** 推理模型的可见输出之外的开销：预算被它吃掉是截断的常见原因 */
+  reasoningTokens?: number
+  totalTokens?: number
+}
+
+/** 一次补全：内容 + 提供方元信息（诊断与有界重试都依赖它） */
+export interface AICompletion {
+  content: string
+  finishReason: string
+  usage?: AIUsage
+}
+
 export interface AICompletionProvider {
   complete(input: {
     messages: AIMessage[]
     responseSchema: typeof AI_RESPONSE_JSON_SCHEMA
     /** 会话标识：同一对话保持稳定，供网关路由与缓存（占位符 {sessionId} 使用） */
     sessionId?: string
-  }): Promise<string>
+  }): Promise<AICompletion>
 }
+
+/** 解析失败的分类：决定给用户哪一句话，也决定日志怎么筛 */
+export type AIOutcomeReason = "ok" | "empty" | "truncated" | "invalid_json" | "no_valid_item"
 
 export interface AIServiceResult {
   items: InsightItem[]
+  reason: AIOutcomeReason
+  /** 面向用户的一句话：后端给，界面直接显示，前端不做判断 */
+  message: string
+  /** 实际调用次数（1 = 一次成功；2 = 触发过有界修复） */
+  attempts: number
+  finishReason?: string
+  usage?: AIUsage
+  /** 失败时的原始响应片段：只给服务端日志，不回传客户端 */
+  rawPreview?: string
+}
+
+const OUTCOME_MESSAGES: Record<AIOutcomeReason, string> = {
+  ok: "",
+  empty: "AI 未返回内容（提供方偶发空响应），请再试一次",
+  truncated: "AI 输出被截断（达到输出上限），把问题拆小一点再问一次",
+  invalid_json: "AI 返回的不是合法 JSON，请换个更具体的问法再试",
+  no_valid_item: "AI 的返回不符合输出契约，已丢弃；换个更具体的问法再试",
+}
+
+/** 按官方 JSON Output 的建议给出失败分类与用户可见原因 */
+export function describeOutcome(input: {
+  content: string
+  finishReason?: string
+  items: InsightItem[]
+}): { reason: AIOutcomeReason; message: string; rawPreview?: string } {
+  if (input.items.length > 0) return { reason: "ok", message: OUTCOME_MESSAGES.ok }
+  const rawPreview = input.content.slice(0, 400)
+  if (!input.content.trim()) return { reason: "empty", message: OUTCOME_MESSAGES.empty, rawPreview }
+  if (input.finishReason === "length") return { reason: "truncated", message: OUTCOME_MESSAGES.truncated, rawPreview }
+  try {
+    JSON.parse(input.content)
+  } catch {
+    return { reason: "invalid_json", message: OUTCOME_MESSAGES.invalid_json, rawPreview }
+  }
+  return { reason: "no_valid_item", message: OUTCOME_MESSAGES.no_valid_item, rawPreview }
+}
+
+/** 回传客户端的诊断：只给分类与一句话，不带原始响应 */
+export function toClientDiagnostics(result: AIServiceResult): {
+  reason: AIOutcomeReason
+  message: string
+  attempts: number
+} {
+  return { reason: result.reason, message: result.message, attempts: result.attempts }
 }
 
 let defaultProvider: AICompletionProvider | null = null
@@ -75,17 +148,59 @@ export async function generateAnalysis(
     ...conversationHistory,
     { role: "user", content: message },
   ]
-  const content = await provider.complete({
+  const completion = await provider.complete({
     messages,
     responseSchema: AI_RESPONSE_JSON_SCHEMA,
     sessionId: sessionId || undefined,
   })
-  const items = parseInsightItems(content)
-  if (items.length === 0) {
-    // 解析失败时留可诊断线索（仅服务端日志）：降级到纯提示词约束后，形状漂移会在这里暴露
-    console.warn(`[ai] 响应未产生有效洞察（${content.length} 字符）：${content.slice(0, 400)}`)
+  const items = parseInsightItems(completion.content)
+  const outcome = describeOutcome({
+    content: completion.content,
+    finishReason: completion.finishReason,
+    items,
+  })
+  if (outcome.reason === "ok") {
+    return { items, reason: "ok", message: "", attempts: 1, finishReason: completion.finishReason, usage: completion.usage }
   }
-  return { items }
+
+  // 有界修复：官方指出 json_object 存在空响应概率，推理模型也容易把 JSON 砍半句。
+  // 只追加一条纠正指令再问一次（不是 agent loop，不引入工具与多轮规划）。
+  console.warn(
+    `[ai] 首次输出不可用（${outcome.reason}，finish=${completion.finishReason}，${completion.content.length} 字符）：${outcome.rawPreview}`,
+  )
+  const retryMessages: AIMessage[] = [
+    ...messages,
+    {
+      role: "user",
+      content: `上一次输出未通过解析（${outcome.reason}）。请只输出 1 条 items，insight 不超过 120 字，确保 JSON 完整闭合后再结束。`,
+    },
+  ]
+  const retry = await provider.complete({
+    messages: retryMessages,
+    responseSchema: AI_RESPONSE_JSON_SCHEMA,
+    sessionId: sessionId || undefined,
+  })
+  const retryItems = parseInsightItems(retry.content)
+  const retryOutcome = describeOutcome({
+    content: retry.content,
+    finishReason: retry.finishReason,
+    items: retryItems,
+  })
+  if (retryOutcome.reason === "ok") {
+    return { items: retryItems, reason: "ok", message: "", attempts: 2, finishReason: retry.finishReason, usage: retry.usage }
+  }
+  console.warn(
+    `[ai] 修复后仍不可用（${retryOutcome.reason}，finish=${retry.finishReason}，${retry.content.length} 字符）：${retryOutcome.rawPreview}`,
+  )
+  return {
+    items: [],
+    reason: retryOutcome.reason,
+    message: retryOutcome.message,
+    attempts: 2,
+    finishReason: retry.finishReason,
+    usage: retry.usage,
+    rawPreview: retryOutcome.rawPreview,
+  }
 }
 
 /**
@@ -154,6 +269,24 @@ function redactSecrets(text: string): string {
   return text.replace(/sk-[A-Za-z0-9_-]{6,}/g, "sk-***")
 }
 
+/** SDK usage → 我们关心的四元组（含推理 token） */
+function mapUsage(usage: unknown): AIUsage | undefined {
+  if (!usage || typeof usage !== "object") return undefined
+  const raw = usage as {
+    prompt_tokens?: unknown
+    completion_tokens?: unknown
+    total_tokens?: unknown
+    completion_tokens_details?: { reasoning_tokens?: unknown }
+  }
+  const toNumber = (value: unknown): number | undefined => (typeof value === "number" ? value : undefined)
+  return {
+    promptTokens: toNumber(raw.prompt_tokens),
+    completionTokens: toNumber(raw.completion_tokens),
+    reasoningTokens: toNumber(raw.completion_tokens_details?.reasoning_tokens),
+    totalTokens: toNumber(raw.total_tokens),
+  }
+}
+
 function getDefaultProvider(): AICompletionProvider {
   if (!AI_CONFIG.apiBase) {
     throw new AIConfigurationError("AI 服务未配置：缺少 API Base。请在 .env 文件中设置 AI_API_BASE。")
@@ -183,7 +316,7 @@ function createOpenAIProvider(): AICompletionProvider {
           model: AI_CONFIG.model,
           messages,
           temperature: 0.2,
-          max_tokens: 4000,
+          max_tokens: AI_CONFIG.maxTokens,
         }
         if (mode === "json_object") body.response_format = { type: "json_object" }
         if (mode === "json_schema") {
@@ -194,11 +327,11 @@ function createOpenAIProvider(): AICompletionProvider {
           availableFormats = chain.slice(index)
           if (index > 0) console.warn(`[ai] 使用降级的 response_format=${mode}`)
           const choice = response.choices[0]
-          const content = choice?.message.content ?? ""
-          if (!content.trim()) {
-            console.warn(`[ai] 模型返回空内容：finish_reason=${choice?.finish_reason ?? "unknown"} model=${AI_CONFIG.model}`)
+          return {
+            content: choice?.message.content ?? "",
+            finishReason: choice?.finish_reason ?? "unknown",
+            usage: mapUsage(response.usage),
           }
-          return content
         } catch (error) {
           lastError = error
           const next = chain[index + 1]

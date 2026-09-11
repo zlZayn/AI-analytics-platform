@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server'
-import { AIConfigurationError, describeAIError, generateAnalysis } from '@/lib/ai-service'
+import { AIConfigurationError, describeAIError, generateAnalysis, toClientDiagnostics } from '@/lib/ai-service'
 import { collectAIContext, summarizeContext } from '@/lib/ai-context-service'
 import { describeContextTrace } from '@/lib/ai-context'
 import { prisma } from '@/lib/prisma'
@@ -44,8 +44,14 @@ export async function POST(request: NextRequest) {
       sessionId,
     )
 
-    console.info(`[ai] ${describeContextTrace(summarizeContext(context))} items=${result.items.length}`)
-    return apiSuccess({ items: result.items })
+    const usage = result.usage
+    console.info(
+      `[ai] ${describeContextTrace(summarizeContext(context))} items=${result.items.length} reason=${result.reason} attempts=${result.attempts}` +
+        ` finish=${result.finishReason ?? "-"}` +
+        (usage ? ` tokens=${usage.completionTokens ?? "?"}${usage.reasoningTokens ? `(reasoning ${usage.reasoningTokens})` : ""}` : ""),
+    )
+    if (result.reason !== "ok") console.warn(`[ai] 输出不可用：${result.message}`)
+    return apiSuccess({ items: result.items, diagnostics: toClientDiagnostics(result) })
   } catch (error) {
     console.error('AI 分析失败', error)
     if (error instanceof AIConfigurationError) {

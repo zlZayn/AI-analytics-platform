@@ -161,7 +161,7 @@ describe("AI prompt and output contract", () => {
     const provider: AICompletionProvider = {
       async complete(input) {
         request = input
-        return newFormat
+        return { content: newFormat, finishReason: "stop" }
       },
     }
 

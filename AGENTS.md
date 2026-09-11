@@ -17,10 +17,10 @@ This version has breaking changes — APIs, conventions, and file structure may 
 - `npm test` · `npm run typecheck` · `npm run lint` · `npm run dev`
 
 ## 验证快照（2026-09-11，main 分支）
-- vitest: 45 files / 241 passed / 0 failed
+- vitest: 46 files / 247 passed / 0 failed
 - typecheck / lint: 0 errors
 - 生产 build: passed（清 `.next` 后）；生产端口离线 E2E（侧栏/探索/历史入口 SQL 填充、请求体、Monaco、结果区、明细原始行、连接编辑回填、AI 编排、洞察执行落地、切页恢复与移动端）: passed
-- 真实 AI 调用（opencode zen go / `deepseek-flash`）: passed（5 条洞察；网关拒绝 `json_schema` 时按 `json_object` → 无 `response_format` 降级）
+- 真实 AI 调用（opencode zen go / `deepseek-flash`）: passed（网关拒绝 `json_schema` 时按 `json_object` → 无 `response_format` 降级；多图表复合提问 3 条、reason=ok、**输出预算需覆盖推理 token**——实测一次 3694 token 里 3133 是 reasoning）
 
 ## 待办
 - [ ] 真实只读账号人工验收：[docs/manual-acceptance.md](docs/manual-acceptance.md)（含 R 工作台，见第 5 节）
@@ -41,7 +41,7 @@ This version has breaking changes — APIs, conventions, and file structure may 
 - sidebar 版本徽标读 `NEXT_PUBLIC_APP_VERSION`（next.config.ts 从 package.json 注入）；**bump 后必须重建才生效**，否则页面仍是旧号码；烟测脚本按 package.json 版本断言它（bump 规则见「全局规则」）
 - Monaco 已本地托管（`src/lib/monaco-setup.ts` 的惰性 `configureMonaco`：SSR 安全，配置完成前渲染占位避免 loader.init 回退 CDN）；`@monaco-editor/react` 默认从 CDN 拉引擎，新编辑器接入点必须「先 `await configureMonaco()` 再渲染编辑器」，顶层 `import "@/lib/monaco-setup"` 会在 SSR 评估 monaco-editor 而 window 崩（曾致 workspace 整页不可交互）
 - R 分析工作台（WebR 0.6）：COI 头已配置（COOP/COEP）；R.wasm（12.3MB）与 R 包从 `webr.r-wasm.org` CDN 按需加载，离线不可用；包下载后会话内缓存（模块级单例），刷新页面需重下
-- AI 调用失败先看 AI 气泡里的具体原因（含 HTTP 状态与提供方原文，不再只有「稍后重试」）；网关要求的自定义头用 `AI_API_HEADERS`（`{sessionId}`/`{version}` 占位符），`AI_MODEL` 必须用提供方文档的版本化 ID；改提示词必须保留「只返回符合 JSON Schema 的对象」一句（网关 `json_object` 模式硬性要求提示词含 "json" 字样，丢了会整体退化），见 [docs/04_ai_integration.md](docs/04_ai_integration.md)
+- AI 调用失败先看 AI 气泡里的具体原因（含 HTTP 状态与提供方原文，不再只有「稍后重试」）；网关要求的自定义头用 `AI_API_HEADERS`（`{sessionId}`/`{version}` 占位符），`AI_MODEL` 必须用提供方文档的版本化 ID；改提示词必须保留「只返回符合 JSON Schema 的对象」一句（网关 `json_object` 模式硬性要求提示词含 "json" 字样，丢了会整体退化）；**推理模型的 reasoning token 计入 `AI_MAX_TOKENS`**，预算过小会把 JSON 砍在半句导致整轮作废（失败会分类并给一句可执行提示，见 [docs/04_ai_integration.md](docs/04_ai_integration.md) 失败分类表）
 - E2E 脚本 mock 路由必须与 API 路由同步：新增/修改 app 路由时同步更新 `scripts/offline_workspace_e2e.py` 的 `page.route`
 - 跨页工作台入口的 SQL 需经过 `workspace-navigation.ts` 规范化；工作台按 `connection + SQL` key 一次性应用，入口回归由离线 E2E 同时覆盖探索页与历史页
 - **平台 DATABASE_URL 元库与业务数据同库**：`npx prisma db push` 会 DROP schema 未定义的表（fact_*/dim_* 业务表，曾有 25285 行险遭删除）——schema 演进必须手写 `ALTER TABLE ... ADD COLUMN IF NOT EXISTS`（对照 information_schema 定向补列，如 2026-09-04 为 query_history 补 error_code），严禁 db push / --accept-data-loss / migrate
