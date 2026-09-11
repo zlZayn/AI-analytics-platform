@@ -17,7 +17,7 @@ This version has breaking changes — APIs, conventions, and file structure may 
 - `npm test` · `npm run typecheck` · `npm run lint` · `npm run dev`（端口 3000；浏览器脚本默认 4321）
 
 ## 验证快照（2026-09-11，main）
-- vitest: 48 files / 258 passed / 0 failed；typecheck / lint: 0 errors
+- vitest: 48 files / 261 passed / 0 failed；typecheck / lint: 0 errors
 - 生产 build: passed（清 `.next` 后）；离线 E2E passed（入口 SQL 填充、请求体、Monaco、结果区、明细原始行、连接编辑回填、AI 编排、洞察执行、切页恢复、分割句柄含 R 面板宽度、R 面板停靠/关闭、移动端）
 - 真实 AI 调用（opencode zen go / `deepseek-flash`）: passed（`json_schema` → `json_object` → 无 `response_format` 降级；3 条洞察、reason=ok；输出预算须覆盖 reasoning token）
 - R 图像输出（浏览器 + 联网，webr 0.6）: passed（ggplot 真实渲染；R 代码不得自行开/关图形设备，见 [决策记录](.agents/notes/2026-09-11-unified-history-store-and-r-canvas-ownership.md)）

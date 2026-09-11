@@ -31,9 +31,9 @@ AI 根据当前连接扫描出的 Schema 与数据轮廓，建议结构化 Query
 
 AI 提示词注入内容即 AI 可见范围；工作台 AI 助手面板顶部的「AI 可见范围」提示（`src/components/ai-visibility-hint.tsx`）由上述 `CONTEXT_SOURCES` 声明渲染，与注入同一来源，不再维护静态镜像文案。
 
-- 可见：表名、字段名、数据库类型、数据轮廓（唯一值数 / NULL 数 / min/max / 样本值，最多 6 表）、图表契约（10 种类型 + 槽位规则 + 输出格式，`CHART_CONTRACTS`）、会话问答历史
+- 可见：表名、字段名、字段类型、主键/非空、表关系（外键）、数据轮廓（每表行数；唯一值数 / NULL 数 / min/max / 最多 3 个样本值，默认 6 表、@ 提及不受限）、图表契约（10 种类型 + 槽位规则 + 输出格式，`CHART_CONTRACTS`）、业务口径、会话问答历史
 - 不可见：查询结果数据行、连接密码、连接串、平台账号等敏感信息
-- 注入实现：`buildSystemPrompt(schemaContext, dataProfileText)`（见 [ai-contract.ts](../src/lib/ai-contract.ts)）
+- 注入实现：`buildSystemPrompt(schemaContext, dataProfileText, businessContext)`（见 [ai-contract.ts](../src/lib/ai-contract.ts)）
 
 ## 显式表注入（@ 提及）
 
@@ -69,8 +69,8 @@ AI 每项输出 `title`、`insight`、`querySpec` + `displayConfig`，或 `sql` 
 1. JSON 必须严格可解析，不提取代码围栏或自由文本。
 2. 新变体：querySpec 经编译器编译验证；displayConfig 字段存在 + 槽位类型匹配（schema-based 模式）。
 3. 旧变体：SQL 通过与查询引擎一致的只读语法预检；映射列必须引用 SQL 中显式 `AS` 的输出别名。
-4. 新变体编译失败时回退旧变体 sql；两者皆失败即丢弃该项。
-5. 任一步失败即丢弃该项；不把不可信文本转成可执行 SQL。
+4. 新变体编译失败时回退旧变体 sql；两者皆失败时**降级保留**：标题/结论照常显示，图表回退为表格，原文 SQL 标记为仅供复制。
+5. 降级项不进入执行链（不把不可信文本转成可执行 SQL）；用户可复制 SQL 到编辑器，由查询引擎再过一次只读校验。
 
 ## 配置
 
@@ -91,7 +91,7 @@ AI 每项输出 `title`、`insight`、`querySpec` + `displayConfig`，或 `sql` 
 2. 提示词必须含 "json" 字样并给出目标 JSON 样例：样例由 `INSIGHT_FIELDS` 生成，不手写
 3. 合理设置输出预算 `AI_MAX_TOKENS`（默认 8000，夹在 1000..32000）：**推理模型的 reasoning token 也算在预算里**，预算过小会把 JSON 砍在半句
 4. 提供方有概率返回空 content：首次解析失败时追加一条纠正指令，做**一次**有界修复（不是 agent loop，不引入工具与多轮规划）
-5. 提示词按「宁可少而完整」约束：一次最多 3 条、每条 insight ≤ 200 字，避免为凑数量写长结论导致截断
+5. 提示词按「宁可少而完整」约束：硬上限 6 项（`MAX_INSIGHT_ITEMS`），软目标一次 3 条、每条 insight ≤ 200 字，避免为凑数量写长结论导致截断
 
 ## 失败分类与诊断
 

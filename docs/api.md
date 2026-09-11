@@ -35,7 +35,7 @@
 
 ## AI
 
-`POST /api/ai` 返回 `{ items: InsightItem[] }`，请求体可选 `referencedTables: string[]`（@ 提及的表）：有则只扫描这些表的数据轮廓（不受 6 表上限约束），无则自动扫描前 6 表。响应经供应商原生 JSON Schema structured output 与本地运行时校验双重把关，非法项直接丢弃。
+`POST /api/ai` 返回 `{ items: InsightItem[] }`，请求体可选 `referencedTables: string[]`（@ 提及的表）：有则只扫描这些表的数据轮廓（不受 6 表上限约束），无则自动扫描前 6 表。响应经供应商原生 JSON Schema structured output 与本地运行时校验双重把关，不合规项**降级保留**（图表回退表格、SQL 标记为仅供复制），不再整项丢弃；语义见 [ai-integration.md](ai-integration.md)。
 
 输出双变体、提示词边界与 AI 可见范围见 [ai-integration.md](ai-integration.md)。
 
