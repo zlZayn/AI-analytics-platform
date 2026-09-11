@@ -9,6 +9,12 @@
 - 包管理固定 npm + 单一 `package-lock.json`（lockfileVersion 3）：CI 用 `npm ci`，锁文件与 `package.json` 不一致即失败；升级依赖走 PR 而不是本地手改锁文件。
 - 生命周期脚本：npm 12 默认拦截依赖的 pre/postinstall（本项目当前依赖被拦截时仍可构建、测试、运行），npm 10（Node 22 自带）会执行它们——两边都验证过，差异与取舍见决策记录。
 
+## 元库初始化与漂移检查
+
+- 空库初始化：`npm run db:init`（读 `.env` 的 `DATABASE_URL`），把 [`prisma/bootstrap.sql`](../prisma/bootstrap.sql) 整份幂等应用；现有库重复执行只补缺失对象，纯 `IF NOT EXISTS`，不改数据。
+- 结构漂移：`npm run db:check` 只读比对 `schema.prisma` 与库中表/列（含"每连接最多一个 active 快照"的部分唯一索引），漂移退出码 1 并给出修复入口。
+- 明确禁止 `prisma db push` / `prisma migrate`：元库与业务表同库，这两条命令会 DROP `fact_*`/`dim_*`。新增模型的固定动作见 [prisma/README.md](../prisma/README.md)。
+
 ## 连接池与并发
 
 - 连接池注册表最多保留 12 个连接池，支持并发创建去重、5 分钟闲置回收和 LRU 淘汰。

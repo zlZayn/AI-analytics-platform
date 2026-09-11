@@ -15,6 +15,7 @@ This version has breaking changes — APIs, conventions, and file structure may 
 
 ## 常用命令
 - `npm test` · `npm run typecheck` · `npm run lint` · `npm run dev`（端口 3000；浏览器脚本默认 4321）
+- `npm run db:init`（幂等初始化/补齐元库）· `npm run db:check`（只读漂移检查）· Node 基线 22（`.node-version`）
 
 ## 验证快照（2026-09-11，main）
 - vitest: 50 files / 288 passed / 0 failed；typecheck / lint: 0 errors、0 warnings（1.36.0 新增 R 回放契约、历史客户端与迁移 SQL 用例）

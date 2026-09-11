@@ -48,7 +48,7 @@ analyze @sales_2026
 ```bash
 npm ci                      # reproducible install (Node version in .node-version, currently 22)
 # copy .env.example to .env, fill DATABASE_URL and ENCRYPTION_KEY
-npx prisma migrate deploy   # initialize the metadata database (never db push: it drops business tables)
+npm run db:init             # idempotent metadata bootstrap (never db push / migrate: they drop business tables)
 npm run dev                 # http://localhost:3000
 ```
 

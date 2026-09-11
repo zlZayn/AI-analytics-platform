@@ -5,6 +5,8 @@
 - `final_ui_smoke.py`：360/768/1280/1440 四视口烟测，截图输出到 `.artifacts/ui-smoke`
 - `offline_workspace_e2e.py`：离线工作台 E2E（10 种图表视图选择）
 - `check-links.py`：Markdown 文档链接校验，CI 与本地共用；用法 `python scripts/check-links.py <目录|md文件>`
+- `db-init.mjs`：把 `prisma/bootstrap.sql` 应用到 `DATABASE_URL`（幂等、事务内、纯 `IF NOT EXISTS`）；入口 `npm run db:init`
+- `check-db-drift.mjs`：只读比对 `schema.prisma` 与库中表/列；入口 `npm run db:check`，漂移退出码 1
 - `bump-version.mjs`：按语义 bump `package.json` 的 version（`major|minor|patch|X.Y.Z`，低位置零，只改一行）；档位规则见根 [AGENTS.md](../AGENTS.md) 全局规则，改后必须重建
 - 运行方式：浏览器脚本用 `BASE_URL` 覆盖地址，默认 `http://localhost:4321`（Next.js 16 拒绝跨来源 HMR）
 - 坑位：浏览器脚本需本地 chromium 且 CI 不跑；改 app 路由必须同步 `page.route` mock，否则 500

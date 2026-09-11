@@ -9,7 +9,9 @@
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "db:init": "node --env-file=.env scripts/db-init.mjs",
+    "db:check": "node --env-file=.env scripts/check-db-drift.mjs"
   },
   "dependencies": {
     "@base-ui/react": "^1.6.0",
