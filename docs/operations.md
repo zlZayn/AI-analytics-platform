@@ -9,6 +9,31 @@
 - 包管理固定 npm + 单一 `package-lock.json`（lockfileVersion 3）：CI 用 `npm ci`，锁文件与 `package.json` 不一致即失败；升级依赖走 PR 而不是本地手改锁文件。
 - 生命周期脚本：npm 12 默认拦截依赖的 pre/postinstall（本项目当前依赖被拦截时仍可构建、测试、运行），npm 10（Node 22 自带）会执行它们——两边都验证过，差异与取舍见决策记录。
 
+## 依赖边界与风险清单
+
+角色划分（`package.json` 分区即边界）：
+
+| 角色 | 依赖 | 说明 |
+| :--- | :--- | :--- |
+| 运行时 | `next` `react` `react-dom` `pg` `@prisma/client` `@prisma/adapter-pg` `openai` `recharts` `@base-ui/react` `lucide-react` `clsx` `tailwind-merge` `class-variance-authority` `@monaco-editor/react` `monaco-editor` `webr` | `next start` 需要 |
+| 构建 / CSS | `tailwindcss` `@tailwindcss/postcss` `tw-animate-css` `typescript` | 只在构建期 |
+| 代码生成 | `prisma`（CLI）→ 生成 `src/generated/prisma`（不入库） | 生成物依赖：新环境必须 `npx prisma generate` |
+| 脚手架 CLI | `shadcn` | 只用于新增 shadcn 组件 |
+| 测试 / 质量 | `vitest` `jsdom` `eslint` `eslint-config-next` `@vitest/coverage-v8` `@types/*` | 开发期 |
+
+- `@prisma/client` 源码里没有直接 import，但它是生成客户端的运行时依赖，必须留在 `dependencies`。
+- 传递依赖里的原生 / 安装脚本：`esbuild`（vitest→vite、webr→tsx）、`sharp`（next 可选；本项目未用 `next/image`）、`@prisma/engines`（prisma CLI）、`unrs-resolver`（eslint-config-next）。npm 12 默认拦截这些脚本、Node 22 自带的 npm 10 会执行——两种状态下构建、测试、运行都已验证。
+- 外部运行时依赖：`webr` 运行时从 `webr.r-wasm.org` 拉 R.wasm 与 R 包，离线不可用（见根 [AGENTS.md](../AGENTS.md) 活跃坑）。
+
+已知错位与风险（本次治理只诊断，修复在后续提交）：
+
+| 项 | 现状 | 风险 |
+| :--- | :--- | :--- |
+| `monaco-editor` | 源码直接 import，但未声明；由 `@monaco-editor/react` 的 peer 自动装入（0.55.1） | 任何不自动安装 peer 的安装方式（严格 node_modules、`--legacy-peer-deps`）会让编辑器静默失效 |
+| `prisma`（CLI） | 在 `dependencies` | 生产安装多装 CLI 与 engines；角色应为 devDependency |
+| `shadcn`（脚手架） | 在 `dependencies` | 同上，运行时用不到 |
+| `@vitest/coverage-v8` | 已声明但无任何覆盖率配置或命令引用 | 未使用的开发依赖 |
+
 ## 元库初始化与漂移检查
 
 - 空库初始化：`npm run db:init`（读 `.env` 的 `DATABASE_URL`），把 [`prisma/bootstrap.sql`](../prisma/bootstrap.sql) 整份幂等应用；现有库重复执行只补缺失对象，纯 `IF NOT EXISTS`，不改数据。
