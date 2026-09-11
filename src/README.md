@@ -1,7 +1,7 @@
 # src/ — 源码手册
 
 - 职责：Next.js 16 App Router 应用源码（页面、API Route Handlers、组件、核心库）
-- 测试与被测模块同目录的 `__tests__/`（每个目录自带 `README.md` 覆盖范围与 `AGENTS.md` 写法约束），无独立 `tests/` 目录
+- 测试与被测模块同目录的 `__tests__/`（每个目录自带 README 手册覆盖范围与 AGENTS 规则约束），无独立 `tests/` 目录
 
 ## 测试
 
