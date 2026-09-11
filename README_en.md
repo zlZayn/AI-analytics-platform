@@ -80,6 +80,6 @@ Only single `SELECT`/`WITH` statements are allowed, run inside a read-only trans
 - Usage/interaction: this file + [scripts/README.md](scripts/README.md) (launcher/build entry points)
 - Developer handbook: [src/README.md](src/README.md) (directory duties, page routes, change routing) · [src/components/charts/README.md](src/components/charts/README.md) (chart algorithms and limits) · [prisma/README.md](prisma/README.md)
 - Architecture & decisions: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) · [.agents/notes/](.agents/notes/) (decision records)
-- Interfaces & specs: [docs/api.md](docs/api.md) (API contract) · [docs/04_ai_integration.md](docs/04_ai_integration.md) (AI contract) · [docs/operations.md](docs/operations.md) (ops)
+- Interfaces & specs: [docs/api.md](docs/api.md) (API contract) · [docs/ai-integration.md](docs/ai-integration.md) (AI contract) · [docs/operations.md](docs/operations.md) (ops)
 - Testing & acceptance: [docs/testing.md](docs/testing.md) (incl. CI) · [docs/manual-acceptance.md](docs/manual-acceptance.md) (manual acceptance)
 - Maintainer index & rules: [AGENTS.md](AGENTS.md) · current plan: [docs/PLAN.md](docs/PLAN.md)

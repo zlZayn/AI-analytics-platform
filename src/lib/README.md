@@ -10,6 +10,8 @@
 - `variable-types.ts`：图表类型清单（`CHART_TYPE_INFO` / `SELECTABLE_CHART_TYPES`）与映射槽位。
 - `ai-contract.ts`：AI 输出契约单一来源（提示词 / JSON Schema / 解析来自同一份 `INSIGHT_FIELDS` 声明）。
 - `ai-context.ts` / `ai-context-service.ts`：AI 上下文与可见范围声明（纯模块）+ 采集（服务端，AI 路由使用）。
+- `ai-service.ts`：可注入的 `AICompletionProvider` 与 OpenAI 兼容生产 provider（请求头模板、`response_format` 降级、失败分类与用户可读提示）。
+- `schema-service.ts`：当前连接的 Schema 上下文与数据轮廓（`scanDataProfile` / `buildDataProfileText`），AI 路由与可见性提示共用。
 - `ai-session-mapping.ts`：AI 洞察项 → 会话 action 的单一映射（编译路径 / 回退 SQL）。
 - `client-api.ts` / `api-response.ts`：客户端请求与服务端响应契约。
 - `__tests__/`：核心库单元测试，详见 [__tests__/README.md](__tests__/README.md)。

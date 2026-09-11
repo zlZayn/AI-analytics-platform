@@ -4,7 +4,7 @@
 // 1) querySpec + displayConfig → INIT_FROM_AI 交给编译管线；
 // 2) AI 只给了 sql（回退变体）→ 额外 SET_COMPILED_SQL 直通执行。
 // UI 编排（useAiAssistant）与卡片执行都走这里，避免两处各写一遍。
-// 契约见 [docs/04_ai_integration.md](../../docs/04_ai_integration.md)。
+// 契约见 [docs/ai-integration.md](../../docs/ai-integration.md)。
 
 import type { InsightItem } from "@/lib/ai-contract"
 import type { InitFromAiPayload } from "@/types/actions"

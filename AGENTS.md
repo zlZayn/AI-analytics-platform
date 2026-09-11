@@ -42,7 +42,7 @@ This version has breaking changes — APIs, conventions, and file structure may 
 - sidebar 版本徽标读 `NEXT_PUBLIC_APP_VERSION`（next.config.ts 从 package.json 注入）；**bump 后必须重建才生效**，否则页面仍是旧号码；烟测脚本按 package.json 版本断言它（bump 规则见「全局规则」）
 - Monaco 已本地托管（`src/lib/monaco-setup.ts` 的惰性 `configureMonaco`：SSR 安全，配置完成前渲染占位避免 loader.init 回退 CDN）；`@monaco-editor/react` 默认从 CDN 拉引擎，新编辑器接入点必须「先 `await configureMonaco()` 再渲染编辑器」，顶层 `import "@/lib/monaco-setup"` 会在 SSR 评估 monaco-editor 而 window 崩（曾致 workspace 整页不可交互）
 - R 分析工作台（WebR 0.6）：COI 头已配置（COOP/COEP）；R.wasm（12.3MB）与 R 包从 `webr.r-wasm.org` CDN 按需加载，离线不可用；包下载后会话内缓存（模块级单例），刷新页面需重下
-- AI 调用失败先看 AI 气泡里的具体原因（含 HTTP 状态与提供方原文，不再只有「稍后重试」）；网关要求的自定义头用 `AI_API_HEADERS`（`{sessionId}`/`{version}` 占位符），`AI_MODEL` 必须用提供方文档的版本化 ID；改提示词必须保留「只返回符合 JSON Schema 的对象」一句（网关 `json_object` 模式硬性要求提示词含 "json" 字样，丢了会整体退化）；**推理模型的 reasoning token 计入 `AI_MAX_TOKENS`**，预算过小会把 JSON 砍在半句导致整轮作废（失败会分类并给一句可执行提示，见 [docs/04_ai_integration.md](docs/04_ai_integration.md) 失败分类表）
+- AI 调用失败先看 AI 气泡里的具体原因（含 HTTP 状态与提供方原文，不再只有「稍后重试」）；网关要求的自定义头用 `AI_API_HEADERS`（`{sessionId}`/`{version}` 占位符），`AI_MODEL` 必须用提供方文档的版本化 ID；改提示词必须保留「只返回符合 JSON Schema 的对象」一句（网关 `json_object` 模式硬性要求提示词含 "json" 字样，丢了会整体退化）；**推理模型的 reasoning token 计入 `AI_MAX_TOKENS`**，预算过小会把 JSON 砍在半句导致整轮作废（失败会分类并给一句可执行提示，见 [docs/ai-integration.md](docs/ai-integration.md) 失败分类表）
 - R 画布与图形捕获（2026-09-11 两处已修）：`ImageBitmap` 所有权归 `WebRClient`，组件 `close()` 会让画布在 StrictMode 双跑后退回默认 300×150 空白；webr 0.6 `captureR` 的 `captureGraphics` **默认 false**，不显式开启则 ggplot 无图；注入未完成时 `execute()` 会等待 `pendingInjection`，面板必须显示 `injecting`（详见[决策记录](.agents/notes/2026-09-11-unified-history-store-and-r-canvas-ownership.md)）
 - E2E 脚本 mock 路由必须与 API 路由同步：新增/修改 app 路由时同步更新 `scripts/offline_workspace_e2e.py` 的 `page.route`
 - 跨页工作台入口的 SQL 需经过 `workspace-navigation.ts` 规范化；工作台按 `connection + SQL` key 一次性应用，入口回归由离线 E2E 同时覆盖探索页与历史页
@@ -51,7 +51,7 @@ This version has breaking changes — APIs, conventions, and file structure may 
 ## 文档地图
 - 用途与用法：[README.md](README.md)
 - 进行中计划与已知问题：[docs/PLAN.md](docs/PLAN.md)
-- 发布与维护清单（每次改动/发版必维护项）：[docs/maintenance-checklist.md](docs/maintenance-checklist.md)
 - 人工验收：[docs/manual-acceptance.md](docs/manual-acceptance.md)
+- 接口 / AI 合同 / 运维 / 维护清单：[docs/api.md](docs/api.md) · [docs/ai-integration.md](docs/ai-integration.md) · [docs/operations.md](docs/operations.md) · [docs/maintenance-checklist.md](docs/maintenance-checklist.md)
 - 测试说明：[docs/testing.md](docs/testing.md)
 - 历史过程产物（已完成的维护设计与计划）：[docs/archive/](docs/archive/README.md)

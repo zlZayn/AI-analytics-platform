@@ -1,5 +1,6 @@
 # archive/ — 历史过程产物
 
 - 用途：已完成轮次的设计与实施计划留档，只读参考，不再同步维护。
+- 命名 `<日期>-<主题>.md`，每份文件首行自述来源轮次；**目录树即索引**，此处不复制清单（避免漂移）。
+- 归档判据：轮次已交付且不再指导后续改动；仍在生效的设计进 [ARCHITECTURE.md](../ARCHITECTURE.md)，取舍与被否方案进 [.agents/notes/](../../.agents/notes/)。
 - 现任计划见 [../PLAN.md](../PLAN.md)；验证数字与活跃坑见 [../../AGENTS.md](../../AGENTS.md)。
-- `2026-09-04-workbench-maintenance-design.md` / `2026-09-04-workbench-maintenance.md`：工作台维护轮次的设计与任务分解（导航统一、执行生命周期、结果区状态边界）。

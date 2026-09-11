@@ -1,5 +1,7 @@
 # 决策：数据库名保持 ai_analytics（2026-09-01）
 
+> 已归档（2026-09-11）：结论已固化进 [ARCHITECTURE.md](../../../docs/ARCHITECTURE.md) 不变决策，本记录只作留档。
+
 已实施：保持
 
 ## 问题

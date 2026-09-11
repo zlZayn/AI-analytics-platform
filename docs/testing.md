@@ -38,4 +38,4 @@ git diff --check
 
 ## 文档导航
 
-- 被测模块与改动路由 [src/README.md](../src/README.md) · 人工验收 [manual-acceptance.md](manual-acceptance.md) · 设计决策 [ARCHITECTURE.md](ARCHITECTURE.md) · AI 契约 [04_ai_integration.md](04_ai_integration.md)
+- 被测模块与改动路由 [src/README.md](../src/README.md) · 人工验收 [manual-acceptance.md](manual-acceptance.md) · 设计决策 [ARCHITECTURE.md](ARCHITECTURE.md) · AI 合同 [ai-integration.md](ai-integration.md)

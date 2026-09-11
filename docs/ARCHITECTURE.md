@@ -23,7 +23,7 @@
 ## 不变决策
 
 - 查询只允许单条 SELECT/WITH，在 PostgreSQL 只读事务 + statement timeout 内执行，默认上限 5,000 行
-- 平台元数据表（Prisma）与用户业务表分离；数据库名 `ai_analytics` 保持，见 [决策记录](../.agents/notes/2026-09-01-keep-database-name-ai-analytics.md)
+- 平台元数据表（Prisma）与用户业务表分离；数据库名 `ai_analytics` 保持，见 [决策记录](../.agents/notes/archived/2026-09-01-keep-database-name-ai-analytics.md)
 - AI 输出优先结构化 QuerySpec + DisplayConfig（双变体 anyOf），`sql` 字段作为回退；优先要求供应商原生 strict JSON Schema，提供方不支持时按 `json_object` → 无 `response_format` 降级，运行时契约校验（parseInsightItems + validators）始终执行；SQL 只引用当前 Schema 与显式输出别名
 - 连接密码 AES-256 加密（每条随机盐）；AI 与数据库凭据只从环境变量读取，不落库
 - Geist 字体自托管（`src/app/fonts/` via `next/font/local`）；构建与开发不访问外网字体服务
@@ -32,6 +32,7 @@
 - API 统一 `ApiResponse<T>` + requestId；客户端统一处理 HTTP、非 JSON、超时、Abort
 - 图表变换全部确定性；统计计算（相关矩阵、直方图分箱）在可取消 Worker 中执行
 - 数据轮廓扫描（最多 6 表）注入 AI 提示词，失败不阻断主流程
+- AI 助手是单发分析建议（一次提问 → 1..6 条建议 → 执行第一条）：不做 agent 运行时/工具循环/自我修正轮次，不做长期记忆与上下文压缩，不做会话树与分支重放（`AnalysisSession` 是唯一真相）；AI 不见数据行，只注入结构与轮廓，结果数据只回浏览器
 - R 分析工作台：数据只从 `session.result` 单向流入（`r-bridge` 纯函数 → WebR），R 输出不回写 AnalysisSession；WebR 实例为模块级单例（`useWebR`），SAB 通道 + COI 头；R.wasm 与 R 包从 `webr.r-wasm.org` 按需下载，离线不可用
 
 ## 校验体系（统一到 validators.ts）
@@ -66,5 +67,5 @@
 ## 文档约定
 
 - 分层：README=用法，AGENTS.md=维护索引，本文件=设计决策，.agents/notes/=决策记录
-- 详细接口：见 [api.md](api.md)；AI 合同：[04_ai_integration.md](04_ai_integration.md)
+- 详细接口：见 [api.md](api.md)；AI 合同：[ai-integration.md](ai-integration.md)
 - 项目结构、页面路由清单：见 [src/README.md](../src/README.md)；API 路由总表：[api.md](api.md)

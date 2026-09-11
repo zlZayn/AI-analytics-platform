@@ -6,12 +6,8 @@ AI 根据当前连接扫描出的 Schema 与数据轮廓，建议结构化 Query
 
 ## 定位与职责
 
-助手是单发分析建议：一次提问 → 1..6 条建议（querySpec + displayConfig，或回退 sql + chart）→ 执行第一条。据此明确不做：
-
-- 不做 agent 运行时（工具循环 / 计划 / 自我修正轮次）
-- 不做长期记忆与上下文压缩（会话短、上下文有界；压缩属长任务 agent 的问题）
-- 不做会话树与分支重放（`AnalysisSession` 是唯一真相）
-- AI 不接触数据行：只注入结构与轮廓，结果数据只回浏览器
+助手是单发分析建议：一次提问 → 1..6 条建议（querySpec + displayConfig，或回退 sql + chart）→ 执行第一条。
+不做清单（无 agent 运行时、无上下文压缩、无会话树、AI 不接触数据行）属不变决策，见 [ARCHITECTURE.md](ARCHITECTURE.md)；设计取舍与被否决方案见 [决策记录](../.agents/notes/2026-09-11-ai-assistant-contract-and-context.md)。
 
 决策与被否决方案见 [.agents/notes/2026-09-11-ai-assistant-contract-and-context.md](../.agents/notes/2026-09-11-ai-assistant-contract-and-context.md)。
 
@@ -56,17 +52,9 @@ AI 每项输出 `title`、`insight`、`querySpec` + `displayConfig`，或 `sql` 
 
 ## 模块
 
-- `src/lib/ai-contract.ts`：契约单一来源 `INSIGHT_FIELDS`（提示词形状/字段说明、strict JSON Schema 变体、解析截断长度全部派生；一致性测试见 [src/lib/__tests__/README.md](../src/lib/__tests__/README.md)）
-- `src/lib/ai-context.ts`：上下文来源与可见范围声明（纯模块）、@ 提及规范化、trace 摘要
-- `src/lib/ai-context-service.ts`：`collectAIContext`（表结构 → 轮廓 → 历史 → 业务口径；服务端）
-- `src/lib/ai-service.ts`：可注入的 `AICompletionProvider` 和 OpenAI 兼容生产 provider（`generateAnalysis`：请求头模板、response_format 降级、错误描述）
-- `src/hooks/useAiAssistant.ts`：AI 编排（输入/请求/洞察流），视图只负责挂载
-- `src/lib/ai-session-mapping.ts`：洞察项 → 会话 action 的单一映射（querySpec 编译路径 / 回退 SQL 路径）
-- `src/lib/schema-service.ts`：生成当前连接 Schema 上下文与数据轮廓（scanDataProfile / buildDataProfileText）
-- `src/lib/query-compiler.ts`：QuerySpec → 参数化 SQL
-- `src/lib/validators.ts`：schema-based / data-based 双模式校验
+文件职责、关键导出与改动路由见 [src/lib/README.md](../src/lib/README.md)（`ai-contract` / `ai-context` / `ai-context-service` / `ai-service` / `ai-session-mapping` / `schema-service`）与 [src/hooks/README.md](../src/hooks/README.md)（`useAiAssistant`）；本文件只写 AI 合同、配置与失败语义。
 
-`generateAnalysis(message, schemaContext, conversationHistory, provider?, dataProfileText?, businessContext?, sessionId?)` 返回 `{ items }`。测试注入内存 provider，不需要 API Key，也不会调用真实模型。
+服务端入口合同：`generateAnalysis(message, schemaContext, conversationHistory, provider?, dataProfileText?, businessContext?, sessionId?)` 返回 `{ items }`；测试注入内存 provider，不需要 API Key，不调用真实模型。
 
 ## Structured Output
 
@@ -124,7 +112,7 @@ AI 每项输出 `title`、`insight`、`querySpec` + `displayConfig`，或 `sql` 
 
 ## 离线回归
 
-AI 契约测试（分类见 [src/lib/__tests__/README.md](../src/lib/__tests__/README.md)）使用固定夹具覆盖提示词领域中立性、原生 Schema、双变体解析、sql 回退、未知图表、缺失映射、未知别名、非法 SQL、损坏 JSON 和数据轮廓注入。日常测试禁止使用真实 AI API。
+AI 契约测试用固定夹具覆盖提示词领域中立性、原生 Schema、双变体解析、sql 回退、未知图表、缺失映射、未知别名、非法 SQL、损坏 JSON 与数据轮廓注入；测试分类与运行方式见 [testing.md](testing.md)，用例索引见 [src/lib/__tests__/README.md](../src/lib/__tests__/README.md)。日常测试禁止使用真实 AI API。
 
 ## 文档导航
 
