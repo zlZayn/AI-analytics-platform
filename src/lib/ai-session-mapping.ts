@@ -21,10 +21,10 @@ export function buildInitFromAi(item: InsightItem, question: string): InitFromAi
   }
 }
 
-/** 回退路径需要的 SQL：只在 AI 未给出可用 querySpec 时返回 */
+/** 回退路径需要的 SQL：只在 AI 未给出可用 querySpec 且 SQL 通过只读预检时返回 */
 export function fallbackSqlOf(item: InsightItem): CompiledSql | null {
   if (item.querySpec && !item.fallback) return null
-  return item.sql ? { sql: item.sql, params: [] } : null
+  return item.sql && item.sqlValid ? { sql: item.sql, params: [] } : null
 }
 
 /** 请求失败 → 对话提示与是否属于「未配置」（未配置时前端另显示 .env 指引） */

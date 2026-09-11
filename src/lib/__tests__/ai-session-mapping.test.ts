@@ -44,8 +44,13 @@ describe("fallbackSqlOf", () => {
     expect(fallbackSqlOf(item({ querySpec: { table: "orders" }, sql: "SELECT 1" }))).toBeNull()
   })
 
-  it("回退项返回编译结果，缺 sql 则返回 null", () => {
-    expect(fallbackSqlOf(item({ fallback: true, sql: "SELECT 1 AS total" }))).toEqual({ sql: "SELECT 1 AS total", params: [] })
+  it("回退项仅在 SQL 通过只读预检时返回编译结果", () => {
+    expect(fallbackSqlOf(item({ fallback: true, sql: "SELECT 1 AS total", sqlValid: true }))).toEqual({
+      sql: "SELECT 1 AS total",
+      params: [],
+    })
+    // 未通过只读预检的 SQL 只能复制，不能一键执行
+    expect(fallbackSqlOf(item({ fallback: true, sql: "DELETE FROM orders", sqlValid: false }))).toBeNull()
     expect(fallbackSqlOf(item({ fallback: true }))).toBeNull()
   })
 })

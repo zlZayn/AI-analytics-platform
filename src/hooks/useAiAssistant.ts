@@ -66,14 +66,16 @@ export function useAiAssistant({
   const [insights, setInsights] = useState<InsightItem[]>(initialInsights ?? [])
   const [executingIndex, setExecutingIndex] = useState<number | null>(null)
 
-  /** 把一条洞察写进会话：首条与卡片执行共用同一映射 */
-  function applyInsight(item: InsightItem, question: string) {
-    dispatch({ type: "INIT_FROM_AI", payload: buildInitFromAi(item, question) })
+  /** 把一条洞察写进会话：首条与卡片执行共用同一映射。无可执行内容时返回 false（不动会话状态） */
+  function applyInsight(item: InsightItem, question: string): boolean {
     const fallback = fallbackSqlOf(item)
+    if (!item.querySpec?.table && !fallback) return false
+    dispatch({ type: "INIT_FROM_AI", payload: buildInitFromAi(item, question) })
     if (fallback) {
       dispatch({ type: "SET_COMPILED_SQL", compiledSql: fallback })
       onSqlDraft(fallback.sql)
     }
+    return true
   }
 
   async function ask() {
@@ -125,9 +127,14 @@ export function useAiAssistant({
       // 多洞察全部保留（洞察视图卡片流），第一条自动执行（结论前置）
       setInsights(items)
       onTabChange("insights")
-      applyInsight(items[0], question)
+      const ran = applyInsight(items[0], question)
       dispatch({ type: "ADD_CONVERSATION", message: assistantMessage(items[0].insight || items[0].title) })
-      notify(`已生成 ${items.length} 条分析，执行第 1 条`, "success")
+      notify(
+        ran
+          ? `已生成 ${items.length} 条分析，执行第 1 条`
+          : `已生成 ${items.length} 条分析；第 1 条无可执行 SQL，可展开复制`,
+        ran ? "success" : "warning",
+      )
       appendHistory({
         kind: "ai",
         connectionId: session.id,
@@ -155,8 +162,12 @@ export function useAiAssistant({
       setExecutingIndex(null)
       return
     }
+    if (!applyInsight(item, item.title)) {
+      setExecutingIndex(null)
+      notify(item.notice ?? "该洞察没有可执行 SQL，可展开复制后到 SQL 编辑器运行", "warning")
+      return
+    }
     setExecutingIndex(index)
-    applyInsight(item, item.title)
   }
 
   function clearInsights() {

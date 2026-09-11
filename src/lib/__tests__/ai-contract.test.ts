@@ -124,6 +124,7 @@ describe("AI prompt and output contract", () => {
       title: "区域销售",
       insight: "比较各区域销售额",
       sql: "SELECT region AS region, SUM(amount) AS total FROM sales GROUP BY region",
+      sqlValid: true,
       chart: { chartType: "bar", x: "region", y: "total", mode: "grouped" },
       displayConfig: undefined,
       fallback: true,
@@ -134,16 +135,22 @@ describe("AI prompt and output contract", () => {
     ["unknown chart", { type: "radar", mapping: {} }],
     ["missing mapping", { type: "bar", mapping: { x: "region" } }],
     ["unknown output column", { type: "bar", mapping: { x: "region", y: "missing" } }],
-  ])("rejects legacy %s", (_label, chart) => {
+  ])("degrades legacy %s to a table fallback instead of dropping", (_label, chart) => {
     const parsed = JSON.parse(legacy)
     parsed.items[0].chart = chart
-    expect(parseInsightItems(JSON.stringify(parsed))).toEqual([])
+    const [item] = parseInsightItems(JSON.stringify(parsed))
+    // 渲染失败不是丢弃理由：说明降级原因，图表回退为表格（表格总能渲染）
+    expect(item.chart).toEqual({ chartType: "table" })
+    expect(item.notice).toContain("图表映射无效，已回退为表格")
   })
 
-  it("rejects unsafe SQL and malformed JSON without a text fallback", () => {
+  it("keeps unsafe SQL as copyable text (not executable) and still rejects malformed JSON", () => {
     const parsed = JSON.parse(legacy)
     parsed.items[0].sql = "DELETE FROM sales"
-    expect(parseInsightItems(JSON.stringify(parsed))).toEqual([])
+    const [item] = parseInsightItems(JSON.stringify(parsed))
+    expect(item.sql).toBe("DELETE FROM sales")
+    expect(item.sqlValid).toBe(false)
+    expect(item.notice).toContain("SQL 未通过只读预检")
     expect(parseInsightItems("```sql\nSELECT * FROM sales\n```")).toEqual([])
     expect(parseInsightItems("not json")).toEqual([])
   })

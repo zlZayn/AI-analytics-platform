@@ -125,7 +125,7 @@ describe("useAiAssistant", () => {
   it("回退项（只有 sql）走 SET_COMPILED_SQL 并回填编辑器草稿", async () => {
     mocks.fetchApi.mockResolvedValue({
       success: true,
-      data: { items: [insight({ querySpec: undefined, displayConfig: undefined, fallback: true, sql: "SELECT 1 AS total" })] },
+      data: { items: [insight({ querySpec: undefined, displayConfig: undefined, fallback: true, sql: "SELECT 1 AS total", sqlValid: true })] },
       requestId: "t",
     })
     const { captured, root } = renderAssistant(session())

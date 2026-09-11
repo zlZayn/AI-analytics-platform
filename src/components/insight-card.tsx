@@ -102,6 +102,7 @@ export function InsightCard({ index, item, onExecute, loading, error, result }: 
       {/* 洞察说明 */}
       <div className="px-3 pb-2">
         <p className="text-[11px] text-[var(--muted-foreground)]">{item.insight}</p>
+        {item.notice && <p className="mt-1 text-[11px] text-[var(--warning)]">{item.notice}</p>}
       </div>
 
       {/* 统计检验（黑盒 WebR，本地执行） */}
@@ -148,6 +149,16 @@ export function InsightCard({ index, item, onExecute, loading, error, result }: 
             <span className="text-[9px] text-[var(--muted-foreground)]">
               图表: {item.chart.chartType} | 映射: {Object.entries(item.chart).filter(([key]) => key !== "chartType").map(([key, value]) => `${key}=${Array.isArray(value) ? value.join("/") : value}`).join(", ") || "无"}
             </span>
+            {item.sql && (
+              <Button
+                size="sm"
+                variant="ghost"
+                className="ml-auto h-5 text-[10px] text-[var(--muted-foreground)]"
+                onClick={() => void navigator.clipboard.writeText(item.sql ?? "")}
+              >
+                复制 SQL
+              </Button>
+            )}
           </div>
         </div>
       )}

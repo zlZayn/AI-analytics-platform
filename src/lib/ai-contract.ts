@@ -46,6 +46,10 @@ export interface InsightItem {
   insight: string
   /** 过渡期回退：querySpec 缺失时 AI 直出的 SQL（阶段三后应逐步移除） */
   sql?: string
+  /** sql 是否通过只读预检；false = 仅可复制，不能一键执行 */
+  sqlValid?: boolean
+  /** 降级说明：渲染失败或不可执行的原因（无则未降级） */
+  notice?: string
   /** 旧客户端兼容：ChartMapping（由 displayConfig 或旧 chart 解析） */
   chart: ChartMapping
   /** 新契约：结构化查询（阶段三起 AI 输出，compileQuerySpec 消费） */
@@ -312,6 +316,12 @@ export function parseInsightItems(content: string): InsightItem[] {
   for (const raw of root.items.slice(0, MAX_INSIGHT_ITEMS)) {
     if (!isRecord(raw) || typeof raw.title !== "string" || typeof raw.insight !== "string") continue
 
+    // SQL 保留原文：未通过只读预检的也保留（仅供复制），能否一键执行由 sqlValid 标记
+    const rawSql = typeof raw.sql === "string" ? raw.sql.trim() : ""
+    const sqlValid = rawSql.length > 0 ? validateSQL(rawSql).valid : false
+    const notices: string[] = []
+    if (rawSql && !sqlValid) notices.push("SQL 未通过只读预检，不能一键执行，可复制后自行运行")
+
     // 优先 querySpec + displayConfig（新契约）
     const querySpec = parseQuerySpec(raw.querySpec)
     const displayConfig = parseDisplayConfig(raw.displayConfig)
@@ -319,37 +329,40 @@ export function parseInsightItems(content: string): InsightItem[] {
     const statTest = parseStatTest(raw.statTest)
     if (querySpec && displayConfig) {
       // 过渡期：AI 同时输出 sql 时一并透传，供旧客户端（InsightCard）展示
-      const sql = typeof raw.sql === "string" && validateSQL(raw.sql.trim()).valid ? raw.sql.trim() : undefined
       items.push({
         title: raw.title.slice(0, INSIGHT_FIELDS.title.maxLength),
         insight: raw.insight.slice(0, INSIGHT_FIELDS.insight.maxLength),
-        sql,
+        sql: rawSql || undefined,
+        sqlValid: rawSql ? sqlValid : undefined,
         chart: displayConfig.mapping,
         querySpec,
         displayConfig,
         fallback: false,
         context,
         statTest,
+        notice: notices.length > 0 ? notices.join("；") : undefined,
       })
       continue
     }
 
-    // 回退：AI 直出 SQL（过渡期旧格式）
-    if (typeof raw.sql !== "string" || !raw.sql.trim()) continue
-    const sql = raw.sql.trim()
-    if (!validateSQL(sql).valid) continue
-    // 图表来源：旧 chart 优先；querySpec 无效但 displayConfig 有效时用其 mapping；否则丢弃该项
-    const chart = parseChartMapping(raw.chart, sql) ?? (displayConfig ? displayConfig.mapping : null)
-    if (!chart) continue
+    // 无 querySpec：靠 SQL 兜底；图表映射无效则回退表格——渲染失败不作为丢弃该项的理由
+    let chart = parseChartMapping(raw.chart, rawSql) ?? (displayConfig ? displayConfig.mapping : null)
+    if (!chart) {
+      chart = { chartType: "table" }
+      notices.push("图表映射无效，已回退为表格")
+    }
+    if (!rawSql) notices.push("AI 未给出可执行 SQL")
     items.push({
       title: raw.title.slice(0, 80),
       insight: raw.insight.slice(0, 1000),
-      sql,
+      sql: rawSql || undefined,
+      sqlValid: rawSql ? sqlValid : undefined,
       chart,
       displayConfig: displayConfig ?? undefined,
       fallback: true,
       context,
       statTest,
+      notice: notices.length > 0 ? notices.join("；") : undefined,
     })
   }
   return items
