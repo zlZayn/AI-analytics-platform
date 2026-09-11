@@ -27,10 +27,14 @@
   第一轮 cleanup 若 `close()` 掉位图，第二轮就拿不到像素，canvas 退回默认 300×150 —— 这正是「巨大空白区域」的成因。
 - 组件只负责 `drawImage` 与尺寸守卫（`width/height === 0` 时画 0×0），**永不 `close()`**。
 
-### 3. 图形捕获必须显式开启
+### 3. 图形捕获：设备交给 webR，模板不得自己开/关
 
-- webr 0.6 的 `captureR` 选项 `captureGraphics` **默认 false**，所以 ggplot 出图后传不回主线程 → 「没有图」。
-- `execute()` 固定传 `captureGraphics: true`。
+- `captureR` 的 `captureGraphics` 在 webr 0.6 **默认就是 true**（只有 `evalR` 默认 false）；`execute()` 显式传 true，作为意图声明。
+- **本节此前的诊断（「默认 false 导致没有图」）不成立**，据此加 `captureGraphics: true` 也没解决症状。
+- 真正成因在模板自己动了设备：webR 求值后按 `plots <- setdiff(webr::canvas_cache(), old_cache)` 收集
+  「执行期间新产生的画布」，模板末尾的 `dev.off()` 会先把那张画布移出缓存 → 差集为空 → `images` 为空 → 面板无图。
+  模板里的 `webr::canvas()` 同样多余：`captureGraphics` 已经 `do.call(webr::canvas, canvas_options)` 开好捕获设备。
+- 现模板：不自己开/关设备；ggplot 对象赋值 `p` 后 `print(p)`（ggplot 只是对象，绘制发生在 print 时）。
 
 ### 4. 注入与执行串行化
 
