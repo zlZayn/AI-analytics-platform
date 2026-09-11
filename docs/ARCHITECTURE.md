@@ -84,4 +84,5 @@
 
 - 引用方向：子 README → 同目录 AGENTS + 本文件；docs 每份顶部一行「定位」+ 页脚「相关文档」；本文件不反向指子 README
 - 判定「新内容写哪」：为什么 → 本文件；取舍与被否方案 → notes；怎么用 → README；接口/参数 → api、operations、ai-integration；怎么验 → verification；勾选 → maintenance-checklist
-- 每次文档同步后跑 `scripts/check-links.py`；引用不写死本机路径
+- 引用即链接：跨文档引用写成 `[名](路径.md)` 指向整个文档，不写由标题自动生成的小节锚点（标题改名即断链）；确需文内定位时用显式 `<a id="...">`
+- 每次文档同步后跑 `scripts/check-links.py . --fragments --refs`（锚点、未做成链接的引用均为警告级）；引用不写死本机路径

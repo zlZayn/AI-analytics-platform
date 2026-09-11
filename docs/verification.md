@@ -34,7 +34,7 @@ git diff --check
 
 ## CI（GitHub Actions）
 
-`.github/workflows/ci.yml` 在每次推送与 PR 上执行：install（`npm ci`）→ prisma generate → typecheck → lint → test → build → 文档链接校验（`scripts/check-links.py`）→ diff 检查。build 步骤注入占位 `ENCRYPTION_KEY`/`DATABASE_URL`（模块加载时校验密钥）。浏览器脚本不在 CI 跑。
+`.github/workflows/ci.yml` 在每次推送与 PR 上执行：install（`npm ci`）→ prisma generate → typecheck → lint → test → build → 文档链接校验（`scripts/check-links.py --fragments --refs`）→ diff 检查。build 步骤注入占位 `ENCRYPTION_KEY`/`DATABASE_URL`（模块加载时校验密钥）。浏览器脚本不在 CI 跑。
 
 ## 浏览器脚本
 

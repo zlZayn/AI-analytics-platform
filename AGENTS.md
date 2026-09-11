@@ -9,7 +9,7 @@ This version has breaking changes — APIs, conventions, and file structure may 
 ## 全局规则
 - Next.js 16 有破坏性变更：写代码前先读 `node_modules/next/dist/docs/` 对应指南
 - 文档职责与引用契约见 [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) 文档网节；决策记录 [.agents/notes/](.agents/notes/)
-- 文档同步后跑 `python scripts/check-links.py .`；行尾与编码规则见 [决策记录](.agents/notes/2026-09-03-windows-script-encoding-rules.md)
+- 文档同步后跑 `python scripts/check-links.py . --fragments --refs`（锚点/引用未成链为警告级）；行尾与编码规则见 [决策记录](.agents/notes/2026-09-03-windows-script-encoding-rules.md)
 - 版本号按语义 bump（修复/文档=patch、功能/行为=minor、破坏性=major）：`node scripts/bump-version.mjs {major|minor|patch|X.Y.Z}`，**bump 后必须重建**才在侧栏徽标生效
 - 改根 [README.md](README.md) 必须同改 [README_en.md](README_en.md)（冲突时以中文为准）
 
@@ -38,6 +38,7 @@ This version has breaking changes — APIs, conventions, and file structure may 
 - AI 失败先看气泡里的具体原因（HTTP 状态 + 提供方原文）；自定义头用 `AI_API_HEADERS` 占位符；提示词必须保留「只返回符合 JSON Schema 的对象」；reasoning token 计入 `AI_MAX_TOKENS`（见 [docs/ai-integration.md](docs/ai-integration.md)）
 - R 工作台：R.wasm 与包从 CDN 按需下载，离线不可用；`ImageBitmap` 归 `WebRClient`（组件不得 `close()`）；`captureGraphics` 默认 false 必须显式开启；注入未完成时执行会等待（见 [r-workbench/README.md](src/components/r-workbench/README.md)）
 - 跨页入口 SQL 经 `workspace-navigation.ts` 规范化，工作台按 `connection + SQL` 一次性应用（见 [src/lib/README.md](src/lib/README.md)）
+- 文档校验脚本以 skill 版（maintenance-flow）为源头，只改项目 `scripts/` 副本会在下次同步被覆盖（见 [决策记录](.agents/notes/2026-09-11-doc-reference-link-convention.md)）
 
 ## 文档地图
 - 用途与用法：[README.md](README.md) · [README_en.md](README_en.md)
