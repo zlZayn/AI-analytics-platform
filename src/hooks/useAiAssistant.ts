@@ -40,6 +40,8 @@ export interface AiAssistant {
   /** 本轮返回的全部洞察（结论前置，第一条自动执行） */
   insights: InsightItem[]
   executingIndex: number | null
+  /** 当前已载入会话的洞察索引（其 SQL 即会话的 compiledSql；未执行过为 null） */
+  activeInsightIndex: number | null
   ask: () => Promise<void>
   execute: (index: number) => void
   /** 清空洞察流（会话 RESET 由调用方决定） */
@@ -65,9 +67,10 @@ export function useAiAssistant({
   const [unavailable, setUnavailable] = useState(false)
   const [insights, setInsights] = useState<InsightItem[]>(initialInsights ?? [])
   const [executingIndex, setExecutingIndex] = useState<number | null>(null)
+  const [activeInsightIndex, setActiveInsightIndex] = useState<number | null>(null)
 
   /** 把一条洞察写进会话：首条与卡片执行共用同一映射。无可执行内容时返回 false（不动会话状态） */
-  function applyInsight(item: InsightItem, question: string): boolean {
+  function applyInsight(item: InsightItem, question: string, index: number): boolean {
     const fallback = fallbackSqlOf(item)
     if (!item.querySpec?.table && !fallback) return false
     dispatch({ type: "INIT_FROM_AI", payload: buildInitFromAi(item, question) })
@@ -75,6 +78,7 @@ export function useAiAssistant({
       dispatch({ type: "SET_COMPILED_SQL", compiledSql: fallback })
       onSqlDraft(fallback.sql)
     }
+    setActiveInsightIndex(index)
     return true
   }
 
@@ -127,7 +131,7 @@ export function useAiAssistant({
       // 多洞察全部保留（洞察视图卡片流），第一条自动执行（结论前置）
       setInsights(items)
       onTabChange("insights")
-      const ran = applyInsight(items[0], question)
+      const ran = applyInsight(items[0], question, 0)
       dispatch({ type: "ADD_CONVERSATION", message: assistantMessage(items[0].insight || items[0].title) })
       notify(
         ran
@@ -162,7 +166,7 @@ export function useAiAssistant({
       setExecutingIndex(null)
       return
     }
-    if (!applyInsight(item, item.title)) {
+    if (!applyInsight(item, item.title, index)) {
       setExecutingIndex(null)
       notify(item.notice ?? "该洞察没有可执行 SQL，可展开复制后到 SQL 编辑器运行", "warning")
       return
@@ -173,7 +177,19 @@ export function useAiAssistant({
   function clearInsights() {
     setInsights([])
     setExecutingIndex(null)
+    setActiveInsightIndex(null)
   }
 
-  return { input, setInput, asking, unavailable, insights, executingIndex, ask, execute, clearInsights }
+  return {
+    input,
+    setInput,
+    asking,
+    unavailable,
+    insights,
+    executingIndex,
+    activeInsightIndex,
+    ask,
+    execute,
+    clearInsights,
+  }
 }

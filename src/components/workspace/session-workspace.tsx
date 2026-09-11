@@ -382,6 +382,7 @@ export function SessionWorkspace({ connectionId, initialSql }: SessionWorkspaceP
             }}
             insights={assistant.insights}
             executingInsightIndex={busy ? assistant.executingIndex : null}
+            activeInsightIndex={assistant.activeInsightIndex}
             insightError={status === "error" && assistant.executingIndex !== null ? error ?? null : null}
             onExecuteInsight={assistant.execute}
             tab={resultTab}

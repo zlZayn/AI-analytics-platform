@@ -18,6 +18,8 @@ export type { InsightItem } from "@/lib/ai-contract"
 interface InsightCardProps {
   index: number
   item: InsightItem
+  /** 该洞察对应的 SQL（querySpec 项为编译产物；回退项为 AI 原文）。缺省表示尚未生成 */
+  sql?: string | null
   onExecute: (sql: string, chart: InsightItem["chart"]) => void
   loading?: boolean
   /** 执行失败时的错误信息（阶段四：卡片级错误展示） */
@@ -26,8 +28,9 @@ interface InsightCardProps {
   result?: SemanticDataset | null
 }
 
-export function InsightCard({ index, item, onExecute, loading, error, result }: InsightCardProps) {
+export function InsightCard({ index, item, sql, onExecute, loading, error, result }: InsightCardProps) {
   const [expanded, setExpanded] = useState(false)
+  const sqlText = sql ?? item.sql ?? ""
   const webR = useWebR()
   const [statOutcome, setStatOutcome] = useState<{ result?: StatTestResult; message?: string }>({})
   // 派生 loading：有 statTest 且结果就绪但尚无结果/错误（状态只在异步链中写入）
@@ -139,26 +142,35 @@ export function InsightCard({ index, item, onExecute, loading, error, result }: 
         </div>
       )}
 
-      {/* SQL 展开 */}
+      {/* SQL 与映射（展开查看） */}
       {expanded && (
         <div className="border-t bg-[var(--muted)] px-3 py-2">
-          <pre className="text-[10px] font-mono text-[var(--foreground)] whitespace-pre-wrap overflow-x-auto">
-            {item.sql ?? ""}
-          </pre>
-          <div className="mt-1.5 flex items-center gap-2">
-            <span className="text-[9px] text-[var(--muted-foreground)]">
-              图表: {item.chart.chartType} | 映射: {Object.entries(item.chart).filter(([key]) => key !== "chartType").map(([key, value]) => `${key}=${Array.isArray(value) ? value.join("/") : value}`).join(", ") || "无"}
-            </span>
-            {item.sql && (
+          <div className="flex items-center justify-between">
+            <span className="text-[9px] font-medium tracking-wide text-[var(--muted-foreground)]">SQL</span>
+            {sqlText ? (
               <Button
                 size="sm"
                 variant="ghost"
-                className="ml-auto h-5 text-[10px] text-[var(--muted-foreground)]"
-                onClick={() => void navigator.clipboard.writeText(item.sql ?? "")}
+                className="h-5 text-[10px] text-[var(--muted-foreground)]"
+                onClick={() => void navigator.clipboard.writeText(sqlText)}
               >
                 复制 SQL
               </Button>
+            ) : (
+              <span className="text-[9px] text-[var(--muted-foreground)]">执行后生成</span>
             )}
+          </div>
+          {sqlText ? (
+            <pre className="mt-1 max-h-48 overflow-auto whitespace-pre-wrap rounded border border-[var(--border)] bg-[var(--card)] p-2 font-mono text-[10px] leading-relaxed text-[var(--foreground)]">
+              {sqlText}
+            </pre>
+          ) : (
+            <p className="mt-1 text-[10px] text-[var(--muted-foreground)]">
+              该洞察按结构化查询自动生成 SQL；点击「执行」后在这里显示。
+            </p>
+          )}
+          <div className="mt-1.5 text-[9px] text-[var(--muted-foreground)]">
+            图表: {item.chart.chartType} | 映射: {Object.entries(item.chart).filter(([key]) => key !== "chartType").map(([key, value]) => `${key}=${Array.isArray(value) ? value.join("/") : value}`).join(", ") || "无"}
           </div>
         </div>
       )}

@@ -33,6 +33,8 @@ interface SessionViewProps {
   insights?: InsightItem[]
   /** 正在执行的洞察卡片索引（卡片 loading 态） */
   executingInsightIndex?: number | null
+  /** 当前已载入会话的洞察索引（其 SQL 即会话 compiledSql） */
+  activeInsightIndex?: number | null
   /** 洞察卡片级错误（当前执行卡片的失败信息） */
   insightError?: string | null
   /** 执行第 index 条洞察（父组件 dispatch 编译/执行管线） */
@@ -48,6 +50,7 @@ export function SessionView({
   onCopySql,
   insights = [],
   executingInsightIndex = null,
+  activeInsightIndex = null,
   insightError = null,
   onExecuteInsight,
   tab: tabProp,
@@ -164,6 +167,7 @@ export function SessionView({
                     key={`${item.title}-${i}`}
                     index={i}
                     item={item}
+                    sql={i === activeInsightIndex ? sql || item.sql || null : item.sql || null}
                     onExecute={() => {
                       changeTab("explore")
                       onExecuteInsight?.(i)
