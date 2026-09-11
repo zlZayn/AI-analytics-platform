@@ -175,6 +175,9 @@ def assert_workspace_payload(
     expected_sql: str = EXPECTED_WORKSPACE_SQL,
 ) -> None:
     page.wait_for_url("**/workspace**", timeout=15_000)
+    # 布局可拖拽（回归）：桌面视口下工作台纵向（编辑器高度）与横向（AI/结果宽度）句柄都在
+    if page.get_by_role("separator").count() < 2:
+        raise AssertionError("expected the workspace split handles on a desktop viewport")
     # 导航入口强制表格态：探索显示图表引导，数据表由「明细」承担
     page.get_by_test_id("chart-guide").wait_for(state="visible", timeout=20_000)
     if page.get_by_test_id("chart-surface").count() != 0:
@@ -275,9 +278,8 @@ def main() -> None:
 
         # R 工作台错误态（P1-5b）：WebR 初始化失败时
         # 输出区离开「等待运行…」占位并显示错误，状态栏不误显「就绪」
-        # 入口：结果头部条「导出 ▼」菜单 →「R 分析」
-        page.get_by_role("button", name="导出", exact=True).click()
-        page.get_by_role("menuitem", name="R 分析", exact=True).click()
+        # 入口：结果头部条一级按钮「R 分析」（不再藏在「导出 ▼」菜单里）
+        page.get_by_role("button", name="R 分析", exact=True).click()
         page.get_by_text("R 分析 · df（", exact=False).wait_for(state="visible", timeout=10000)
         page.get_by_text("等待运行…", exact=False).wait_for(state="hidden", timeout=20000)
         page.get_by_text("R 环境初始化失败", exact=False).wait_for(state="visible", timeout=20000)

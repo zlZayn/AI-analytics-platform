@@ -23,6 +23,10 @@ import type { ChartMapping } from "@/components/chart"
 import { Play, Loader2, Send, Save } from "lucide-react"
 import { AiMentionInput } from "@/components/ai-mention-input"
 import { normalizeWorkspaceSql, workspaceSqlKey } from "@/lib/workspace-navigation"
+import { SPLIT_PRESETS } from "@/lib/split"
+import { useSplitRatio } from "@/hooks/useSplitRatio"
+import { SplitHandle } from "@/components/ui/split-handle"
+import type { CSSProperties } from "react"
 import { loadWorkspace, saveWorkspace } from "@/lib/workspace-store"
 
 // 本地 monaco（惰性配置：SSR 安全，配置完成前编辑器渲染占位）
@@ -136,6 +140,20 @@ export function SessionWorkspace({ connectionId, initialSql }: SessionWorkspaceP
     initialInsights: restored?.insights,
   })
 
+  // 布局分割：统一句柄 + 本地记忆（编辑器高度 / AI 与结果列宽），窄屏不显示句柄、回到纵向滚动
+  const workspaceRef = useRef<HTMLDivElement>(null)
+  const columnsRef = useRef<HTMLDivElement>(null)
+  const editorSplit = useSplitRatio(
+    SPLIT_PRESETS.workspaceEditor.key,
+    SPLIT_PRESETS.workspaceEditor.defaultRatio,
+    SPLIT_PRESETS.workspaceEditor.bounds,
+  )
+  const columnsSplit = useSplitRatio(
+    SPLIT_PRESETS.workspaceColumns.key,
+    SPLIT_PRESETS.workspaceColumns.defaultRatio,
+    SPLIT_PRESETS.workspaceColumns.bounds,
+  )
+
   // 持久化：会话骨架 + 洞察流，立即写（会话对象只在 dispatch 时变化，粒度足够粗）；
   // 不做防抖——组件卸载时定时器会被 cleanup 取消，反而丢掉最后一刻的状态。
   // 空会话不写，避免留下无意义快照。
@@ -182,15 +200,28 @@ export function SessionWorkspace({ connectionId, initialSql }: SessionWorkspaceP
   }
 
   return (
-    <div className="flex h-full min-h-0 flex-col overflow-y-auto p-3 sm:p-4 lg:overflow-hidden">
+    <div
+      style={
+        {
+          "--editor-grow": editorSplit.ratio,
+          "--content-grow": 1 - editorSplit.ratio,
+          "--ai-grow": columnsSplit.ratio,
+          "--result-grow": 1 - columnsSplit.ratio,
+        } as CSSProperties
+      }
+      className="flex h-full min-h-0 flex-col overflow-y-auto p-3 sm:p-4 lg:overflow-hidden"
+    >
       {/* 顶部：标题 + 洞察（执行状态只在结果区头部显示一处） */}
       <div className="min-w-0 px-1 pb-3">
         <div className="text-sm font-medium truncate">{title || "会话工作台"}</div>
         {insight && <p className="text-xs text-[var(--muted-foreground)] mt-0.5 line-clamp-2">{insight}</p>}
       </div>
 
-      {/* SQL 编辑器（草稿输入，执行时 dispatch SET_COMPILED_SQL） */}
-      <div className="flex h-48 shrink-0 min-h-0 flex-col gap-2 sm:h-56 lg:h-48">
+      {/* 主区：编辑器与中段共享高度，lg 及以上可用分割条调整 */}
+      <div ref={workspaceRef} className="flex min-h-0 flex-col lg:min-h-0 lg:flex-1">
+
+      {/* SQL 编辑器（草稿输入，执行时 dispatch SET_COMPILED_SQL）；高度由分割条决定 */}
+      <div className="flex min-h-[160px] shrink-0 flex-col gap-2 max-lg:h-48 max-lg:sm:h-56 lg:min-h-0 lg:shrink lg:[flex-basis:0] lg:[flex-grow:var(--editor-grow)]">
         <div className="flex items-center justify-between">
           <span className="text-xs font-medium text-[var(--muted-foreground)]">SQL 编辑器</span>
           <div className="flex items-center gap-1.5">
@@ -233,12 +264,32 @@ export function SessionWorkspace({ connectionId, initialSql }: SessionWorkspaceP
         </div>
       </div>
 
-      {/* 中间：AI 助手 + 结果 */}
-      <div className="flex min-h-0 flex-none flex-col gap-3 pt-3 lg:flex-1 lg:flex-row lg:overflow-hidden">
+      <SplitHandle
+        axis="y"
+        ratio={editorSplit.ratio}
+        bounds={SPLIT_PRESETS.workspaceEditor.bounds}
+        onPreview={editorSplit.preview}
+        onCommit={editorSplit.commit}
+        onReset={editorSplit.reset}
+        containerRef={workspaceRef}
+        label="调整 SQL 编辑器高度（双击或 Home 复位）"
+        className="hidden lg:flex"
+      />
+
+      {/* 中间：AI 助手 + 结果（lg 及以上可用分割条调整列宽） */}
+      <div
+        ref={columnsRef}
+        className="flex min-h-0 flex-none flex-col gap-3 pt-3 lg:min-h-0 lg:flex-row lg:gap-0 lg:pt-0 lg:overflow-hidden lg:[flex-basis:0] lg:[flex-grow:var(--content-grow)]"
+      >
         {/* AI 助手 */}
-        <div className="flex min-h-[260px] min-w-0 flex-1 flex-col rounded-lg border lg:min-h-0 lg:flex-[2]">
+        <div className="flex min-h-[260px] min-w-0 flex-1 flex-col rounded-lg border lg:min-h-0 lg:[flex-basis:0] lg:[flex-grow:var(--ai-grow)]">
           <div className="px-3 py-2 border-b flex items-center justify-between">
-            <span className="text-xs font-medium text-[var(--muted-foreground)]">AI 助手</span>
+            <span className="flex min-w-0 items-center gap-2">
+              <span className="text-xs font-medium text-[var(--muted-foreground)]">AI 助手</span>
+              <span className="hidden truncate text-[10px] text-[var(--muted-foreground)] sm:inline">
+                提问 → 给出可执行洞察 → 点卡片「执行」看结果
+              </span>
+            </span>
             {conversationHistory.length > 0 && (
               <Button
                 variant="ghost"
@@ -305,8 +356,21 @@ export function SessionWorkspace({ connectionId, initialSql }: SessionWorkspaceP
           </div>
         </div>
 
+        <SplitHandle
+          axis="x"
+          ratio={columnsSplit.ratio}
+          bounds={SPLIT_PRESETS.workspaceColumns.bounds}
+          onPreview={columnsSplit.preview}
+          onCommit={columnsSplit.commit}
+          onReset={columnsSplit.reset}
+          containerRef={columnsRef}
+          thickness={8}
+          label="调整 AI 助手与结果区宽度（双击或 Home 复位）"
+          className="hidden lg:flex"
+        />
+
         {/* 结果（阶段四：SessionView 按状态渲染 loading / error / 图表，并展示警告与调整） */}
-        <div className="flex min-h-[360px] min-w-0 flex-1 flex-col lg:min-h-0 lg:flex-[3]">
+        <div className="flex min-h-[360px] min-w-0 flex-1 flex-col lg:min-h-0 lg:[flex-basis:0] lg:[flex-grow:var(--result-grow)]">
           <SessionView
             session={session}
             onMappingChange={handleMappingChange}
@@ -323,6 +387,7 @@ export function SessionWorkspace({ connectionId, initialSql }: SessionWorkspaceP
             tab={resultTab}
             onTabChange={setResultTab}
           />
+        </div>
         </div>
       </div>
 

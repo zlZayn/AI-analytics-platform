@@ -4,13 +4,12 @@
 - `r-workbench-editor.tsx`：本地 Monaco 编辑器。
 - `r-workbench-output.tsx` / `output-item.tsx`：stdout、错误和图像输出。
 - `r-workbench-toolbar.tsx` / `status-bar.tsx`：运行、清空、取消与状态。
-- `__tests__/`：面板布局纯逻辑测试，详见 [__tests__/README.md](__tests__/README.md)。
 
 ## 布局契约（面板不参与结果区 flex 流）
 
 - **呈现**：`fixed inset-y-0 right-0 z-[60]`，宽 620px（窄屏全宽），打开时从右侧平移进入；**结果区布局完全不受影响**（旧实现内嵌在结果区里，一打开就把编辑器挤成细长条）。
 - **纵向四段**：头部（身份 + 数据规模 + 关闭）→ 工具栏（运行/中断/清空/复制）→ 内容（代码 + 分割条 + 输出）→ 状态栏；每段自己 `shrink-0`，滚动只发生在代码/输出内部。
-- **代码/输出比例可拖拽**（`role="separator"`，双击或 Home 复位），比例写 `localStorage`（默认 62%，夹在 35%..80%，两侧都有最小高度）。
+- **代码/输出比例可拖拽**：复用 `ui/split-handle` + `hooks/useSplitRatio` + `SPLIT_PRESETS.rWorkbench`（默认 62%，夹在 35%..80%，两侧都有最小高度；比例本地记忆）。
 - **关闭 = 平移出屏**：首次打开后保持挂载（由 `SessionView` 的 `rWorkbenchPinned` 在事件处理器里决定），代码与输出在关闭/重开之间保留；关闭后 `aria-hidden + inert`，不拦截结果区交互。
 - **模板先于运行时**：打开即写入 R 模板，初始化失败（离线/CDN 不可用）也能读、改、复制代码。
 

@@ -9,10 +9,10 @@
 ## 决策
 
 - 结果区三层 Tabs（`ui/tabs` variant=line，Base UI `data-active`）：洞察（InsightCard 卡片流，AI 多结果全部消费，结论前置默认激活）/ 探索（ResultPanel 图表配置与渲染）/ 明细（table-view 虚拟滚动，复用图表系统 table 分发；2026-09-11 起为数据表唯一 owner，见 [数据表单一 owner](2026-09-11-detail-table-single-owner.md)）
-- 顶部工具条收敛为「导出 ▼」下拉（CSV / JSON / 复制 R 模板 / R 分析），保留全部 title 提示语（BOM 兼容说明等）
+- 顶部工具条收敛为「导出 ▼」下拉（CSV / JSON / 复制 R 模板 / R 分析），保留全部 title 提示语（BOM 兼容说明等）；2026-09-11 起 R 分析提升为一级按钮、导出只留前三项，见 [结果工具条分层](2026-09-11-result-toolbar-export-vs-actions.md)
 - 洞察为会话外临时状态（`insightItems` 局部 useState，不进 AnalysisSession）；新洞察到达由事件驱动切洞察 Tab（`sendAi` 成功后），点卡片执行切探索 Tab；第一条仍自动执行（延续现状流程，结论前置）
 - Tab 面板 `keepMounted`（Base UI TabsPanel）：切换不丢图表配置局部状态
-- R 工作台入口移入导出菜单，面板仍内嵌结果区底部
+- R 工作台入口先移入导出菜单（2026-09-11 又提回一级按钮），面板自 2026-09-11 起为右侧停靠面板（见 [R 分析工作台重做](2026-09-11-r-workbench-docked-panel.md)）
 
 ## 替代方案（强制）
 

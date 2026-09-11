@@ -147,9 +147,13 @@ export function SessionView({
           <Tabs value={tab} onValueChange={(v) => changeTab(String(v))} className="flex min-h-0 flex-1 flex-col gap-0">
             <div className="shrink-0 px-3 pt-2">
               <TabsList variant="line">
-                {hasInsights && <TabsTrigger value="insights">洞察 {insights.length}</TabsTrigger>}
-                <TabsTrigger value="explore">探索</TabsTrigger>
-                <TabsTrigger value="data">明细</TabsTrigger>
+                {hasInsights && (
+                  <TabsTrigger value="insights" title="AI 给出的结论与可执行建议">
+                    洞察 {insights.length}
+                  </TabsTrigger>
+                )}
+                <TabsTrigger value="explore" title="把结果画成图（可配置列映射）">探索</TabsTrigger>
+                <TabsTrigger value="data" title="原始查询结果，不经过图表过滤">明细</TabsTrigger>
               </TabsList>
             </div>
 

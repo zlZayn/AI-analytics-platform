@@ -18,6 +18,9 @@ import { RWorkbenchEditor } from "./r-workbench-editor"
 import { RWorkbenchOutput } from "./r-workbench-output"
 import { RWorkbenchStatusBar } from "./r-workbench-status-bar"
 import { useWebR } from "@/hooks/useWebR"
+import { useSplitRatio } from "@/hooks/useSplitRatio"
+import { SplitHandle } from "@/components/ui/split-handle"
+import { SPLIT_PRESETS } from "@/lib/split"
 import { generateRTemplate } from "@/lib/r-bridge"
 import { withTimeout } from "@/lib/webr-client"
 import type { SemanticDataset } from "@/types/session"
@@ -28,43 +31,18 @@ interface RWorkbenchProps {
   onClose: () => void
 }
 
-/** 代码/输出默认占比与边界：代码为主，输出不被压到看不见 */
-export const DEFAULT_SPLIT_RATIO = 0.62
-const MIN_SPLIT_RATIO = 0.35
-const MAX_SPLIT_RATIO = 0.8
-const SPLITTER_HEIGHT = 20
-const SPLIT_STORAGE_KEY = "analytics-r-workbench-split"
-
-export function clampSplitRatio(value: number): number {
-  if (!Number.isFinite(value)) return DEFAULT_SPLIT_RATIO
-  return Math.min(MAX_SPLIT_RATIO, Math.max(MIN_SPLIT_RATIO, value))
-}
-
-function readSplitRatio(): number {
-  if (typeof window === "undefined") return DEFAULT_SPLIT_RATIO
-  try {
-    const raw = window.localStorage.getItem(SPLIT_STORAGE_KEY)
-    return raw === null ? DEFAULT_SPLIT_RATIO : clampSplitRatio(Number(raw))
-  } catch {
-    return DEFAULT_SPLIT_RATIO
-  }
-}
-
-function writeSplitRatio(ratio: number): void {
-  try {
-    window.localStorage.setItem(SPLIT_STORAGE_KEY, String(ratio))
-  } catch {
-    // 存储不可用（隐私模式）：本次拖拽仍生效，仅不记忆
-  }
-}
+// 代码/输出分割：统一句柄 + 统一预设（src/lib/split.ts 的 SPLIT_PRESETS.rWorkbench）
 
 export function RWorkbench({ dataset, open, onClose }: RWorkbenchProps) {
   const webR = useWebR()
   const [code, setCode] = useState("")
   const [injectedFor, setInjectedFor] = useState<SemanticDataset | null>(null)
-  const [splitRatio, setSplitRatio] = useState(() => readSplitRatio())
+  const panelSplit = useSplitRatio(
+    SPLIT_PRESETS.rWorkbench.key,
+    SPLIT_PRESETS.rWorkbench.defaultRatio,
+    SPLIT_PRESETS.rWorkbench.bounds,
+  )
   const contentRef = useRef<HTMLDivElement | null>(null)
-  const splitRef = useRef(splitRatio)
   const initializedRef = useRef(false)
 
   // actions 为稳定引用（useWebR useMemo）；effect 依赖它们不会因渲染变化重触发
@@ -146,44 +124,6 @@ export function RWorkbench({ dataset, open, onClose }: RWorkbenchProps) {
     return () => document.removeEventListener("keydown", onKeyDown)
   }, [open, onClose, clearOutput, interrupt])
 
-  /** 拖拽分割：按内容区高度换算代码占比（夹在 35%..80%），松手写回本地 */
-  function startSplit(event: React.PointerEvent<HTMLDivElement>) {
-    const container = contentRef.current
-    if (!container) return
-    event.preventDefault()
-    const rect = container.getBoundingClientRect()
-    const move = (pointerEvent: PointerEvent) => {
-      const usable = rect.height - SPLITTER_HEIGHT
-      if (usable <= 0) return
-      const next = clampSplitRatio((pointerEvent.clientY - rect.top) / usable)
-      splitRef.current = next
-      setSplitRatio(next)
-    }
-    const stop = () => {
-      window.removeEventListener("pointermove", move)
-      writeSplitRatio(splitRef.current)
-    }
-    window.addEventListener("pointermove", move)
-    window.addEventListener("pointerup", stop, { once: true })
-  }
-
-  /** 键盘可达：↑↓ 各 5%，Home 复位 */
-  function handleSplitKey(event: React.KeyboardEvent<HTMLDivElement>) {
-    const steps: Record<string, number> = { ArrowUp: -0.05, ArrowDown: 0.05 }
-    if (event.key in steps) {
-      const next = clampSplitRatio(splitRef.current + steps[event.key])
-      splitRef.current = next
-      setSplitRatio(next)
-      writeSplitRatio(next)
-      event.preventDefault()
-    } else if (event.key === "Home") {
-      splitRef.current = DEFAULT_SPLIT_RATIO
-      setSplitRatio(DEFAULT_SPLIT_RATIO)
-      writeSplitRatio(DEFAULT_SPLIT_RATIO)
-      event.preventDefault()
-    }
-  }
-
   async function handleRun() {
     try {
       await withTimeout(execute(code), 60_000)
@@ -221,7 +161,7 @@ export function RWorkbench({ dataset, open, onClose }: RWorkbenchProps) {
       <div ref={contentRef} className="flex min-h-0 flex-1 flex-col overflow-auto p-3">
         <section
           aria-label="R 代码"
-          style={{ flexGrow: splitRatio, flexBasis: 0 }}
+          style={{ flexGrow: panelSplit.ratio, flexBasis: 0 }}
           className="flex min-h-[180px] flex-col overflow-hidden rounded-md border border-[var(--border)]"
         >
           <div className="flex shrink-0 items-center justify-between border-b border-[var(--border)] bg-[var(--muted)] px-2 py-1">
@@ -233,26 +173,20 @@ export function RWorkbench({ dataset, open, onClose }: RWorkbenchProps) {
           </div>
         </section>
 
-        <div
-          role="separator"
-          aria-orientation="horizontal"
-          aria-label="调整代码与输出高度（双击或 Home 复位）"
-          tabIndex={0}
-          onPointerDown={startSplit}
-          onDoubleClick={() => {
-            splitRef.current = DEFAULT_SPLIT_RATIO
-            setSplitRatio(DEFAULT_SPLIT_RATIO)
-            writeSplitRatio(DEFAULT_SPLIT_RATIO)
-          }}
-          onKeyDown={handleSplitKey}
-          className="group flex h-5 shrink-0 cursor-row-resize items-center justify-center outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]"
-        >
-          <span className="h-0.5 w-10 rounded bg-[var(--border)] transition-colors group-hover:bg-[var(--ring)]" />
-        </div>
+        <SplitHandle
+          axis="y"
+          ratio={panelSplit.ratio}
+          bounds={SPLIT_PRESETS.rWorkbench.bounds}
+          onPreview={panelSplit.preview}
+          onCommit={panelSplit.commit}
+          onReset={panelSplit.reset}
+          containerRef={contentRef}
+          label="调整代码与输出高度（双击或 Home 复位）"
+        />
 
         <section
           aria-label="R 输出"
-          style={{ flexGrow: 1 - splitRatio, flexBasis: 0 }}
+          style={{ flexGrow: 1 - panelSplit.ratio, flexBasis: 0 }}
           className="flex min-h-[120px] flex-col overflow-hidden rounded-md border border-[var(--border)]"
         >
           <div className="shrink-0 border-b border-[var(--border)] bg-[var(--muted)] px-2 py-1 text-[10px] font-medium text-[var(--muted-foreground)]">
