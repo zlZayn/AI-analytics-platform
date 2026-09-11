@@ -28,6 +28,8 @@ interface SplitHandleProps {
   containerRef: React.RefObject<HTMLElement | null>
   /** 拖拽方向占用的像素，需与句柄视觉厚度一致 */
   thickness?: number
+  /** 比例从对侧量起（如右侧停靠面板：往左拖变宽） */
+  invert?: boolean
   label: string
   className?: string
 }
@@ -43,6 +45,7 @@ export function SplitHandle({
   onReset,
   containerRef,
   thickness = 20,
+  invert = false,
   label,
   className,
 }: SplitHandleProps) {
@@ -55,7 +58,8 @@ export function SplitHandle({
     const move = (pointerEvent: PointerEvent) => {
       if (usable <= 0) return
       const offset = axis === "y" ? pointerEvent.clientY - rect.top : pointerEvent.clientX - rect.left
-      onPreview(clampRatio(offset / usable, ratio, bounds))
+      const position = offset / usable
+      onPreview(clampRatio(invert ? 1 - position : position, ratio, bounds))
     }
     const stop = () => {
       window.removeEventListener("pointermove", move)
@@ -69,7 +73,8 @@ export function SplitHandle({
     const decrease = axis === "y" ? "ArrowUp" : "ArrowLeft"
     const increase = axis === "y" ? "ArrowDown" : "ArrowRight"
     if (event.key === decrease || event.key === increase) {
-      onPreview(clampRatio(ratio + (event.key === increase ? KEY_STEP : -KEY_STEP), ratio, bounds))
+      const step = event.key === increase ? KEY_STEP : -KEY_STEP
+      onPreview(clampRatio(ratio + (invert ? -step : step), ratio, bounds))
       onCommit()
       event.preventDefault()
     } else if (event.key === "Home") {

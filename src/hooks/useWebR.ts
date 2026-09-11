@@ -9,6 +9,7 @@ export interface UseWebRReturn {
   error?: string
   packages: string[]
   busy: boolean
+  injecting: boolean
   output: ROutputItem[]
   images: ImageBitmap[]
   lastExecMs: number | null
@@ -19,6 +20,7 @@ export interface UseWebRReturn {
   injectData: (ds: SemanticDataset) => Promise<void>
   interrupt: () => Promise<void>
   clearOutput: () => void
+  restoreOutput: (lines: string[]) => void
   destroy: () => void
   reportError: (message: string) => void
   runStats: (code: string) => Promise<string>
@@ -51,6 +53,7 @@ export function useWebR(): UseWebRReturn {
       injectData: (ds: SemanticDataset) => client.injectData(ds),
       interrupt: () => client.interrupt(),
       clearOutput: () => client.clearOutput(),
+      restoreOutput: (lines: string[]) => client.restoreOutput(lines),
       destroy: () => client.destroy(),
       reportError: (message: string) => client.reportError(message),
       runStats: (code: string) => client.runStats(code),
@@ -63,6 +66,7 @@ export function useWebR(): UseWebRReturn {
     error: state.error,
     packages: state.packages,
     busy: state.busy,
+    injecting: state.injecting,
     output: state.output,
     images: state.images,
     lastExecMs: state.lastExecMs,

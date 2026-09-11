@@ -11,6 +11,7 @@ import type { InsightItem } from "@/lib/ai-contract"
 import { buildInitFromAi, describeAskFailure, fallbackSqlOf } from "@/lib/ai-session-mapping"
 import { ApiRequestError, fetchApi } from "@/lib/client-api"
 import { extractMentions } from "@/lib/mention"
+import { appendHistory } from "@/lib/history-store"
 import type { ApiResponse } from "@/types"
 import type { SessionAction } from "@/types/actions"
 import type { AnalysisSession, ConversationMessage } from "@/types/session"
@@ -107,6 +108,14 @@ export function useAiAssistant({
       }
       const items = data.data.items
       if (items.length === 0) {
+        appendHistory({
+          kind: "ai",
+          connectionId: session.id,
+          question,
+          ok: false,
+          summary: data.data.diagnostics?.message || "AI 未生成有效结果",
+          items: [],
+        })
         // 失败原因由后端给出（空响应 / 截断 / 非法 JSON / 不符合契约），前端只负责显示
         const hint = data.data.diagnostics?.message || "AI 未生成有效结果"
         dispatch({ type: "ADD_CONVERSATION", message: assistantMessage(hint) })
@@ -119,9 +128,18 @@ export function useAiAssistant({
       applyInsight(items[0], question)
       dispatch({ type: "ADD_CONVERSATION", message: assistantMessage(items[0].insight || items[0].title) })
       notify(`已生成 ${items.length} 条分析，执行第 1 条`, "success")
+      appendHistory({
+        kind: "ai",
+        connectionId: session.id,
+        question,
+        ok: true,
+        summary: items[0].insight || items[0].title,
+        items,
+      })
     } catch (error) {
       const { message, notConfigured } = describeAskFailure(error)
       dispatch({ type: "ADD_CONVERSATION", message: assistantMessage(message) })
+      appendHistory({ kind: "ai", connectionId: session.id, question, ok: false, summary: message, items: [] })
       if (notConfigured) {
         setUnavailable(true)
         notify("AI 服务未配置，请在 .env 文件中设置 AI_API_KEY", "warning")

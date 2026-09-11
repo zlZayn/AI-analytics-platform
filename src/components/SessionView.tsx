@@ -230,6 +230,7 @@ export function SessionView({
           dataset={result}
           open={rWorkbenchOpen}
           onClose={() => setRWorkbenchOpen(false)}
+          scopeId={session.id}
         />
       )}
     </div>

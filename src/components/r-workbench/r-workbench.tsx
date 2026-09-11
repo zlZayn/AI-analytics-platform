@@ -21,7 +21,8 @@ import { useWebR } from "@/hooks/useWebR"
 import { useSplitRatio } from "@/hooks/useSplitRatio"
 import { SplitHandle } from "@/components/ui/split-handle"
 import { SPLIT_PRESETS } from "@/lib/split"
-import { generateRTemplate } from "@/lib/r-bridge"
+import { buildDataFrameCode, generateRTemplate, stripDataFrameAssignment } from "@/lib/r-bridge"
+import { appendHistory, latestRHistory, toPersistedOutput } from "@/lib/history-store"
 import { withTimeout } from "@/lib/webr-client"
 import type { SemanticDataset } from "@/types/session"
 
@@ -29,11 +30,13 @@ interface RWorkbenchProps {
   dataset: SemanticDataset
   open: boolean
   onClose: () => void
+  /** 历史记录作用域（会话 id）：R 执行历史与 AI 会话共用同一份统一历史 */
+  scopeId: string
 }
 
 // 代码/输出分割：统一句柄 + 统一预设（src/lib/split.ts 的 SPLIT_PRESETS.rWorkbench）
 
-export function RWorkbench({ dataset, open, onClose }: RWorkbenchProps) {
+export function RWorkbench({ dataset, open, onClose, scopeId }: RWorkbenchProps) {
   const webR = useWebR()
   const [code, setCode] = useState("")
   const [injectedFor, setInjectedFor] = useState<SemanticDataset | null>(null)
@@ -44,9 +47,30 @@ export function RWorkbench({ dataset, open, onClose }: RWorkbenchProps) {
   )
   const contentRef = useRef<HTMLDivElement | null>(null)
   const initializedRef = useRef(false)
+  const codeRef = useRef("")
+  const loggedExecRef = useRef<number | null>(null)
+  const restoredOutputRef = useRef(false)
+  const viewportRef = useRef<HTMLElement | null>(null)
+
+  // 宽度以像素语义为准（420..1200px），换算成视口比例交给统一句柄
+  const viewportWidth = typeof window === "undefined" ? 1440 : window.innerWidth
+  const widthBounds = { min: 420 / viewportWidth, max: Math.min(1200, viewportWidth) / viewportWidth }
+  const widthSplit = useSplitRatio(
+    SPLIT_PRESETS.rWorkbenchWidth.key,
+    Math.min(620, viewportWidth) / viewportWidth,
+    widthBounds,
+  )
+
+  useEffect(() => {
+    viewportRef.current = document.documentElement
+  }, [])
+
+  useEffect(() => {
+    codeRef.current = code
+  }, [code])
 
   // actions 为稳定引用（useWebR useMemo）；effect 依赖它们不会因渲染变化重触发
-  const { init, ensurePackages, injectData, clearOutput, interrupt, execute, reportError } = webR
+  const { init, ensurePackages, injectData, clearOutput, interrupt, execute, reportError, restoreOutput } = webR
 
   // 打开时：初始化 WebR + 注入数据 + 填充模板
   useEffect(() => {
@@ -54,10 +78,15 @@ export function RWorkbench({ dataset, open, onClose }: RWorkbenchProps) {
     let cancelled = false
 
     async function bootstrap() {
-      // 先给模板：运行时不初始化（离线/CDN 不可用）也能读、改、复制代码
+      // 代码来源：用户改过 → 保留；否则优先恢复历史代码（去掉旧数据块，df 必须来自当前注入），
+      // 无历史时用按当前数据集生成的模板。运行时不初始化（离线/CDN 不可用）也能读、改、复制。
+      const template = generateRTemplate(dataset)
+      const history = scopeId ? latestRHistory(scopeId) : null
       setCode((prev) => {
-        if (prev.trim().length > 0 && prev !== generateRTemplate(dataset)) return prev
-        return generateRTemplate(dataset)
+        if (prev.trim().length > 0 && prev !== template) return prev
+        if (!history?.code.trim()) return template
+        const analysisOnly = stripDataFrameAssignment(history.code)
+        return analysisOnly.trim() ? `${buildDataFrameCode(dataset)}\n\n${analysisOnly}` : template
       })
       try {
         await init()
@@ -67,6 +96,11 @@ export function RWorkbench({ dataset, open, onClose }: RWorkbenchProps) {
         await injectData(dataset)
         if (cancelled) return
         setInjectedFor(dataset)
+        // 回放上次的文本输出（图片不持久化）：本组件生命周期内只回放一次，避免覆盖本次会话的输出
+        if (!restoredOutputRef.current && history?.output.length) {
+          restoredOutputRef.current = true
+          restoreOutput(history.output)
+        }
       } catch {
         // init/inject 失败：错误写入输出区（离开「等待运行…」占位），
         // 具体原因经 webR.error 显示在状态栏（此处不读 state，避免 effect 依赖循环）
@@ -78,7 +112,7 @@ export function RWorkbench({ dataset, open, onClose }: RWorkbenchProps) {
     return () => {
       cancelled = true
     }
-  }, [open, dataset, init, ensurePackages, injectData, reportError])
+  }, [open, dataset, init, ensurePackages, injectData, reportError, restoreOutput, scopeId])
 
   // 数据集变化且工作台已打开：重新注入（维护已打开状态下的数据新鲜度）
   useEffect(() => {
@@ -124,6 +158,21 @@ export function RWorkbench({ dataset, open, onClose }: RWorkbenchProps) {
     return () => document.removeEventListener("keydown", onKeyDown)
   }, [open, onClose, clearOutput, interrupt])
 
+  // 每次执行完成（lastExecMs 变化）落一条 R 历史：文本输出可回放，图片不持久化
+  useEffect(() => {
+    if (webR.lastExecMs === null || loggedExecRef.current === webR.lastExecMs || !scopeId) return
+    loggedExecRef.current = webR.lastExecMs
+    const textItems = webR.output.filter((item) => typeof item.data === "string")
+    if (textItems.length === 0) return
+    appendHistory({
+      kind: "r",
+      connectionId: scopeId,
+      code: codeRef.current,
+      output: toPersistedOutput(textItems),
+      ok: !textItems.some((item) => item.type === "error"),
+    })
+  }, [webR.lastExecMs, webR.output, scopeId])
+
   async function handleRun() {
     try {
       await withTimeout(execute(code), 60_000)
@@ -142,14 +191,28 @@ export function RWorkbench({ dataset, open, onClose }: RWorkbenchProps) {
       aria-label="R 分析工作台"
       aria-hidden={!open}
       inert={!open}
-      className={`fixed inset-y-0 right-0 z-[60] flex w-full max-w-[620px] flex-col border-l border-[var(--border)] bg-[var(--card)] shadow-2xl transition-transform duration-200 ease-out ${
+      style={{ width: Math.round(widthSplit.ratio * viewportWidth) }}
+      className={`fixed inset-y-0 right-0 z-[60] flex max-w-full flex-col border-l border-[var(--border)] bg-[var(--card)] shadow-2xl transition-transform duration-200 ease-out ${
         open ? "translate-x-0" : "translate-x-full"
       }`}
     >
+      <SplitHandle
+        axis="x"
+        invert
+        ratio={widthSplit.ratio}
+        bounds={widthBounds}
+        onPreview={widthSplit.preview}
+        onCommit={widthSplit.commit}
+        onReset={widthSplit.reset}
+        containerRef={viewportRef}
+        thickness={8}
+        label="调整 R 面板宽度（双击或 Home 复位）"
+        className="absolute inset-y-0 left-0 z-10 -ml-1 hidden lg:flex"
+      />
       <RWorkbenchHeader rowCount={dataset.rows.length} colCount={dataset.columns.length} onClose={onClose} />
 
       <RWorkbenchToolbar
-        busy={webR.busy}
+        busy={webR.busy || webR.injecting}
         onRun={handleRun}
         onInterrupt={() => void interrupt()}
         onClear={clearOutput}
@@ -204,7 +267,7 @@ export function RWorkbench({ dataset, open, onClose }: RWorkbenchProps) {
         busy={webR.busy}
         status={webR.status}
         error={webR.error}
-        pendingInjection={injectedFor === null && webR.status === "ready"}
+        injecting={webR.injecting || (injectedFor === null && webR.status === "ready")}
       />
     </aside>
   )

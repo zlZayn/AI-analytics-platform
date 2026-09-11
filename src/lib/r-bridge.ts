@@ -68,6 +68,30 @@ function escapeString(s: string): string {
   return s.replace(/\\/g, "\\\\").replace(/"/g, '\\"')
 }
 
+/**
+ * 去掉历史代码里的数据加载块（`df <- data.frame(…)`）。
+ *
+ * 恢复历史必须用它：旧块会把 df 换成上一次的数据（用户反馈过"df 没更新"）。
+ * 恢复时用当前数据集重新注入，只保留用户的分析代码。
+ */
+export function stripDataFrameAssignment(code: string): string {
+  const lines = code.split("\n")
+  const kept: string[] = []
+  let skipping = false
+  for (const line of lines) {
+    if (!skipping && /^df\s*<-\s*data\.frame\(/.test(line.trim())) {
+      skipping = true
+      continue
+    }
+    if (skipping) {
+      if (line.trim() === ")") skipping = false
+      continue
+    }
+    kept.push(line)
+  }
+  return kept.join("\n").replace(/^\n+/, "")
+}
+
 /** 数据集 → R data.frame 构建代码（列向量形式） */
 export function buildDataFrameCode(dataset: SemanticDataset): string {
   const colCode = dataset.columns.map((col) => {

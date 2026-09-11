@@ -3,7 +3,7 @@
 - `button.tsx`、`input.tsx`、`label.tsx`：表单与操作基础件。
 - `tabs.tsx`、`dialog.tsx`、`select.tsx`、`dropdown-select.tsx`：复合交互件。
 - `card.tsx`、`table.tsx`、`badge.tsx`：内容与状态基础件。
-- `split-handle.tsx`：可拖拽分割句柄（受控、无业务状态；指针拖拽 + 方向键 + Home/双击复位），三处布局复用。
+- `split-handle.tsx`：可拖拽分割句柄（受控、无业务状态；指针拖拽 + 方向键 + Home/双击复位；`invert` 支持右侧面板反向比例），四处布局复用。
 
 ## 惯例
 

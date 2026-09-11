@@ -46,6 +46,8 @@ export interface WebRClientState {
   error?: string
   packages: string[]
   busy: boolean
+  /** 正在把当前结果集注入 df：运行前必须先等它完成（否则会用到上一份数据） */
+  injecting: boolean
   output: ROutputItem[]
   images: ImageBitmap[]
   lastExecMs: number | null
@@ -66,6 +68,7 @@ export class WebRClient {
     status: "idle",
     packages: [],
     busy: false,
+    injecting: false,
     output: [],
     images: [],
     lastExecMs: null,
@@ -78,6 +81,8 @@ export class WebRClient {
   private initPromise: Promise<void> | null = null
   /** 输出项唯一 id 计数器（React key 用，截断后不因索引复用错位） */
   private outputId = 0
+  /** 最近一次注入的完成信号：execute 会先等它，保证 df 与当前结果集一致 */
+  private pendingInjection: Promise<void> | null = null
 
   private nextOutputId(): number {
     this.outputId += 1
@@ -160,10 +165,14 @@ export class WebRClient {
     this.patch({ busy: true })
     const start = performance.now()
     try {
+      // 注入未完成时先等它：用户重新查询后立刻点「运行」也不该用到旧 df
+      if (this.pendingInjection) await this.pendingInjection
       const capture = await this.instance.shelter.captureR(code, {
         withAutoprint: true,
         captureStreams: true,
         captureConditions: true,
+        // 默认 false：不开的话用户自己写的 ggplot()/print() 不会产生任何图片
+        captureGraphics: true,
       })
       const mapped: ROutputItem[] = []
       for (const o of capture.output) {
@@ -197,11 +206,28 @@ export class WebRClient {
         ],
       })
     }
-    await this.instance.webR.evalR(buildDataFrameCode(ds))
+    this.patch({ injecting: true })
+    const injection = this.instance.webR.evalR(buildDataFrameCode(ds))
+    // 失败不阻断后续执行：执行路径只等它结束，错误由调用方（工作台）呈现
+    this.pendingInjection = injection.then(() => undefined, () => undefined)
+    try {
+      await injection
+    } finally {
+      this.pendingInjection = null
+      this.patch({ injecting: false })
+    }
   }
 
   async interrupt(): Promise<void> {
     await this.instance?.webR.interrupt()
+  }
+
+  /** 恢复历史文本输出（图片不持久化，故只回放文本行） */
+  restoreOutput(lines: string[]): void {
+    if (lines.length === 0) return
+    this.patch({
+      output: [...this.state.output, ...lines.map((data) => ({ id: this.nextOutputId(), type: "stdout", data }))],
+    })
   }
 
   /** 输出一条错误项（供 UI 在初始化失败等场景提示；execute 未初始化路径亦走 error 项） */

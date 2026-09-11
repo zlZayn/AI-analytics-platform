@@ -48,9 +48,13 @@
 - 颜色唯一来源是 globals.css 语义 token，组件不得自建颜色常量
 - 结果表窗口化渲染（容器实测高度驱动虚拟窗口）、粘性表头、NULL 标记、列宽持久化、键盘滚动
 - 数据表单一 owner：表格归结果区「明细」独占（读原始查询行），探索的 `table` 是未选择图表的哨兵值，不重复渲染
-- 布局可拖拽：工作台纵向（SQL 编辑器高度）、工作台横向（AI 助手与结果区宽度）、R 面板纵向（代码与输出）共用同一 `SplitHandle` 与 `SPLIT_PRESETS`（`lib/split.ts`），比例本地记忆，窄屏不显示句柄
+- 布局可拖拽：工作台纵向（SQL 编辑器高度）、工作台横向（AI 助手与结果区宽度）、R 面板纵向（代码与输出）与 R 面板横向（面板宽度，**像素语义** 420–1200px，由 `ratio × documentElement.clientWidth` 换算）共用同一 `SplitHandle` 与 `SPLIT_PRESETS`（`lib/split.ts`），比例本地记忆，窄屏不显示句柄；同一原语换语义，不新增句柄组件
 - 结果工具条分层：导出 = 带走数据或代码（CSV / JSON / R 模板），**R 分析 = 就地分析的一级动作**，不塞进导出菜单
-- R 分析以**右侧停靠面板**呈现（`fixed`，不占用结果区 flex 流；关闭即平移出屏但保持挂载以保留代码与输出），代码/输出高度可拖拽并持久化
+- R 分析以**右侧停靠面板**呈现（`fixed`，不占用结果区 flex 流；关闭即平移出屏但保持挂载以保留代码与输出），代码/输出高度与面板宽度可拖拽并持久化
+- R 画布所有权：`ImageBitmap` 归 `WebRClient`（组件只 `drawImage` + 零尺寸守卫，**永不 `close()`**——StrictMode 双跑后关掉的位图会让画布退回默认 300×150 空白）；图形捕获必须显式 `captureGraphics: true`（webr 0.6 默认 false，否则 ggplot 无图）
+- R 数据注入与执行串行化：`injectData` 未完成时 `execute()` 先 `await pendingInjection`，`injecting` 对外可见——否则换查询后立刻运行会用旧 `df`
+- 历史记录单一入口 `lib/history-store.ts`：AI 提问与 R 执行共用一份带版本号/上限的会话级历史（仅文本，输出截断，**图片不持久化**）；与 `lib/workspace-store.ts` 分工 = 过往记录 vs 当前状态（键、生命周期、恢复语义都不同，不得合并）
+- R 历史恢复必须与当前结果集一致：回放代码前 `stripDataFrameAssignment` 剥离旧 `df <- data.frame(...)` 并用当前数据集重建；文本输出只在面板生命周期内回放一次
 - AI 输出预算覆盖推理开销（`AI_MAX_TOKENS`，推理 token 也计入）；解析失败只做一次有界修复，失败分类与用户可读提示由后端给出（前端不做判断）
 - 执行入口唯一落地：编辑器执行、导航带 SQL、洞察卡片执行都必须经 `SET_COMPILED_SQL` 真正发起一次执行；会话用 `runId` 标记显式执行请求，编译去重不得吞掉执行意图
 - 工作台按连接持久化会话骨架与洞察流（`lib/workspace-store.ts`，sessionStorage）：不持久化结果行，瞬态状态（compiling/executing）恢复为 ready；恢复不带 compiledSql/querySpec（否则进入即自动重跑），持久化立即写不防抖（卸载时 cleanup 会取消定时器）

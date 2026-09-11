@@ -13,6 +13,8 @@ export const SPLIT_PRESETS = {
   workspaceColumns: { key: "workspace-columns", defaultRatio: 0.4, bounds: { min: 0.25, max: 0.6 } },
   /** R 面板纵向：代码区占面板内容高度的比例 */
   rWorkbench: { key: "r-workbench", defaultRatio: 0.62, bounds: { min: 0.35, max: 0.8 } },
+  /** R 面板宽度：占视口宽度的比例（调用方按像素边界换算，默认约 620px） */
+  rWorkbenchWidth: { key: "r-workbench-width", defaultRatio: 0.43, bounds: { min: 0.25, max: 0.85 } },
 } as const satisfies Record<string, { key: string; defaultRatio: number; bounds: SplitBounds }>
 
 export interface SplitBounds {
