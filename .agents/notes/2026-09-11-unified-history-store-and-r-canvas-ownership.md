@@ -20,7 +20,7 @@
   （2026-09-11 后续：作用域键改为 `connectionId`、版本升 v2、新增统一时间线 UI——见 [统一历史时间线决策](2026-09-11-unified-history-timeline.md)）
 - `src/lib/workspace-store.ts` **不动**：它保存的是「当前工作台状态」（会话骨架 + 洞察流），历史模块保存的是「发生过什么」。
   两者职责不同、键不同、生命周期不同（前者要能自动恢复，后者只做回看与回放）。
-- R 文本输出落历史时必须截断（`R_OUTPUT_MAX_LINES = 40` / `R_OUTPUT_MAX_CHARS = 4000`），**图片不持久化**（ImageBitmap 无法序列化，存 base64 会把 sessionStorage 撑爆）。
+- R 文本输出落历史时必须截断（`R_OUTPUT_MAX_LINES = 40` / `R_OUTPUT_MAX_CHARS = 4000`），**图片不持久化**（ImageBitmap 无法序列化，存 base64 会把本地存储撑爆）。
 
 ### 2. R 画布所有权归 WebRClient
 
@@ -57,7 +57,7 @@
 
 | 方案 | 否掉的原因 |
 | --- | --- |
-| 新建独立 history 存储引擎（IndexedDB / 服务端表） | 当前需求是「刷新/切页内可回看」，sessionStorage 足够；上服务端要引入迁移与权限，违反"复杂逻辑留给后端但别为简单需求造后端" |
+| 新建独立 history 存储引擎（IndexedDB / 服务端表） | 当前需求是「刷新/切页内可回看」，浏览器本地存储足够；上服务端要引入迁移与权限，违反"复杂逻辑留给后端但别为简单需求造后端"（2026-09-11 复审：介质换成 localStorage 以跨重启，见[历史持久化与回放决策](2026-09-11-history-persistence-and-r-replay-rerun.md)） |
 | 把历史并进 `workspace-store` | 会把「当前状态」与「过往记录」耦合进同一份快照，恢复逻辑必须区分两者，反而更难维护 |
 | 组件里 `close()` 位图并每轮重建 | StrictMode / 未来并发渲染下时序不可控，且位图不是组件的资源 |
 | 用 `canvas.toDataURL()` 存图片历史 | 图片体积大、sessionStorage 配额 5MB 级，且回放价值低（代码可重跑） |

@@ -14,21 +14,21 @@
 ## 决策
 
 - **存储分层不动，UI 合一，键统一**：一条历史 = 一个事件流；谁是权威源谁存，读取期合并，绝不双写。
-  SQL 历史权威源是后端 `QueryHistory` 表；AI/R 历史权威源是 sessionStorage。
+  SQL 历史权威源是后端 `QueryHistory` 表；AI/R 历史权威源是前端 history-store（介质 2026-09-11 由 sessionStorage 改为 localStorage，见[历史持久化与回放决策](2026-09-11-history-persistence-and-r-replay-rerun.md)）。
 - **history-store v2**：作用域键 = `connectionId`（与后端历史同轴）；记录新增 `sessionId` 溯源字段；
-  R 记录新增 `sourceSql`（执行时结果集来源 SQL，回放重跑 df 用）。v1 键（`session.id` 作用域）直接放弃——sessionStorage 本就易失。
+  R 记录新增 `sourceSql`（执行时结果集来源 SQL，回放重跑 df 用）。v1 键（`session.id` 作用域）直接放弃。
 - **合并逻辑纯函数化**：`lib/history-merge.ts` 把两来源归一成 `TimelineItem`（kind: sql/ai/r），按 `createdAt` 倒序、
   同刻 SQL 优先、非法时间排末尾不丢弃；`filterTimeline` 匹配标题与代码。UI 组件 `history-timeline.tsx` 只渲染与回调。
 - **回放动作按能力降级，不假装能重放**：
   - SQL → 带 SQL 直达工作台执行（既有契约）
   - AI → 仅当存在通过只读预检的回退 SQL（`sqlValid`）才给「执行」；querySpec 洞察编译产物含参数占位符，不经编译不可得，故只给「复制问题」
-  - R → 「执行」= 带 `sourceSql` 直达工作台 + URL 追加 `r=<history id>`；工作台结果就绪后自动打开面板，按 id 从 history-store 取回该条代码（剥旧 `df` 块重建的既有规则不变）；无 `sourceSql` 的旧记录只给「复制代码」
-- **R 代码不进 URL**：sessionStorage 同标签页共享，按 id 解析即可；URL 只带短 id，避免超长查询串。
+  - R → 「执行」= 带 `sourceSql` 直达工作台 + URL 追加 `r=<history id>`；工作台结果就绪后自动打开面板，按 id 从 history-store 取回该条代码并**重新执行**（2026-09-11 起：清空旧输出/旧图后重跑，图片靠重绘而非持久化）；无 `sourceSql` 的旧记录只给「复制代码」
+- **R 代码不进 URL**：本地历史存储同源共享，按 id 解析即可；URL 只带短 id，避免超长查询串。
 
 ## 替代方案（强制）
 
 - **SQL 历史双写进 history-store 凑单存储**：同一事件两份记录、保留策略不同（50 条上限 vs 后端全量），典型冗余，且后端写路径要动查询接口。
-- **全部收进后端单表（AI/R 上服务端）**：需求是会话内回看，不需要跨会话持久；元库加表要手写 `ALTER TABLE`，成本大于收益。
+- **全部收进后端单表（AI/R 上服务端）**：需求是会话内回看，不需要跨会话持久；元库加表要手写 `ALTER TABLE`，成本大于收益。（2026-09-11 复审：需求改为"重启后仍可见"，改用 localStorage 解决；服务端表仍否，理由见[历史持久化与回放决策](2026-09-11-history-persistence-and-r-replay-rerun.md)）
 - **AI 历史按 querySpec 现场编译出 SQL 再回放**：合并层做不了带 schema 校验的编译（编译是工作台职责），为回放复制一份编译逻辑违反单一映射；接受降级为复制。
 - **R 回放经 URL 传代码**：代码可达 4000+ 字符，查询串爆炸且可分享性无意义（历史本就会话级）。
 - **新建独立「历史」路由页**：queries 页已有 收藏/历史 双标签，再加导航面是重复入口。
@@ -42,7 +42,7 @@
 ## 影响
 
 - 查询管理页「历史」成为统一时间线（徽标区分 SQL/AI/R，搜索同时匹配三者）；计数含本地历史。
-- 历史浏览依赖 sessionStorage：新标签页/重启浏览器后只剩 SQL 历史——这是需求边界（不跨会话持久），非缺陷。
+- 历史浏览的介质是 localStorage：重启服务/刷新/重开标签页后 AI/R 条目仍在；换端口或换浏览器不共享（同源边界，见[历史持久化与回放决策](2026-09-11-history-persistence-and-r-replay-rerun.md)）。
 - R 工作台 props 更名 `scopeId → connectionId` 并新增 `sessionId`/`sourceSql`/`replayId`；AI 历史落库改用真实连接 id。
 - 版本 1.33.1 → 1.34.0（功能/行为 minor），bump 后需重建才在侧栏徽标生效。
 

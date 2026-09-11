@@ -17,13 +17,14 @@ This version has breaking changes — APIs, conventions, and file structure may 
 - `npm test` · `npm run typecheck` · `npm run lint` · `npm run dev`（端口 3000；浏览器脚本默认 4321）
 
 ## 验证快照（2026-09-11，main）
-- vitest: 49 files / 276 passed / 0 failed；typecheck / lint: 0 errors
+- vitest: 50 files / 288 passed / 0 failed；typecheck / lint: 0 errors、0 warnings（1.36.0 新增 R 回放契约、历史客户端与迁移 SQL 用例）
 - 生产 build: passed（清 `.next` 后）；离线 E2E passed（入口 SQL 填充、请求体、Monaco、结果区、明细原始行、连接编辑回填、AI 编排、洞察执行、切页恢复、统一历史时间线 SQL+AI 合并、分割句柄含 R 面板宽度、R 面板停靠/关闭、移动端）
 - 真实 AI 调用（opencode zen go / `deepseek-flash`）: passed（`json_schema` → `json_object` → 无 `response_format` 降级；3 条洞察、reason=ok；输出预算须覆盖 reasoning token）
 - R 图像输出（浏览器 + 联网，webr 0.6）: passed（ggplot 真实渲染；R 代码不得自行开/关图形设备，见 [决策记录](.agents/notes/2026-09-11-unified-history-store-and-r-canvas-ownership.md)）
+- R 历史回放 + 服务端历史（浏览器 + 联网，真实连接 `dim_date`）: passed（历史页 R 条目「含图 1 张」→ 点「执行」自动开面板、未点运行即重跑出图；条目在元库 `analysis_history`，刷新/换浏览器仍在，见 [决策记录](.agents/notes/2026-09-11-history-persistence-and-r-replay-rerun.md)）
 
 ## 待办
-- [ ] 联网人工验收 R 历史回放（面板内恢复 + 历史页 `?r=` 回放）、统一历史时间线 AI/R 条目与 `injecting` 提示（图像输出已于 2026-09-11 浏览器确认）：[docs/verification.md](docs/verification.md)
+- [ ] 联网人工验收 R 面板内恢复（重开面板恢复上次代码与文本输出）、`injecting` 提示与旧浏览器历史导入（图像输出、历史页 `?r=` 回放=重新执行出图、服务端历史跨浏览器可见已于 2026-09-11 浏览器确认）：[docs/verification.md](docs/verification.md)
 - [ ] 真实只读账号人工验收：[docs/verification.md](docs/verification.md)
 - [ ] 联网实测 statTest 黑盒统计成功路径（离线只覆盖错误路径）：[docs/PLAN.md](docs/PLAN.md)
 - [ ] 可选：R.wasm 预加载、统一图表高度契约：[docs/PLAN.md](docs/PLAN.md)
@@ -37,8 +38,9 @@ This version has breaking changes — APIs, conventions, and file structure may 
 - `node_modules/@prisma/client` 损坏时 typecheck 报缺模型属性 → 重装后 `npx prisma generate`（见 [prisma/README.md](prisma/README.md)）
 - Monaco 已本地托管：新编辑器接入先 `await configureMonaco()` 再渲染，勿顶层 import（见 [src/AGENTS.md](src/AGENTS.md)）
 - AI 失败先看气泡里的具体原因（HTTP 状态 + 提供方原文）；自定义头用 `AI_API_HEADERS` 占位符；提示词必须保留「只返回符合 JSON Schema 的对象」；reasoning token 计入 `AI_MAX_TOKENS`（见 [docs/ai-integration.md](docs/ai-integration.md)）
-- R 工作台：R.wasm 与包从 CDN 按需下载，离线不可用；`ImageBitmap` 归 `WebRClient`（组件不得 `close()`）；**R 代码不得自己 `webr::canvas()` / `dev.off()`**（webR 靠执行前后画布缓存差集收图，自行关设备会让差集为空 → 没图）；顶层表达式由 `withAutoprint` 自动打印，ggplot 裸写即可；注入未完成时执行会等待（见 [r-workbench/README.md](src/components/r-workbench/README.md)）
+- R 工作台：R.wasm 与包从 CDN 按需下载，离线不可用；`ImageBitmap` 归 `WebRClient`（组件不得 `close()`）；**R 代码不得自己 `webr::canvas()` / `dev.off()`**（webR 靠执行前后画布缓存差集收图，自行关设备会让差集为空 → 没图）；顶层表达式由 `withAutoprint` 自动打印，ggplot 裸写即可；注入未完成时执行会等待；**图片不持久化，历史回放 = 清空后重新执行**（见 [r-workbench/README.md](src/components/r-workbench/README.md)）
 - 跨页入口 SQL 经 `workspace-navigation.ts` 规范化，工作台按 `connection + SQL` 一次性应用（见 [src/lib/README.md](src/lib/README.md)）
+- 统一历史两类权威源都在元库（SQL=`query_history`、AI/R=`analysis_history`），客户端 `lib/history-client.ts` 不落副本；R 历史回放 = 清空后重新执行（图片不持久化、只记 `imageCount`），`?r=` 取不到时面板提示「未找到」而非换一条（见 [决策记录](.agents/notes/2026-09-11-history-persistence-and-r-replay-rerun.md)）
 - 文档校验脚本以 skill 版（maintenance-flow）为源头，只改项目 `scripts/` 副本会在下次同步被覆盖（见 [决策记录](.agents/notes/2026-09-11-doc-reference-link-convention.md)）
 
 ## 文档地图
