@@ -43,7 +43,7 @@ jobs:
           DATABASE_URL: "postgresql://ci:ci@localhost:5432/ci"
 
       - name: Check docs links
-        run: python scripts/check-links.py .
+        run: python scripts/check-links.py . --fragments --refs
 
       - name: Check git diff cleanliness
         run: git diff --check
