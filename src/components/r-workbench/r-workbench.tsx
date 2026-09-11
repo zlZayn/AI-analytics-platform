@@ -22,7 +22,7 @@ import { useSplitRatio } from "@/hooks/useSplitRatio"
 import { SplitHandle } from "@/components/ui/split-handle"
 import { SPLIT_PRESETS } from "@/lib/split"
 import { buildDataFrameCode, generateRTemplate, stripDataFrameAssignment } from "@/lib/r-bridge"
-import { appendHistory, latestRHistory, toPersistedOutput } from "@/lib/history-store"
+import { appendHistory, latestRHistory, rHistoryById, toPersistedOutput } from "@/lib/history-store"
 import { withTimeout } from "@/lib/webr-client"
 import type { SemanticDataset } from "@/types/session"
 
@@ -30,13 +30,19 @@ interface RWorkbenchProps {
   dataset: SemanticDataset
   open: boolean
   onClose: () => void
-  /** 历史记录作用域（会话 id）：R 执行历史与 AI 会话共用同一份统一历史 */
-  scopeId: string
+  /** 历史记录作用域（连接 id）：与后端 SQL 历史同轴，统一历史按此键存取 */
+  connectionId: string
+  /** 产生历史的会话 id（溯源字段，不参与作用域键） */
+  sessionId: string
+  /** 当前结果集来源的 SQL：随 R 执行历史落库，历史面板据此带回工作台重跑 df */
+  sourceSql: string
+  /** 历史回放条目 id（来自 URL `?r=`）：打开面板时优先载入该条代码而非最近一条 */
+  replayId?: string
 }
 
 // 代码/输出分割：统一句柄 + 统一预设（src/lib/split.ts 的 SPLIT_PRESETS.rWorkbench）
 
-export function RWorkbench({ dataset, open, onClose, scopeId }: RWorkbenchProps) {
+export function RWorkbench({ dataset, open, onClose, connectionId, sessionId, sourceSql, replayId }: RWorkbenchProps) {
   const webR = useWebR()
   const [code, setCode] = useState("")
   const [injectedFor, setInjectedFor] = useState<SemanticDataset | null>(null)
@@ -50,7 +56,13 @@ export function RWorkbench({ dataset, open, onClose, scopeId }: RWorkbenchProps)
   const codeRef = useRef("")
   const loggedExecRef = useRef<number | null>(null)
   const restoredOutputRef = useRef(false)
+  const replayConsumedRef = useRef(false)
+  const sourceSqlRef = useRef(sourceSql)
   const viewportRef = useRef<HTMLElement | null>(null)
+
+  useEffect(() => {
+    sourceSqlRef.current = sourceSql
+  }, [sourceSql])
 
   // 宽度以像素语义为准（420..1200px），换算成视口比例交给统一句柄
   const viewportWidth = typeof window === "undefined" ? 1440 : window.innerWidth
@@ -78,10 +90,13 @@ export function RWorkbench({ dataset, open, onClose, scopeId }: RWorkbenchProps)
     let cancelled = false
 
     async function bootstrap() {
-      // 代码来源：用户改过 → 保留；否则优先恢复历史代码（去掉旧数据块，df 必须来自当前注入），
+      // 代码来源：用户改过 → 保留；否则优先回放指定条目（URL `?r=`，本面板生命周期内只消费一次）、
+      // 其次恢复最近一条历史（去掉旧数据块，df 必须来自当前注入），
       // 无历史时用按当前数据集生成的模板。运行时不初始化（离线/CDN 不可用）也能读、改、复制。
       const template = generateRTemplate(dataset)
-      const history = scopeId ? latestRHistory(scopeId) : null
+      const replay = replayId && !replayConsumedRef.current ? rHistoryById(connectionId, replayId) : null
+      if (replay) replayConsumedRef.current = true
+      const history = replay ?? (connectionId ? latestRHistory(connectionId) : null)
       setCode((prev) => {
         if (prev.trim().length > 0 && prev !== template) return prev
         if (!history?.code.trim()) return template
@@ -103,7 +118,9 @@ export function RWorkbench({ dataset, open, onClose, scopeId }: RWorkbenchProps)
         }
       } catch {
         // init/inject 失败：错误写入输出区（离开「等待运行…」占位），
-        // 具体原因经 webR.error 显示在状态栏（此处不读 state，避免 effect 依赖循环）
+        // 具体原因经 webR.error 显示在状态栏（此处不读 state，避免 effect 依赖循环）。
+        // StrictMode 双跑时两轮 await 同一份失败的 initPromise，本轮已被 cleanup 取消则不再重复报错
+        if (cancelled) return
         reportError("R 环境初始化失败，请检查网络后刷新页面重试")
       }
     }
@@ -112,7 +129,7 @@ export function RWorkbench({ dataset, open, onClose, scopeId }: RWorkbenchProps)
     return () => {
       cancelled = true
     }
-  }, [open, dataset, init, ensurePackages, injectData, reportError, restoreOutput, scopeId])
+  }, [open, dataset, init, ensurePackages, injectData, reportError, restoreOutput, connectionId, replayId])
 
   // 数据集变化且工作台已打开：重新注入（维护已打开状态下的数据新鲜度）
   useEffect(() => {
@@ -160,18 +177,20 @@ export function RWorkbench({ dataset, open, onClose, scopeId }: RWorkbenchProps)
 
   // 每次执行完成（lastExecMs 变化）落一条 R 历史：文本输出可回放，图片不持久化
   useEffect(() => {
-    if (webR.lastExecMs === null || loggedExecRef.current === webR.lastExecMs || !scopeId) return
+    if (webR.lastExecMs === null || loggedExecRef.current === webR.lastExecMs || !connectionId) return
     loggedExecRef.current = webR.lastExecMs
     const textItems = webR.output.filter((item) => typeof item.data === "string")
     if (textItems.length === 0) return
     appendHistory({
       kind: "r",
-      connectionId: scopeId,
+      connectionId,
+      sessionId,
       code: codeRef.current,
+      sourceSql: sourceSqlRef.current || undefined,
       output: toPersistedOutput(textItems),
       ok: !textItems.some((item) => item.type === "error"),
     })
-  }, [webR.lastExecMs, webR.output, scopeId])
+  }, [webR.lastExecMs, webR.output, connectionId, sessionId])
 
   async function handleRun() {
     try {

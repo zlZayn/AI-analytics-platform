@@ -5,10 +5,14 @@
 // - workspace-store 存**当前状态**（会话骨架 + 洞察流，用于"接着用"）
 // - 本模块存**发生过什么**（历史记录，用于"回看/复用"）
 // 两者都只存文本，不存图片与查询结果行。
+//
+// 作用域键 = connectionId（v2 起）：与后端 QueryHistory（SQL 执行历史）同轴，
+// 查询管理页才能把两类来源合并成一条时间线；sessionId 仅做溯源，不参与键。
+// SQL 执行历史不在此双写——它的权威源是后端表（见 lib/history-merge.ts 的合并契约）。
 
 import type { InsightItem } from "@/lib/ai-contract"
 
-export const HISTORY_STORE_VERSION = 1
+export const HISTORY_STORE_VERSION = 2
 /** 每个作用域保留的条数上限（新的在前） */
 const HISTORY_LIMIT = 50
 const R_OUTPUT_MAX_LINES = 40
@@ -18,12 +22,15 @@ export type HistoryKind = "ai" | "r"
 
 interface HistoryBase {
   id: string
+  /** 作用域键：数据库连接 id（v2 起；v1 误用会话 id，旧 sessionStorage 键直接放弃） */
   connectionId: string
   createdAt: string
 }
 
 export interface AiHistoryEntry extends HistoryBase {
   kind: "ai"
+  /** 产生记录的会话 id（溯源用，不参与作用域键） */
+  sessionId: string
   question: string
   ok: boolean
   /** 一句话摘要（首条洞察的结论或失败原因） */
@@ -33,7 +40,11 @@ export interface AiHistoryEntry extends HistoryBase {
 
 export interface RHistoryEntry extends HistoryBase {
   kind: "r"
+  /** 产生记录的会话 id（溯源用，不参与作用域键） */
+  sessionId: string
   code: string
+  /** 执行时结果集来源的 SQL（回放时带回工作台重跑 df）；无结果集时缺省 */
+  sourceSql?: string
   /** 文本输出（stdout/error/warning 合并，已截断）；图片不持久化 */
   output: string[]
   ok: boolean
@@ -78,6 +89,11 @@ export function latestRHistory(connectionId: string): RHistoryEntry | null {
   return listHistoryByKind(connectionId, "r")[0] ?? null
 }
 
+/** 按 id 取一条 R 历史（历史面板「在工作台回放」用；id 不存在或类型不符返回 null） */
+export function rHistoryById(connectionId: string, id: string): RHistoryEntry | null {
+  return listHistoryByKind(connectionId, "r").find((entry) => entry.id === id) ?? null
+}
+
 export function appendHistory(entry: Omit<AiHistoryEntry, "id" | "createdAt"> | Omit<RHistoryEntry, "id" | "createdAt">): void {
   const store = storage()
   if (!store) return
@@ -117,6 +133,7 @@ export function clearHistory(connectionId: string): void {
 function isHistoryEntry(value: unknown): value is HistoryEntry {
   if (!value || typeof value !== "object") return false
   const entry = value as Partial<HistoryEntry> & { kind?: unknown }
+  if (typeof entry.connectionId !== "string" || typeof entry.sessionId !== "string") return false
   if (entry.kind === "ai") return typeof entry.question === "string" && Array.isArray((entry as AiHistoryEntry).items)
   if (entry.kind === "r") return typeof (entry as RHistoryEntry).code === "string" && Array.isArray((entry as RHistoryEntry).output)
   return false

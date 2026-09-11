@@ -113,12 +113,15 @@ def fulfill_preview(route: Route) -> None:
 
 
 def fulfill_ai(route: Route) -> None:
+    # 真实 /api/ai 返回的是 parseInsightItems 产物（含 sqlValid）；mock 不经解析，必须自带该标记，
+    # 否则卡片走不了回退 SQL 执行路径（sqlValid 门控见 lib/ai-session-mapping.ts）
     route.fulfill(json=envelope({
         "items": [
             {
                 "title": "洞察A：销售分布",
                 "insight": "华东区销售占比最高",
                 "sql": "SELECT 'A' AS note",
+                "sqlValid": True,
                 "chart": {"chartType": "bar", "x": "region", "y": "sales"},
                 "fallback": True,
             },
@@ -126,6 +129,7 @@ def fulfill_ai(route: Route) -> None:
                 "title": "洞察B：销售趋势",
                 "insight": "销售额呈上升趋势",
                 "sql": "SELECT 'B' AS note",
+                "sqlValid": True,
                 "chart": {"chartType": "line", "x": "day", "y": "sales"},
                 "fallback": True,
             },
@@ -339,6 +343,14 @@ def main() -> None:
         page.get_by_role("tabpanel").filter(has_text="华东区销售占比最高").wait_for(state="visible", timeout=20_000)
         if page.get_by_test_id("chart-surface").count() != 0:
             raise AssertionError("query result must not be persisted: chart surface should be empty until re-run")
+
+        # 统一历史时间线（回归）：查询管理「历史」同时呈现后端 SQL 历史与前端 AI 历史（同连接作用域）
+        page.goto(f"{BASE_URL}/queries?connection=test", wait_until="networkidle")
+        page.get_by_role("tab", name="历史", exact=True).click()
+        page.get_by_text("SQL", exact=True).first.wait_for(state="visible", timeout=10_000)
+        page.get_by_text("AI", exact=True).first.wait_for(state="visible", timeout=10_000)
+        page.get_by_text("测试多洞察", exact=False).first.wait_for(state="visible", timeout=10_000)
+        page.screenshot(path=str(OUTPUT_DIR / "history-timeline.png"), full_page=True)
 
         page.screenshot(path=str(OUTPUT_DIR / "workspace-all-charts.png"), full_page=True)
         page.set_viewport_size({"width": 360, "height": 800})

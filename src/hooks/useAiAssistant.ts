@@ -116,7 +116,8 @@ export function useAiAssistant({
       if (items.length === 0) {
         appendHistory({
           kind: "ai",
-          connectionId: session.id,
+          connectionId,
+          sessionId: session.id,
           question,
           ok: false,
           summary: data.data.diagnostics?.message || "AI 未生成有效结果",
@@ -141,7 +142,8 @@ export function useAiAssistant({
       )
       appendHistory({
         kind: "ai",
-        connectionId: session.id,
+        connectionId,
+        sessionId: session.id,
         question,
         ok: true,
         summary: items[0].insight || items[0].title,
@@ -150,7 +152,7 @@ export function useAiAssistant({
     } catch (error) {
       const { message, notConfigured } = describeAskFailure(error)
       dispatch({ type: "ADD_CONVERSATION", message: assistantMessage(message) })
-      appendHistory({ kind: "ai", connectionId: session.id, question, ok: false, summary: message, items: [] })
+      appendHistory({ kind: "ai", connectionId, sessionId: session.id, question, ok: false, summary: message, items: [] })
       if (notConfigured) {
         setUnavailable(true)
         notify("AI 服务未配置，请在 .env 文件中设置 AI_API_KEY", "warning")

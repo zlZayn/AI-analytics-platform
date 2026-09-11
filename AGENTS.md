@@ -17,13 +17,13 @@ This version has breaking changes — APIs, conventions, and file structure may 
 - `npm test` · `npm run typecheck` · `npm run lint` · `npm run dev`（端口 3000；浏览器脚本默认 4321）
 
 ## 验证快照（2026-09-11，main）
-- vitest: 48 files / 261 passed / 0 failed；typecheck / lint: 0 errors
-- 生产 build: passed（清 `.next` 后）；离线 E2E passed（入口 SQL 填充、请求体、Monaco、结果区、明细原始行、连接编辑回填、AI 编排、洞察执行、切页恢复、分割句柄含 R 面板宽度、R 面板停靠/关闭、移动端）
+- vitest: 49 files / 276 passed / 0 failed；typecheck / lint: 0 errors
+- 生产 build: passed（清 `.next` 后）；离线 E2E passed（入口 SQL 填充、请求体、Monaco、结果区、明细原始行、连接编辑回填、AI 编排、洞察执行、切页恢复、统一历史时间线 SQL+AI 合并、分割句柄含 R 面板宽度、R 面板停靠/关闭、移动端）
 - 真实 AI 调用（opencode zen go / `deepseek-flash`）: passed（`json_schema` → `json_object` → 无 `response_format` 降级；3 条洞察、reason=ok；输出预算须覆盖 reasoning token）
 - R 图像输出（浏览器 + 联网，webr 0.6）: passed（ggplot 真实渲染；R 代码不得自行开/关图形设备，见 [决策记录](.agents/notes/2026-09-11-unified-history-store-and-r-canvas-ownership.md)）
 
 ## 待办
-- [ ] 联网人工验收 R 历史回放与 `injecting` 提示（图像输出已于 2026-09-11 浏览器确认）：[docs/verification.md](docs/verification.md)
+- [ ] 联网人工验收 R 历史回放（面板内恢复 + 历史页 `?r=` 回放）、统一历史时间线 AI/R 条目与 `injecting` 提示（图像输出已于 2026-09-11 浏览器确认）：[docs/verification.md](docs/verification.md)
 - [ ] 真实只读账号人工验收：[docs/verification.md](docs/verification.md)
 - [ ] 联网实测 statTest 黑盒统计成功路径（离线只覆盖错误路径）：[docs/PLAN.md](docs/PLAN.md)
 - [ ] 可选：R.wasm 预加载、统一图表高度契约：[docs/PLAN.md](docs/PLAN.md)
@@ -44,6 +44,7 @@ This version has breaking changes — APIs, conventions, and file structure may 
 ## 文档地图
 - 用途与用法：[README.md](README.md) · [README_en.md](README_en.md)
 - 设计决策与文档网：[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
+- 开发者手册（目录职责/页面路由/改动路由）：[src/README.md](src/README.md) · 图表算法 [src/components/charts/README.md](src/components/charts/README.md) · 数据层 [prisma/README.md](prisma/README.md)
 - 接口 / AI 合同 / 运行参数：[docs/api.md](docs/api.md) · [docs/ai-integration.md](docs/ai-integration.md) · [docs/operations.md](docs/operations.md)
 - 验证与维护：[docs/verification.md](docs/verification.md) · [docs/maintenance-checklist.md](docs/maintenance-checklist.md) · 进行中计划 [docs/PLAN.md](docs/PLAN.md)
 - 历史留档：[docs/archive/](docs/archive/README.md) · [.agents/notes/archived/](.agents/notes/archived/)

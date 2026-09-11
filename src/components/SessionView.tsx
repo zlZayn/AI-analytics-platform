@@ -7,7 +7,7 @@
 // - 明细：原始查询结果的 table-view 虚拟滚动数据表（填满结果区，不经图表绑定投影）
 // 数据经 render-binder 适配后交给 ResultPanel；warnings/adjustments 呈现于探索视图。
 
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import type { AnalysisSession } from "@/types/session"
 import type { ChartMapping } from "@/components/chart"
 import { Chart } from "@/components/chart"
@@ -29,6 +29,10 @@ interface SessionViewProps {
   session: AnalysisSession
   onMappingChange: (mapping: ChartMapping) => void
   onCopySql: () => void
+  /** 历史作用域键（连接 id）：R 执行历史按此落库，与后端 SQL 历史同轴 */
+  connectionId: string | null
+  /** 历史回放条目 id（URL `?r=`）：结果就绪后自动打开面板并载入该条代码 */
+  replayRId?: string
   /** AI 多洞察（会话外临时状态，不进 AnalysisSession） */
   insights?: InsightItem[]
   /** 正在执行的洞察卡片索引（卡片 loading 态） */
@@ -48,6 +52,8 @@ export function SessionView({
   session,
   onMappingChange,
   onCopySql,
+  connectionId,
+  replayRId,
   insights = [],
   executingInsightIndex = null,
   activeInsightIndex = null,
@@ -75,6 +81,15 @@ export function SessionView({
     if (!result) return null
     return bindDataToChart(result, displayConfig)
   }, [result, displayConfig])
+
+  // 历史回放（URL `?r=`）：结果就绪后自动打开面板并载入该条代码；面板内部按 id 取历史，只消费一次
+  const replayTriggeredRef = useRef(false)
+  useEffect(() => {
+    if (!replayRId || !result || replayTriggeredRef.current) return
+    replayTriggeredRef.current = true
+    setRWorkbenchPinned(true)
+    setRWorkbenchOpen(true)
+  }, [replayRId, result])
 
   // 洞察是 AI 输出，独立于查询结果：结果未保留（切页/刷新回来）时仍要能看到卡片
   const hasResult = Boolean(result && bound)
@@ -234,7 +249,10 @@ export function SessionView({
           dataset={result}
           open={rWorkbenchOpen}
           onClose={() => setRWorkbenchOpen(false)}
-          scopeId={session.id}
+          connectionId={connectionId ?? ""}
+          sessionId={session.id}
+          sourceSql={sql}
+          replayId={replayRId}
         />
       )}
     </div>

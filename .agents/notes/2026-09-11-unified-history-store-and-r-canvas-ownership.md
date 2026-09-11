@@ -17,6 +17,7 @@
 - 新增 `src/lib/history-store.ts`：单一命名空间 `analytics-history:v1:<scopeId>`、单版本号、单上限（50 条），承载两类记录——
   `{kind:"ai", connectionId, question, ok, summary, items}` 与 `{kind:"r", code, output, ok}`；
   提供 `listHistory / listHistoryByKind / latestRHistory / appendHistory / toPersistedOutput / clearHistory`。
+  （2026-09-11 后续：作用域键改为 `connectionId`、版本升 v2、新增统一时间线 UI——见 [统一历史时间线决策](2026-09-11-unified-history-timeline.md)）
 - `src/lib/workspace-store.ts` **不动**：它保存的是「当前工作台状态」（会话骨架 + 洞察流），历史模块保存的是「发生过什么」。
   两者职责不同、键不同、生命周期不同（前者要能自动恢复，后者只做回看与回放）。
 - R 文本输出落历史时必须截断（`R_OUTPUT_MAX_LINES = 40` / `R_OUTPUT_MAX_CHARS = 4000`），**图片不持久化**（ImageBitmap 无法序列化，存 base64 会把 sessionStorage 撑爆）。

@@ -65,7 +65,7 @@ async function render(session: AnalysisSession, tab: string) {
   const root = createRoot(container)
   await act(async () => {
     root.render(
-      <SessionView session={session} onMappingChange={() => undefined} onCopySql={() => undefined} tab={tab} />,
+      <SessionView session={session} connectionId="c1" onMappingChange={() => undefined} onCopySql={() => undefined} tab={tab} />,
     )
   })
   return { container, root }

@@ -54,7 +54,8 @@
 - R 分析以**右侧停靠面板**呈现（`fixed`，不占用结果区 flex 流；关闭即平移出屏但保持挂载以保留代码与输出），代码/输出高度与面板宽度可拖拽并持久化
 - R 画布所有权：`ImageBitmap` 归 `WebRClient`（组件只 `drawImage` + 零尺寸守卫，**永不 `close()`**——StrictMode 双跑后关掉的位图会让画布退回默认 300×150 空白）；**R 代码不得自行开/关图形设备**（`webr::canvas()` / `dev.off()`）——webR 在求值后按 `setdiff(canvas_cache(), old_cache)` 收集执行期间新产生的画布，自行 `dev.off()` 会先把画布移出缓存、差集为空 → 面板无图）；顶层表达式由 captureR 的 `withAutoprint` 自动打印
 - R 数据注入与执行串行化：`injectData` 未完成时 `execute()` 先 `await pendingInjection`，`injecting` 对外可见——否则换查询后立刻运行会用旧 `df`
-- 历史记录单一入口 `lib/history-store.ts`：AI 提问与 R 执行共用一份带版本号/上限的会话级历史（仅文本，输出截断，**图片不持久化**）；与 `lib/workspace-store.ts` 分工 = 过往记录 vs 当前状态（键、生命周期、恢复语义都不同，不得合并）
+- 历史记录单一入口 `lib/history-store.ts`：AI 提问与 R 执行共用一份带版本号/上限的**连接级**历史（仅文本，输出截断，**图片不持久化**；`sessionId` 仅溯源）；与 `lib/workspace-store.ts` 分工 = 过往记录 vs 当前状态（键、生命周期、恢复语义都不同，不得合并）
+- 统一历史时间线：后端 SQL 历史（权威源 = `QueryHistory` 表）与前端 AI/R 历史（权威源 = sessionStorage）**各存各的，读取期由 `lib/history-merge.ts` 纯函数合并**，绝不双写；回放动作按能力降级——SQL 直达执行、AI 仅有 `sqlValid` 回退 SQL 时可执行、R 仅在有 `sourceSql` 时经 `?r=<id>` 带回工作台自动开面板回放
 - R 历史恢复必须与当前结果集一致：回放代码前 `stripDataFrameAssignment` 剥离旧 `df <- data.frame(...)` 并用当前数据集重建；文本输出只在面板生命周期内回放一次
 - AI 输出预算覆盖推理开销（`AI_MAX_TOKENS`，推理 token 也计入）；解析失败只做一次有界修复，失败分类与用户可读提示由后端给出（前端不做判断）
 - 执行入口唯一落地：编辑器执行、导航带 SQL、洞察卡片执行都必须经 `SET_COMPILED_SQL` 真正发起一次执行；会话用 `runId` 标记显式执行请求，编译去重不得吞掉执行意图

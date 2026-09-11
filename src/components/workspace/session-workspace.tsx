@@ -40,9 +40,11 @@ const MonacoEditor = dynamic(() => import("@monaco-editor/react"), {
 interface SessionWorkspaceProps {
   connectionId: string | null
   initialSql: string
+  /** R 历史回放：统一历史中的 R 条目 id（来自 URL `?r=`），结果就绪后自动打开面板并载入该代码 */
+  rHistoryId?: string
 }
 
-export function SessionWorkspace({ connectionId, initialSql }: SessionWorkspaceProps) {
+export function SessionWorkspace({ connectionId, initialSql, rHistoryId }: SessionWorkspaceProps) {
   // 恢复上次离开时的工作台（按连接）：会话骨架 + 洞察流；结果行不持久化，回来点一次「执行」即可重看
   const restored = useMemo(() => loadWorkspace(connectionId), [connectionId])
   const [schema, setSchema] = useState<SchemaData | null>(null)
@@ -373,6 +375,8 @@ export function SessionWorkspace({ connectionId, initialSql }: SessionWorkspaceP
         <div className="flex min-h-[360px] min-w-0 flex-1 flex-col lg:min-h-0 lg:[flex-basis:0] lg:[flex-grow:var(--result-grow)]">
           <SessionView
             session={session}
+            connectionId={connectionId}
+            replayRId={rHistoryId || undefined}
             onMappingChange={handleMappingChange}
             onCopySql={() => {
               if (compiledSql?.sql) {

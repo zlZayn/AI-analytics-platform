@@ -8,6 +8,7 @@
 - `r-workbench/`：R 分析工作台，详见 [r-workbench/README.md](r-workbench/README.md)。
 - `ui/`：基础 UI 原语，详见 [ui/README.md](ui/README.md)。
 - `SessionView.tsx`：结果区状态容器与洞察/探索/明细 Tabs（面板滚动/填充契约，数据表归明细独占）。
+- `history-timeline.tsx`：统一历史时间线列表（SQL/AI/R 徽标 + 按能力降级的执行/复制动作），数据合并归 `lib/history-merge.ts`。
 - `chart-config-panel.tsx`：图表引导（表格态）、类型选择与槽位映射；类型清单来自 `lib/variable-types.ts`。
 - `result-toolbar.tsx`：结果区工具条——**R 分析一级按钮** + 「导出 ▼」下拉（CSV / JSON / R 模板，各带一行说明），title 提示语含 BOM 与兼容性说明，改动时保留。
 - `insight-card.tsx`：AI 洞察卡片（标题、说明、SQL 展开、执行、统计区块）。
