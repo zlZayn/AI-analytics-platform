@@ -57,6 +57,8 @@ export function SessionView({
   const busy = status === "compiling" || status === "executing"
   // R 工作台开关：局部状态，不进 sessionReducer（R 输出是会话外临时状态）
   const [rWorkbenchOpen, setRWorkbenchOpen] = useState(false)
+  // 首次打开后保持挂载：关闭只把面板平移出屏，代码与输出不丢（父级决定挂载，子组件不自己记账）
+  const [rWorkbenchPinned, setRWorkbenchPinned] = useState(false)
   const hasInsights = insights.length > 0
   const [tabInternal, setTabInternal] = useState<string>(hasInsights ? "insights" : "explore")
   const tab = tabProp ?? tabInternal
@@ -94,7 +96,15 @@ export function SessionView({
           </span>
         </div>
         <div className="flex items-center gap-2">
-          {result && <ResultToolbar dataset={result} onOpenRWorkbench={() => setRWorkbenchOpen(true)} />}
+          {result && (
+            <ResultToolbar
+              dataset={result}
+              onOpenRWorkbench={() => {
+                setRWorkbenchPinned(true)
+                setRWorkbenchOpen(true)
+              }}
+            />
+          )}
           {isUserModified && (
             <span className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] text-[var(--warning)] bg-[var(--warning-surface)]">
               <Pencil className="w-2.5 h-2.5" /> 已手动调整
@@ -210,8 +220,8 @@ export function SessionView({
         </>
       )}
 
-      {/* R 分析工作台：结果区底部（导出菜单「R 分析」打开，不改变结果区布局） */}
-      {result && (
+      {/* R 分析工作台：右侧停靠面板（导出菜单「R 分析」打开），固定定位不占用结果区 flex 流 */}
+      {result && rWorkbenchPinned && (
         <RWorkbench
           dataset={result}
           open={rWorkbenchOpen}

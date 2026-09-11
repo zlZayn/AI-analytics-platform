@@ -32,7 +32,7 @@ export function RWorkbenchEditor({ value, onChange, onRun, readOnly }: RWorkbenc
   }, [])
 
   return (
-    <div className="min-h-[200px] flex-1 border rounded-lg overflow-hidden min-w-0">
+    <div className="h-full min-h-[160px] min-w-0 overflow-hidden">
       {monacoReady ? (
         <MonacoEditor
           height="100%"
@@ -60,7 +60,7 @@ export function RWorkbenchEditor({ value, onChange, onRun, readOnly }: RWorkbenc
           }}
         />
       ) : (
-        <div className="h-full min-h-[200px] bg-[var(--muted)] animate-pulse rounded-lg" />
+        <div className="h-full min-h-[160px] bg-[var(--muted)] animate-pulse" />
       )}
     </div>
   )

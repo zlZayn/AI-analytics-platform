@@ -290,6 +290,17 @@ def main() -> None:
         page.get_by_text("R 环境未就绪", exact=False).wait_for(state="visible", timeout=20000)
         page.screenshot(path=str(OUTPUT_DIR / "r-workbench-error-state.png"), full_page=True)
 
+        # 关闭面板（回归）：右侧停靠面板是浮层，关闭后平移出屏且 aria-hidden=true，
+        # 不得再拦截结果区交互；代码与输出保持挂载（重新打开不丢）
+        page.get_by_role("button", name="关闭 R 分析工作台", exact=True).click()
+        page.wait_for_function(
+            """() => {
+                const panel = document.querySelector('aside[aria-label="R 分析工作台"]');
+                return !!panel && panel.getAttribute('aria-hidden') === 'true';
+            }""",
+            timeout=10_000,
+        )
+
         # AI 多洞察（阶段 1）：返回 2 条 → 洞察 Tab 卡片流 → 点卡片执行 → 切探索视图并渲染图表
         ai_input = page.get_by_placeholder("输入 @ 选表，如：对比 @orders 与 @customers 的销售趋势")
         ai_input.fill("测试多洞察")

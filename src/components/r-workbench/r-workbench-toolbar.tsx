@@ -12,7 +12,7 @@ interface RWorkbenchToolbarProps {
   canInterrupt: boolean
 }
 
-/** R 工作台工具栏：运行/中断/清空/复制（原生 title 提示，不引入 Tooltip）。 */
+/** R 工作台工具栏：运行 / 中断 / 清空 / 复制；窄屏自动换行，不再挤压。 */
 export function RWorkbenchToolbar({
   busy,
   onRun,
@@ -22,24 +22,24 @@ export function RWorkbenchToolbar({
   canInterrupt,
 }: RWorkbenchToolbarProps) {
   return (
-    <div className="flex items-center gap-1 px-1">
-      <Button size="sm" className="h-6 text-[10px] gap-1" onClick={onRun} disabled={busy} title="运行（Ctrl+Enter）">
+    <div className="flex shrink-0 flex-wrap items-center gap-1.5 border-b border-[var(--border)] px-3 py-2">
+      <Button size="sm" className="h-7 gap-1 text-[11px]" onClick={onRun} disabled={busy} title="运行（Ctrl+Enter）">
         <Play className="w-3 h-3" /> 运行
       </Button>
       <Button
         size="sm"
         variant="outline"
-        className="h-6 text-[10px] gap-1"
+        className="h-7 gap-1 text-[11px]"
         onClick={onInterrupt}
         disabled={!busy || !canInterrupt}
         title={canInterrupt ? "中断执行（Ctrl+Shift+E）" : "当前通道不支持中断"}
       >
         <Square className="w-3 h-3" /> 中断
       </Button>
-      <Button size="sm" variant="ghost" className="h-6 text-[10px] gap-1" onClick={onClear} title="清空输出（Ctrl+Shift+C）">
+      <Button size="sm" variant="ghost" className="h-7 gap-1 text-[11px]" onClick={onClear} title="清空输出（Ctrl+Shift+C）">
         <Eraser className="w-3 h-3" /> 清空
       </Button>
-      <Button size="sm" variant="ghost" className="h-6 text-[10px] gap-1 ml-auto" onClick={onCopy} title="复制 R 代码">
+      <Button size="sm" variant="ghost" className="ml-auto h-7 gap-1 text-[11px]" onClick={onCopy} title="复制 R 代码">
         <Copy className="w-3 h-3" /> 复制
       </Button>
     </div>

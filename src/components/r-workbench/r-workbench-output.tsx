@@ -37,7 +37,7 @@ export function RWorkbenchOutput({ items, images, busy }: RWorkbenchOutputProps)
       ref={containerRef}
       onScroll={handleScroll}
       aria-live="polite"
-      className="min-h-[80px] max-h-[280px] overflow-auto rounded-lg border border-[var(--border)] bg-[var(--muted)] p-2 space-y-1 font-mono text-[11px]"
+      className="h-full min-h-[80px] overflow-auto bg-[var(--muted)] p-2 space-y-1 font-mono text-[11px]"
     >
       {items.length === 0 && !busy && (
         <div className="text-[var(--muted-foreground)]">等待运行…（代码将在此显示输出与图表）</div>
