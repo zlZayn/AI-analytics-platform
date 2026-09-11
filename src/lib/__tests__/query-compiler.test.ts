@@ -15,6 +15,14 @@ const schema: SchemaData = {
       ],
       rowEstimate: 1000,
     },
+    {
+      name: "products",
+      columns: [
+        { name: "product_id", type: "integer", nullable: false, isPrimary: true },
+        { name: "category_l1", type: "text", nullable: true, isPrimary: false },
+      ],
+      rowEstimate: 100,
+    },
   ],
   relations: [],
 }
@@ -132,6 +140,38 @@ describe("compileQuerySpec", () => {
 
   it("缺少 dimensions 和 measures 时抛出错误", () => {
     expect(() => compileQuerySpec({ table: "orders" })).toThrow(/至少需要/)
+  })
+
+  it("schema 校验：JOIN 维表的列可引用（AI 多表洞察的前置条件）", () => {
+    const { sql } = compileQuerySpec(
+      {
+        table: "orders",
+        dimensions: ["category_l1"],
+        measures: [{ field: "amount", aggregation: "sum", alias: "销售额" }],
+        joins: [{ table: "products", type: "inner", on: { left: "product_id", right: "product_id" } }],
+      },
+      schema,
+    )
+    expect(sql).toContain('INNER JOIN "products"')
+    expect(sql).toContain('"category_l1"')
+    expect(sql).toContain('AS "销售额"')
+  })
+
+  it("schema 校验：限定名（表.列）可校验", () => {
+    expect(() =>
+      compileQuerySpec(
+        {
+          table: "orders",
+          dimensions: ["products.category_l1"],
+          joins: [{ table: "products", type: "inner", on: { left: "product_id", right: "product_id" } }],
+        },
+        schema,
+      ),
+    ).not.toThrow()
+  })
+
+  it("schema 校验：未 JOIN 的表列不可引用", () => {
+    expect(() => compileQuerySpec({ table: "orders", dimensions: ["category_l1"] }, schema)).toThrow(/列不存在/)
   })
 
   it("非法的 limit 抛出错误", () => {

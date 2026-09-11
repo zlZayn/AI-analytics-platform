@@ -159,30 +159,42 @@ function renderFilter(filter: Filter, params: unknown[], having: boolean): strin
 // ---- Schema 校验（可选，防止 AI 生成不存在的字段） ----
 
 function validateAgainstSchema(querySpec: QuerySpec, schema: SchemaData): void {
-  const table = schema.tables.find((t) => t.name === querySpec.table)
-  if (!table) {
+  if (!schema.tables.some((t) => t.name === querySpec.table)) {
     throw new Error(`表不存在: ${querySpec.table}`)
   }
-  const columnNames = new Set(table.columns.map((c) => c.name))
+
+  // 可引用列 = 主表 + 全部被连接表（AI 契约允许 JOIN，维表列必须可用）
+  const columnsByTable = new Map<string, Set<string>>()
+  const addTable = (name: string) => {
+    const table = schema.tables.find((t) => t.name === name)
+    if (!table) throw new Error(`表不存在: ${name}`)
+    columnsByTable.set(name, new Set(table.columns.map((c) => c.name)))
+  }
+  addTable(querySpec.table)
+  ;(querySpec.joins ?? []).forEach((join) => addTable(join.table))
+  const allColumns = new Set([...columnsByTable.values()].flatMap((set) => [...set]))
+
+  // 支持限定名（"维表.列"）与不带表名的裸列名
+  const checkColumn = (field: string) => {
+    if (field.includes(".")) {
+      const [table, column] = field.split(".")
+      if (!columnsByTable.get(table)?.has(column)) throw new Error(`列不存在: ${field}`)
+      return
+    }
+    if (!allColumns.has(field)) throw new Error(`列不存在: ${field}`)
+  }
 
   const checkDimension = (dim: Dimension) => {
-    if (typeof dim === "string") {
-      if (!columnNames.has(dim)) throw new Error(`列不存在: ${querySpec.table}.${dim}`)
-    } else if (dim.field && !columnNames.has(dim.field)) {
-      throw new Error(`列不存在: ${querySpec.table}.${dim.field}`)
-    }
-  }
-  const checkColumn = (field: string) => {
-    if (!columnNames.has(field)) throw new Error(`列不存在: ${querySpec.table}.${field}`)
+    if (typeof dim === "string") return checkColumn(dim)
+    if (dim.field) checkColumn(dim.field)
   }
 
   ;(querySpec.dimensions ?? []).forEach(checkDimension)
   ;(querySpec.measures ?? []).forEach((m) => checkColumn(m.field))
   ;(querySpec.filters ?? []).forEach((f) => checkColumn(f.field))
   ;(querySpec.joins ?? []).forEach((join) => {
-    if (!schema.tables.some((t) => t.name === join.table)) {
-      throw new Error(`连接表不存在: ${join.table}`)
-    }
+    checkColumn(join.on.left)
+    checkColumn(join.on.right)
   })
   // having 引用聚合别名或维度，不在此处校验
 }
