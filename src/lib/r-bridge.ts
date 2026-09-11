@@ -105,65 +105,53 @@ export function buildDataFrameCode(dataset: SemanticDataset): string {
  * R 模板：可独立运行的完整分析脚本。
  * - **不自己开/关图形设备**：webR 的 `captureGraphics` 已开好捕获设备；代码里再开一个
  *   （`webr::canvas()`）、或在末尾 `dev.off()`，会让 webR 事后收集到的画布集合为空 → 面板没图
- * - **ggplot 对象必须 `print()`** 才会绘制（它只是对象，绘制发生在 print 时）
+ * - 顶层表达式由 `captureR({ withAutoprint: true })` 自动打印，ggplot 裸写即可
  * - 按语义类型自动选择绘图骨架
  */
 export function generateRTemplate(dataset: SemanticDataset): string {
   const lines: string[] = []
   const columns = dataset.columns
 
-  lines.push("# 数据加载")
+  lines.push("# 数据（当前查询结果）")
   lines.push(buildDataFrameCode(dataset))
   lines.push("")
-  lines.push("# 加载 R 包（首次使用需联网下载）")
   lines.push("library(dplyr)")
   lines.push("library(ggplot2)")
   lines.push("")
-  lines.push("# 数据概览")
   lines.push("summary(df)")
   lines.push("")
-  lines.push("# 可视化示例")
-  lines.push("# 图形设备由 webR 统一管理，不要自己 webr::canvas() / dev.off()")
+  lines.push("# 图形设备由 webR 管理，勿自行 webr::canvas() / dev.off()")
 
   const numericCols = columns.filter((c) => c.semanticType === "numeric")
   const catCols = columns.filter((c) => c.semanticType === "categorical" || c.semanticType === "boolean")
   const temporalCols = columns.filter((c) => c.semanticType === "temporal")
 
-  // ggplot 分支统一赋值给 p，末尾再 print；base 图形用副作用直接绘制，无需 print
-  let usesGgplot = true
+  // 顶层表达式由 captureR 的 withAutoprint 自动打印，裸写即可；最后一支走 base 图形
   if (temporalCols.length > 0 && numericCols.length > 0) {
     const x = escapeRName(temporalCols[0].name)
     const y = escapeRName(numericCols[0].name)
-    lines.push(`p <- ggplot(df, aes(x = ${x}, y = ${y})) +`)
+    lines.push(`ggplot(df, aes(x = ${x}, y = ${y})) +`)
     lines.push(`  geom_line() +`)
     lines.push(`  geom_point() +`)
     lines.push(`  theme_minimal()`)
   } else if (numericCols.length > 0 && catCols.length > 0) {
     const x = escapeRName(catCols[0].name)
     const y = escapeRName(numericCols[0].name)
-    lines.push(`p <- ggplot(df, aes(x = ${x}, y = ${y})) +`)
+    lines.push(`ggplot(df, aes(x = ${x}, y = ${y})) +`)
     lines.push(`  geom_boxplot() +`)
     lines.push(`  theme_minimal()`)
   } else if (numericCols.length > 0) {
     const x = escapeRName(numericCols[0].name)
-    lines.push(`p <- ggplot(df, aes(x = ${x})) +`)
+    lines.push(`ggplot(df, aes(x = ${x})) +`)
     lines.push(`  geom_histogram(bins = 30) +`)
     lines.push(`  theme_minimal()`)
   } else if (catCols.length > 0) {
     const x = escapeRName(catCols[0].name)
-    lines.push(`p <- ggplot(df, aes(x = ${x})) +`)
+    lines.push(`ggplot(df, aes(x = ${x})) +`)
     lines.push(`  geom_bar() +`)
     lines.push(`  theme_minimal()`)
   } else {
-    usesGgplot = false
-    lines.push("# 无可用绘图列：直接看数据结构")
     lines.push("plot(df)")
-  }
-
-  if (usesGgplot) {
-    lines.push("")
-    lines.push("# 必须 print：ggplot 对象只有被 print 才会画到设备上")
-    lines.push("print(p)")
   }
 
   return lines.join("\n")

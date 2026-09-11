@@ -34,7 +34,7 @@
 - 真正成因在模板自己动了设备：webR 求值后按 `plots <- setdiff(webr::canvas_cache(), old_cache)` 收集
   「执行期间新产生的画布」，模板末尾的 `dev.off()` 会先把那张画布移出缓存 → 差集为空 → `images` 为空 → 面板无图。
   模板里的 `webr::canvas()` 同样多余：`captureGraphics` 已经 `do.call(webr::canvas, canvas_options)` 开好捕获设备。
-- 现模板：不自己开/关设备；ggplot 对象赋值 `p` 后 `print(p)`（ggplot 只是对象，绘制发生在 print 时）。
+- 现模板：不自己开/关设备；ggplot 裸写——顶层表达式由 `captureR({ withAutoprint: true })` 自动打印，无需 `print()`。
 
 ### 4. 注入与执行串行化
 

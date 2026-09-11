@@ -13,7 +13,7 @@
 - **关闭 = 平移出屏**：首次打开后保持挂载（由 `SessionView` 的 `rWorkbenchPinned` 在事件处理器里决定），代码与输出在关闭/重开之间保留；关闭后 `aria-hidden + inert`，不拦截结果区交互。
 - **模板先于运行时**：打开即写入 R 模板，初始化失败（离线/CDN 不可用）也能读、改、复制代码。
 - **历史**：每次执行落一条统一历史（`lib/history-store.ts`，文本输出可回放、图片不持久化）；重开面板优先恢复上次代码，但**去掉旧的数据加载块并用当前数据集重建 `df`**（否则会用旧数据），文本输出只在面板生命周期内回放一次。
-- **画布与注入**：`ImageBitmap` 归 `WebRClient`（组件不 `close()`，只做零尺寸守卫）；**模板/用户代码不得自行开或关图形设备**（`webr::canvas()` / `dev.off()`）——webR 按执行前后画布缓存差集收图，自己关掉就收不到，ggplot 对象必须 `print()`；`injectData` 未完成时运行会等待注入，状态栏显示 `injecting`。
+- **画布与注入**：`ImageBitmap` 归 `WebRClient`（组件不 `close()`，只做零尺寸守卫）；**模板/用户代码不得自行开或关图形设备**（`webr::canvas()` / `dev.off()`）——webR 按执行前后画布缓存差集收图，自己关掉就收不到；顶层表达式由 `withAutoprint` 自动打印；`injectData` 未完成时运行会等待注入，状态栏显示 `injecting`。
 
 ## 契约（数据与边界）
 
