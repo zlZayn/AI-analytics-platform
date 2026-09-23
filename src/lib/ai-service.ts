@@ -14,7 +14,7 @@ const APP_VERSION = process.env.NEXT_PUBLIC_APP_VERSION || "dev"
  */
 export type ResponseFormatMode = "json_schema" | "json_object" | "none"
 
-const RESPONSE_FORMAT_CHAIN: ResponseFormatMode[] = ["json_schema", "json_object", "none"]
+const RESPONSE_FORMAT_CHAIN = ["json_schema", "json_object", "none"] as const satisfies readonly ResponseFormatMode[]
 
 /** AI_RESPONSE_FORMAT 指定起点；未配置或非法值从最强档开始 */
 export function parseResponseFormatChain(raw: string | undefined): ResponseFormatMode[] {

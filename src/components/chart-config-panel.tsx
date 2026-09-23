@@ -24,11 +24,11 @@ interface ChartConfigPanelProps {
   onChange: (mapping: ChartMapping) => void
 }
 
-const CORRELATION_METHODS: { value: CorrelationMethod; label: string }[] = [
+const CORRELATION_METHODS = [
   { value: "pearson", label: "Pearson" },
   { value: "spearman", label: "Spearman" },
   { value: "kendall", label: "Kendall" },
-]
+] as const satisfies readonly { value: CorrelationMethod; label: string }[]
 
 const GROUP_WARN_THRESHOLD = 20
 

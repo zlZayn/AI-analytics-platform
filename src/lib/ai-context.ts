@@ -16,7 +16,7 @@ export interface ContextSource {
   fallback: string
 }
 
-export const CONTEXT_SOURCES: readonly ContextSource[] = [
+export const CONTEXT_SOURCES = [
   {
     name: "schema",
     shortLabel: "表结构",
@@ -47,7 +47,7 @@ export const CONTEXT_SOURCES: readonly ContextSource[] = [
     label: "本次会话的问答历史（前端传入，或按 conversationId 取最近 10 条）",
     fallback: "无历史即按单轮问答处理",
   },
-]
+] as const satisfies readonly ContextSource[]
 
 /** AI 不可见边界：这些内容永远不会进入提示词 */
 export const AI_NEVER_VISIBLE: readonly string[] = [
