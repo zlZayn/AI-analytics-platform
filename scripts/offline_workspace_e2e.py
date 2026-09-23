@@ -355,6 +355,48 @@ def main() -> None:
         page.wait_for_function(settle, timeout=15_000)
         page.screenshot(path=str(OUTPUT_DIR / "insights-tab.png"), full_page=True)
 
+        # 保存查询闭环（也是 session-workspace 拆分的前置基线）：
+        # 名称为空时保存按钮禁用；POST 带去空白的名称、连接 id 与非空编译 SQL；
+        # 成功后对话框关闭且名称复位（再开是空的），并给出成功提示。
+        saved_requests: list[str] = []
+        page.on(
+            "request",
+            lambda request: saved_requests.append(request.post_data or "")
+            if urlparse(request.url).path == "/api/query/saved"
+            else None,
+        )
+        toolbar_save = page.get_by_role("button", name="保存", exact=True)
+        if toolbar_save.count() != 1:
+            raise AssertionError(f"expected exactly one save button before the dialog opens, got {toolbar_save.count()}")
+        toolbar_save.click()
+        save_dialog = page.get_by_role("dialog")
+        save_dialog.wait_for(state="visible", timeout=10_000)
+        if not save_dialog.get_by_role("button", name="保存", exact=True).is_disabled():
+            raise AssertionError("save must stay disabled while the name is empty")
+        save_dialog.get_by_label("名称", exact=True).fill("  销售趋势回归用例  ")
+        with page.expect_request(
+            lambda request: request.method == "POST" and urlparse(request.url).path == "/api/query/saved"
+        ) as saved_request:
+            save_dialog.get_by_role("button", name="保存", exact=True).click()
+        saved_payload = json.loads(saved_request.value.post_data or "{}")
+        if saved_payload.get("name") != "销售趋势回归用例":
+            raise AssertionError(f"save name must be trimmed: {saved_payload}")
+        if saved_payload.get("connectionId") != "test":
+            raise AssertionError(f"save payload lost connectionId: {saved_payload}")
+        if not saved_payload.get("sql"):
+            raise AssertionError(f"save payload lost compiled sql: {saved_payload}")
+        save_dialog.wait_for(state="hidden", timeout=10_000)
+        page.get_by_text("查询已保存", exact=True).first.wait_for(state="visible", timeout=10_000)
+        toolbar_save.click()
+        save_dialog.wait_for(state="visible", timeout=10_000)
+        if save_dialog.get_by_label("名称", exact=True).input_value() != "":
+            raise AssertionError("name field must reset after a successful save")
+        save_dialog.get_by_role("button", name="取消", exact=True).click()
+        save_dialog.wait_for(state="hidden", timeout=10_000)
+        if len(saved_requests) != 1:
+            raise AssertionError(f"expected exactly one save POST, got {len(saved_requests)}")
+        page.screenshot(path=str(OUTPUT_DIR / "save-query.png"), full_page=True)
+
         # 持久化（回归）：切页再回来，AI 对话与洞察卡片仍在；结果行不持久化，故图表区为空态
         page.get_by_role("link", name="数据探索", exact=True).click()
         page.wait_for_url("**/explorer**")
