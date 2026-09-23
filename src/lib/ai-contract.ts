@@ -461,28 +461,10 @@ function parseQuerySpec(raw: unknown): QuerySpec | null {
   }
   const measures = parseMeasureList(raw)
   if (measures.length > 0) spec.measures = measures
-  if (Array.isArray(raw.filters)) {
-    const filters = raw.filters
-      .filter((f): f is Record<string, unknown> => isRecord(f) && typeof f.field === "string" && typeof f.op === "string" && FILTER_OPERATORS.has(f.op))
-      .map((f) => ({
-        field: f.field as string,
-        op: f.op as Filter["op"],
-        value: f.value,
-        values: Array.isArray(f.values) ? f.values : undefined,
-      }))
-    if (filters.length > 0) spec.filters = filters
-  }
-  if (Array.isArray(raw.having)) {
-    const having = raw.having
-      .filter((f): f is Record<string, unknown> => isRecord(f) && typeof f.field === "string" && typeof f.op === "string" && FILTER_OPERATORS.has(f.op))
-      .map((f) => ({
-        field: f.field as string,
-        op: f.op as Filter["op"],
-        value: f.value,
-        values: Array.isArray(f.values) ? f.values : undefined,
-      }))
-    if (having.length > 0) spec.having = having
-  }
+  const filters = parseFilterList(raw.filters)
+  if (filters.length > 0) spec.filters = filters
+  const having = parseFilterList(raw.having)
+  if (having.length > 0) spec.having = having
   const sort = parseSortList(raw)
   if (sort.length > 0) spec.sort = sort
   if (typeof raw.limit === "number" && raw.limit > 0 && Number.isFinite(raw.limit)) {
@@ -501,6 +483,19 @@ function parseMeasureList(raw: Record<string, unknown>): Measure[] {
       field: m.field as string,
       aggregation: m.aggregation as Measure["aggregation"],
       alias: typeof m.alias === "string" ? m.alias : undefined,
+    }))
+}
+
+/** filters 与 having 同形：同一套算子白名单、同一个 Filter 契约，只解析一次 */
+function parseFilterList(input: unknown): Filter[] {
+  if (!Array.isArray(input)) return []
+  return input
+    .filter((f): f is Record<string, unknown> => isRecord(f) && typeof f.field === "string" && typeof f.op === "string" && FILTER_OPERATORS.has(f.op))
+    .map((f) => ({
+      field: f.field as string,
+      op: f.op as Filter["op"],
+      value: f.value,
+      values: Array.isArray(f.values) ? f.values : undefined,
     }))
 }
 
