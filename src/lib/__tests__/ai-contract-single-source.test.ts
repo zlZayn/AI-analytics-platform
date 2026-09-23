@@ -3,6 +3,13 @@ import { AI_RESPONSE_JSON_SCHEMA, MAX_INSIGHT_ITEMS, buildSystemPrompt, parseIns
 
 type Variant = { required: string[]; properties: Record<string, unknown> }
 
+/** 下标访问在 noUncheckedIndexedAccess 下带 undefined；越界就是断言前提破了，抛错比让 expect 拿到 undefined 更早暴露 */
+function indexed<T>(items: readonly T[], at: number): T {
+  const item = items[at]
+  if (item === undefined) throw new Error(`期望第 ${at} 项存在，实际越界`)
+  return item
+}
+
 function variants(): Variant[] {
   return AI_RESPONSE_JSON_SCHEMA.schema.properties.items.items.anyOf as unknown as Variant[]
 }
@@ -10,7 +17,7 @@ function variants(): Variant[] {
 /** 声明进 schema 的截断上限（变体 0 = 优先 querySpec，变体 1 = 回退 sql）；
  *  INSIGHT_FIELDS 本身不导出，故从导出的 schema 反读——单一来源是否成立只能这样验 */
 function declaredMaxLength(variantIndex: number, field: "title" | "insight"): number {
-  return (variants()[variantIndex].properties[field] as { maxLength: number }).maxLength
+  return (indexed(variants(), variantIndex).properties[field] as { maxLength: number }).maxLength
 }
 
 const prompt = buildSystemPrompt("TABLE sales(region text, amount numeric)")
@@ -49,7 +56,8 @@ describe("洞察项契约单一来源", () => {
   })
 
   it("优先变体不声明 sql，回退变体才声明（消除提示词与 schema 的矛盾）", () => {
-    const [preferred, fallback] = variants()
+    const preferred = indexed(variants(), 0)
+    const fallback = indexed(variants(), 1)
 
     expect(preferred.required).toContain("querySpec")
     expect(preferred.required).not.toContain("sql")
@@ -69,15 +77,15 @@ describe("洞察项契约单一来源", () => {
       }],
     })
 
-    const [item] = parseInsightItems(content)
+    const item = indexed(parseInsightItems(content), 0)
 
-    expect(item.title.length).toBe(AI_RESPONSE_JSON_SCHEMA.schema.properties.items.items.anyOf[0].properties.title.maxLength)
-    expect(item.insight.length).toBe(AI_RESPONSE_JSON_SCHEMA.schema.properties.items.items.anyOf[0].properties.insight.maxLength)
+    expect(item.title.length).toBe(declaredMaxLength(0, "title"))
+    expect(item.insight.length).toBe(declaredMaxLength(0, "insight"))
   })
 
   it("两条解析分支的截断长度都必须跟随同一份 schema 声明", () => {
     const long = { title: "标".repeat(120), insight: "结".repeat(1200) }
-    const [preferred] = parseInsightItems(JSON.stringify({
+    const preferred = indexed(parseInsightItems(JSON.stringify({
       items: [{
         ...long,
         querySpec: { table: "sales", measures: [{ field: "amount", aggregation: "sum", alias: "total" }] },
@@ -85,14 +93,14 @@ describe("洞察项契约单一来源", () => {
         context: [],
         statTest: null,
       }],
-    }))
-    const [fallback] = parseInsightItems(JSON.stringify({
+    })), 0)
+    const fallback = indexed(parseInsightItems(JSON.stringify({
       items: [{
         ...long,
         sql: "SELECT region AS region, SUM(amount) AS total FROM sales GROUP BY region",
         chart: { type: "bar", mapping: { x: "region", y: "total" } },
       }],
-    }))
+    })), 0)
 
     // 上一例只走优先变体；回退变体是另一条独立语句，不跟声明就会单侧漂移
     expect(fallback.title.length).toBe(declaredMaxLength(1, "title"))
