@@ -535,7 +535,11 @@ function parseJoinList(raw: Record<string, unknown>): Join[] {
 
 function extractOutputAliases(sql: string): Set<string> {
   const aliases = new Set<string>()
-  for (const match of sql.matchAll(/\bAS\s+"?([a-z_][\w$]*)"?/gi)) aliases.add(match[1])
+  for (const match of sql.matchAll(/\bAS\s+"?([a-z_][\w$]*)"?/gi)) {
+    const alias = match[1]
+    // 捕获组不参与就不可能整体匹配，此处必然拿到字符串
+    if (alias !== undefined) aliases.add(alias)
+  }
   return aliases
 }
 

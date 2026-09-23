@@ -138,25 +138,25 @@ export function generateRTemplate(dataset: SemanticDataset): string {
 
   // 顶层表达式由 captureR 的 withAutoprint 自动打印，裸写即可；最后一支走 base 图形
   if (temporalCols.length > 0 && numericCols.length > 0) {
-    const x = escapeRName(temporalCols[0].name)
-    const y = escapeRName(numericCols[0].name)
+    const x = escapeRName(firstColumnName(temporalCols))
+    const y = escapeRName(firstColumnName(numericCols))
     lines.push(`ggplot(df, aes(x = ${x}, y = ${y})) +`)
     lines.push(`  geom_line() +`)
     lines.push(`  geom_point() +`)
     lines.push(`  theme_minimal()`)
   } else if (numericCols.length > 0 && catCols.length > 0) {
-    const x = escapeRName(catCols[0].name)
-    const y = escapeRName(numericCols[0].name)
+    const x = escapeRName(firstColumnName(catCols))
+    const y = escapeRName(firstColumnName(numericCols))
     lines.push(`ggplot(df, aes(x = ${x}, y = ${y})) +`)
     lines.push(`  geom_boxplot() +`)
     lines.push(`  theme_minimal()`)
   } else if (numericCols.length > 0) {
-    const x = escapeRName(numericCols[0].name)
+    const x = escapeRName(firstColumnName(numericCols))
     lines.push(`ggplot(df, aes(x = ${x})) +`)
     lines.push(`  geom_histogram(bins = 30) +`)
     lines.push(`  theme_minimal()`)
   } else if (catCols.length > 0) {
-    const x = escapeRName(catCols[0].name)
+    const x = escapeRName(firstColumnName(catCols))
     lines.push(`ggplot(df, aes(x = ${x})) +`)
     lines.push(`  geom_bar() +`)
     lines.push(`  theme_minimal()`)
@@ -165,6 +165,13 @@ export function generateRTemplate(dataset: SemanticDataset): string {
   }
 
   return lines.join("\n")
+}
+
+/** 各调用分支都以 length > 0 为前提，[0] 必然存在；越界即不变量被破坏，抛错而非静默 undefined.name */
+function firstColumnName(cols: SemanticDataset["columns"]): string {
+  const col = cols[0]
+  if (col === undefined) throw new Error("列数组为空")
+  return col.name
 }
 
 /** 数据集 → CSV 字符串（UTF-8 BOM，兼容 Excel 中文） */

@@ -16,7 +16,7 @@ export function extractPendingMention(text: string): string | null {
   if (at > 0) {
     const prev = text[at - 1]
     // @ 前紧跟 ASCII 标识符（字母/数字/下划线/点/连字符）→ 视为普通文本而非提及
-    if (/[A-Za-z0-9_.\-]/.test(prev)) return null
+    if (prev !== undefined && /[A-Za-z0-9_.\-]/.test(prev)) return null
   }
   const tail = text.slice(at + 1)
   if (/\s/.test(tail)) return null

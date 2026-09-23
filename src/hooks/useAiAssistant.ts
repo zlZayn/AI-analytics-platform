@@ -132,8 +132,11 @@ export function useAiAssistant({
       // 多洞察全部保留（洞察视图卡片流），第一条自动执行（结论前置）
       setInsights(items)
       onTabChange("insights")
-      const ran = applyInsight(items[0], question, 0)
-      dispatch({ type: "ADD_CONVERSATION", message: assistantMessage(items[0].insight || items[0].title) })
+      // 上方 length === 0 已提前返回，首项必然存在
+      const first = items[0]
+      if (first === undefined) throw new Error("items 首项缺失")
+      const ran = applyInsight(first, question, 0)
+      dispatch({ type: "ADD_CONVERSATION", message: assistantMessage(first.insight || first.title) })
       notify(
         ran
           ? `已生成 ${items.length} 条分析，执行第 1 条`
@@ -146,7 +149,7 @@ export function useAiAssistant({
         sessionId: session.id,
         question,
         ok: true,
-        summary: items[0].insight || items[0].title,
+        summary: first.insight || first.title,
         items,
       })
     } catch (error) {

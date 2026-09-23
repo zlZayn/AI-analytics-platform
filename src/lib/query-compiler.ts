@@ -183,7 +183,8 @@ function validateAgainstSchema(querySpec: QuerySpec, schema: SchemaData): void {
   const checkColumn = (field: string) => {
     if (field.includes(".")) {
       const [table, column] = field.split(".")
-      if (!columnsByTable.get(table)?.has(column)) throw new Error(`列不存在: ${field}`)
+      // 含 "." 的 field 按 "." 切分必得两段；空段与缺失同样判为列不存在（与原先 get 未命中一致）
+      if (!table || !column || !columnsByTable.get(table)?.has(column)) throw new Error(`列不存在: ${field}`)
       return
     }
     if (!allColumns.has(field)) throw new Error(`列不存在: ${field}`)
