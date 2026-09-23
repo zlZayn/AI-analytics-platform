@@ -21,7 +21,7 @@ export type SemanticType =
 export interface Measure {
   field: string
   aggregation: "count" | "sum" | "avg" | "min" | "max" | "count_distinct"
-  alias?: string
+  alias?: string | undefined
 }
 
 /**
@@ -57,7 +57,7 @@ export interface Filter {
   field: string
   op: FilterOperator
   value?: unknown
-  values?: unknown[]
+  values?: unknown[] | undefined
 }
 
 export interface Join {
@@ -145,9 +145,9 @@ export interface AnalysisSession {
   result: SemanticDataset | null
   displayConfig: DisplayConfig
   status: SessionStatus
-  error?: string
+  error?: string | undefined
   /** data-based 校验结果（EXECUTE_SUCCESS 时写入，由 SessionView 展示） */
-  validationIssues?: ValidationIssue[]
+  validationIssues?: ValidationIssue[] | undefined
   source: "ai" | "user"
   isUserModified: boolean
   /**
