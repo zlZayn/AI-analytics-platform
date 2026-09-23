@@ -70,19 +70,19 @@ describe("AI prompt and output contract", () => {
       }],
     }))
     expect(items).toHaveLength(1)
-    expect(items[0].context).toEqual([
+    expect(indexed(items, 0).context).toEqual([
       { source: "运营规范.pdf", rule: "高价值客户 = 年消费 > 10 万", applied: true },
     ])
-    expect(items[0].fallback).toBe(false)
+    expect(indexed(items, 0).fallback).toBe(false)
   })
 
   it("omits context when absent or empty", () => {
-    expect(parseInsightItems(newFormat)[0].context).toBeUndefined()
+    expect(indexed(parseInsightItems(newFormat), 0).context).toBeUndefined()
     const base = JSON.parse(newFormat) as { items: unknown[] }
     const withEmpty = parseInsightItems(JSON.stringify({
       items: [{ ...(base.items[0] as object), context: [] }],
     }))
-    expect(withEmpty[0].context).toBeUndefined()
+    expect(indexed(withEmpty, 0).context).toBeUndefined()
   })
 
   it("exposes a strict provider structured-output schema with querySpec and displayConfig", () => {
@@ -93,10 +93,10 @@ describe("AI prompt and output contract", () => {
     })
     // item 为双变体：新格式（querySpec+displayConfig）与旧格式回退（sql+chart）
     const variants = AI_RESPONSE_JSON_SCHEMA.schema.properties.items.items.anyOf
-    expect(variants[0].properties.querySpec).toBeDefined()
-    expect(variants[0].properties.displayConfig).toBeDefined()
-    expect(variants[1].properties.sql).toBeDefined()
-    expect(variants[1].properties.chart).toBeDefined()
+    expect(indexed(variants, 0).properties.querySpec).toBeDefined()
+    expect(indexed(variants, 0).properties.displayConfig).toBeDefined()
+    expect(indexed(variants, 1).properties.sql).toBeDefined()
+    expect(indexed(variants, 1).properties.chart).toBeDefined()
     expectStrictObjectRequirements(AI_RESPONSE_JSON_SCHEMA.schema)
   })
 
@@ -138,7 +138,7 @@ describe("AI prompt and output contract", () => {
   ])("degrades legacy %s to a table fallback instead of dropping", (_label, chart) => {
     const parsed = JSON.parse(legacy)
     parsed.items[0].chart = chart
-    const [item] = parseInsightItems(JSON.stringify(parsed))
+    const item = indexed(parseInsightItems(JSON.stringify(parsed)), 0)
     // 渲染失败不是丢弃理由：说明降级原因，图表回退为表格（表格总能渲染）
     expect(item.chart).toEqual({ chartType: "table" })
     expect(item.notice).toContain("图表映射无效，已回退为表格")
@@ -147,7 +147,7 @@ describe("AI prompt and output contract", () => {
   it("keeps unsafe SQL as copyable text (not executable) and still rejects malformed JSON", () => {
     const parsed = JSON.parse(legacy)
     parsed.items[0].sql = "DELETE FROM sales"
-    const [item] = parseInsightItems(JSON.stringify(parsed))
+    const item = indexed(parseInsightItems(JSON.stringify(parsed)), 0)
     expect(item.sql).toBe("DELETE FROM sales")
     expect(item.sqlValid).toBe(false)
     expect(item.notice).toContain("SQL 未通过只读预检")
@@ -158,7 +158,7 @@ describe("AI prompt and output contract", () => {
   it("falls back to sql when querySpec is structurally invalid", () => {
     const parsed = JSON.parse(newFormat)
     parsed.items[0].querySpec = { dimensions: ["region"] } // 缺 table
-    const [item] = parseInsightItems(JSON.stringify(parsed))
+    const item = indexed(parseInsightItems(JSON.stringify(parsed)), 0)
     expect(item.fallback).toBe(true)
     expect(item.sql).toBe("SELECT region AS region, SUM(amount) AS total FROM sales GROUP BY region")
   })
@@ -175,11 +175,18 @@ describe("AI prompt and output contract", () => {
     const result = await generateAnalysis("比较区域", "TABLE sales(region text, amount numeric)", [], provider)
 
     expect(result.items).toHaveLength(1)
-    expect(result.items[0].fallback).toBe(false)
+    expect(indexed(result.items, 0).fallback).toBe(false)
     expect(request?.responseSchema).toBe(AI_RESPONSE_JSON_SCHEMA)
     expect(request?.messages.at(-1)).toEqual({ role: "user", content: "比较区域" })
   })
 })
+
+/** 下标访问在 noUncheckedIndexedAccess 下带 undefined；测试越界就是前提破了，抛错比让 expect 拿到 undefined 更早暴露 */
+function indexed<T>(items: readonly T[], at: number): T {
+  const item = items[at]
+  if (item === undefined) throw new Error(`期望第 ${at} 项存在，实际越界`)
+  return item
+}
 
 function expectStrictObjectRequirements(value: unknown): void {
   if (!value || typeof value !== "object") return
