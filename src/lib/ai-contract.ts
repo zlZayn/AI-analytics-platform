@@ -45,23 +45,23 @@ export interface InsightItem {
   title: string
   insight: string
   /** 过渡期回退：querySpec 缺失时 AI 直出的 SQL（阶段三后应逐步移除） */
-  sql?: string
+  sql?: string | undefined
   /** sql 是否通过只读预检；false = 仅可复制，不能一键执行 */
-  sqlValid?: boolean
+  sqlValid?: boolean | undefined
   /** 降级说明：渲染失败或不可执行的原因（无则未降级） */
-  notice?: string
+  notice?: string | undefined
   /** 旧客户端兼容：ChartMapping（由 displayConfig 或旧 chart 解析） */
   chart: ChartMapping
   /** 新契约：结构化查询（阶段三起 AI 输出，compileQuerySpec 消费） */
-  querySpec?: QuerySpec
+  querySpec?: QuerySpec | undefined
   /** 新契约：呈现配置 */
-  displayConfig?: DisplayConfig
+  displayConfig?: DisplayConfig | undefined
   /** 回退标记：true 表示 querySpec 缺失、以 sql 直通 */
   fallback: boolean
   /** 业务上下文引用（RAG/业务口径融合预留）：AI 遵守了哪些规则 */
-  context?: InsightContext[]
+  context?: InsightContext[] | undefined
   /** 显著性检验建议（蓝图阶段 3 黑盒统计：前端用固定模板在 WebR 执行，AI 不写 R） */
-  statTest?: StatTestRequest
+  statTest?: StatTestRequest | undefined
 }
 
 /** 契约上限总表：schema 与解析层都从这里读，数值只写一次。

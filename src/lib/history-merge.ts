@@ -23,7 +23,7 @@ export interface TimelineItem {
   /** 正文代码块：SQL 语句 / R 代码；AI 无代码块 */
   code: string
   /** 代码块之外的补充说明（AI 结论摘要） */
-  note?: string
+  note?: string | undefined
   /** 复制动作的完整文本（AI = 原始问题；SQL/R = 代码原文），空 = 不提供复制 */
   copyText: string
   /** SQL 专属：行数与耗时 */

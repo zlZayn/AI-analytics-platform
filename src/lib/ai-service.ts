@@ -58,18 +58,18 @@ export interface AIMessage {
 }
 
 export interface AIUsage {
-  promptTokens?: number
-  completionTokens?: number
+  promptTokens?: number | undefined
+  completionTokens?: number | undefined
   /** 推理模型的可见输出之外的开销：预算被它吃掉是截断的常见原因 */
-  reasoningTokens?: number
-  totalTokens?: number
+  reasoningTokens?: number | undefined
+  totalTokens?: number | undefined
 }
 
 /** 一次补全：内容 + 提供方元信息（诊断与有界重试都依赖它） */
 export interface AICompletion {
   content: string
   finishReason: string
-  usage?: AIUsage
+  usage?: AIUsage | undefined
 }
 
 export interface AICompletionProvider {
@@ -77,7 +77,7 @@ export interface AICompletionProvider {
     messages: AIMessage[]
     responseSchema: typeof AI_RESPONSE_JSON_SCHEMA
     /** 会话标识：同一对话保持稳定，供网关路由与缓存（占位符 {sessionId} 使用） */
-    sessionId?: string
+    sessionId?: string | undefined
   }): Promise<AICompletion>
 }
 
@@ -91,10 +91,10 @@ export interface AIServiceResult {
   message: string
   /** 实际调用次数（1 = 一次成功；2 = 触发过有界修复） */
   attempts: number
-  finishReason?: string
-  usage?: AIUsage
+  finishReason?: string | undefined
+  usage?: AIUsage | undefined
   /** 失败时的原始响应片段：只给服务端日志，不回传客户端 */
-  rawPreview?: string
+  rawPreview?: string | undefined
 }
 
 const OUTCOME_MESSAGES: Record<AIOutcomeReason, string> = {
@@ -108,9 +108,9 @@ const OUTCOME_MESSAGES: Record<AIOutcomeReason, string> = {
 /** 按官方 JSON Output 的建议给出失败分类与用户可见原因 */
 export function describeOutcome(input: {
   content: string
-  finishReason?: string
+  finishReason?: string | undefined
   items: InsightItem[]
-}): { reason: AIOutcomeReason; message: string; rawPreview?: string } {
+}): { reason: AIOutcomeReason; message: string; rawPreview?: string | undefined } {
   if (input.items.length > 0) return { reason: "ok", message: OUTCOME_MESSAGES.ok }
   const rawPreview = input.content.slice(0, 400)
   if (!input.content.trim()) return { reason: "empty", message: OUTCOME_MESSAGES.empty, rawPreview }
@@ -229,7 +229,7 @@ export function parseHeaderTemplates(raw: string | undefined): Record<string, st
  */
 export function resolveRequestHeaders(
   templates: Record<string, string>,
-  context: { sessionId?: string; version?: string },
+  context: { sessionId?: string | undefined; version?: string | undefined },
 ): Record<string, string> {
   const version = context.version ?? APP_VERSION
   const headers: Record<string, string> = {}
