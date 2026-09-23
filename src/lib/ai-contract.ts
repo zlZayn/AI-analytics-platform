@@ -64,6 +64,19 @@ export interface InsightItem {
   statTest?: StatTestRequest
 }
 
+/** 契约上限总表：schema 与解析层都从这里读，数值只写一次。
+ *  改这里即同时改到提示词 schema 与两条解析分支的截断，不会再单侧漂移。 */
+const LIMITS = {
+  title: 80,
+  insight: 1000,
+  contextSource: 120,
+  contextRule: 300,
+  contextItems: 5,
+  hypothesis: 200,
+  /** 仅解析侧截断：schema 对 correlation.columns 未声明 maxItems（收紧对模型的约束属行为变更，另计） */
+  correlationColumns: 20,
+} as const
+
 // 每个图表类型的 mapping 结构（用于 displayConfig.mapping 与旧 chart.mapping）
 // OpenAI strict 模式要求 required 覆盖 properties 全部键，故把可选槽位也一并纳入 required；
 // 解析端（parseMapping）对缺失/空值做容错，不影响可选语义。
@@ -99,14 +112,14 @@ const chartSchemaVariants = CHART_TYPES.map((type, i) => ({
 
 const contextSchema = {
   type: "array",
-  maxItems: 5,
+  maxItems: LIMITS.contextItems,
   items: {
     type: "object",
     additionalProperties: false,
     required: ["source", "rule", "applied"],
     properties: {
-      source: { type: "string", maxLength: 120 },
-      rule: { type: "string", maxLength: 300 },
+      source: { type: "string", maxLength: LIMITS.contextSource },
+      rule: { type: "string", maxLength: LIMITS.contextRule },
       applied: { type: "boolean" },
     },
   },
@@ -121,7 +134,7 @@ const statTestSchema = {
     kind: { type: "string", enum: ["ttest", "cor", "chisq"] },
     x: { type: "string" },
     y: { type: "string" },
-    hypothesis: { type: "string", maxLength: 200 },
+    hypothesis: { type: "string", maxLength: LIMITS.hypothesis },
   },
 } as const
 
@@ -147,16 +160,16 @@ interface InsightFieldSpec {
 const INSIGHT_FIELDS = {
   title: {
     variants: ["querySpec", "sql"],
-    schema: { type: "string", maxLength: 80 },
+    schema: { type: "string", maxLength: LIMITS.title },
     example: '"短标题"',
-    maxLength: 80,
+    maxLength: LIMITS.title,
     prompt: "短标题",
   },
   insight: {
     variants: ["querySpec", "sql"],
-    schema: { type: "string", maxLength: 1000 },
+    schema: { type: "string", maxLength: LIMITS.insight },
     example: '"业务语言结论"',
-    maxLength: 1000,
+    maxLength: LIMITS.insight,
     prompt: "业务语言结论",
   },
   querySpec: {
@@ -353,8 +366,8 @@ export function parseInsightItems(content: string): InsightItem[] {
     }
     if (!rawSql) notices.push("AI 未给出可执行 SQL")
     items.push({
-      title: raw.title.slice(0, 80),
-      insight: raw.insight.slice(0, 1000),
+      title: raw.title.slice(0, INSIGHT_FIELDS.title.maxLength),
+      insight: raw.insight.slice(0, INSIGHT_FIELDS.insight.maxLength),
       sql: rawSql || undefined,
       sqlValid: rawSql ? sqlValid : undefined,
       chart,
@@ -411,7 +424,7 @@ function parseMapping(
     case "kpi": return { chartType: "kpi", value: stringValue(mapping.value), label: optionalString(mapping.label), comparison: optionalString(mapping.comparison) }
     case "histogram": return { chartType: "histogram", value: stringValue(mapping.value), color: optionalString(mapping.color) }
     case "correlation": {
-      const columns = Array.isArray(mapping.columns) ? mapping.columns.filter((value): value is string => typeof value === "string" && (aliases === null || aliases.has(value))).slice(0, 20) : undefined
+      const columns = Array.isArray(mapping.columns) ? mapping.columns.filter((value): value is string => typeof value === "string" && (aliases === null || aliases.has(value))).slice(0, LIMITS.correlationColumns) : undefined
       const method = isCorrelationMethod(mapping.method) ? mapping.method : "pearson"
       return { chartType: "correlation", columns, method }
     }
@@ -502,7 +515,7 @@ function extractOutputAliases(sql: string): Set<string> {
 function parseContext(raw: unknown): InsightContext[] | undefined {
   if (!Array.isArray(raw) || raw.length === 0) return undefined
   const contexts: InsightContext[] = []
-  for (const item of raw.slice(0, 5)) {
+  for (const item of raw.slice(0, LIMITS.contextItems)) {
     if (
       isRecord(item) &&
       typeof item.source === "string" &&
@@ -511,7 +524,7 @@ function parseContext(raw: unknown): InsightContext[] | undefined {
       item.rule.trim() &&
       typeof item.applied === "boolean"
     ) {
-      contexts.push({ source: item.source.slice(0, 120), rule: item.rule.slice(0, 300), applied: item.applied })
+      contexts.push({ source: item.source.slice(0, LIMITS.contextSource), rule: item.rule.slice(0, LIMITS.contextRule), applied: item.applied })
     }
   }
   return contexts.length > 0 ? contexts : undefined
@@ -523,7 +536,7 @@ function parseStatTest(raw: unknown): StatTestRequest | undefined {
   const kind = raw.kind
   if (kind !== "ttest" && kind !== "cor" && kind !== "chisq") return undefined
   if (typeof raw.x !== "string" || !raw.x || typeof raw.y !== "string" || !raw.y) return undefined
-  const hypothesis = typeof raw.hypothesis === "string" && raw.hypothesis.trim() ? raw.hypothesis.slice(0, 200) : ""
+  const hypothesis = typeof raw.hypothesis === "string" && raw.hypothesis.trim() ? raw.hypothesis.slice(0, LIMITS.hypothesis) : ""
   return { kind, x: raw.x, y: raw.y, hypothesis }
 }
 
