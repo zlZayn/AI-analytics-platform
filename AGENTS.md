@@ -10,6 +10,7 @@ This version has breaking changes — APIs, conventions, and file structure may 
 - Next.js 16 有破坏性变更：写代码前先读 `node_modules/next/dist/docs/` 对应指南
 - 文档职责与引用契约见 [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)；决策记录 [.agents/notes/](.agents/notes/)
 - 文档同步后跑 `python scripts/check-links.py . --fragments --refs`（锚点/引用未成链为警告级）；行尾与编码规则见 [决策记录](.agents/notes/2026-09-03-windows-script-encoding-rules.md)
+- 严格开关已全开（[tsconfig.json](tsconfig.json)：`noUncheckedIndexedAccess` + `exactOptionalPropertyTypes`）：数组/记录下标访问先收窄再用；可选属性不要显式赋 `undefined`（`{ k: undefined }` 与「不提供该键」不是一回事，且条件展开只在原对象没有该键时等价）。判据跑真实配置 `npx tsc --noEmit -p tsconfig.json`，不是「CLI 加开关跑过」——两开关单独开都可能 0 错、同时开才暴露交互位点
 - 版本号按语义 bump（修复/文档=patch、功能/行为=minor、破坏性=major）：`node scripts/bump-version.mjs {major|minor|patch|X.Y.Z}`，**bump 后必须重建**才在侧栏徽标生效
 - 改根 [README.md](README.md) 必须同改 [README_en.md](README_en.md)（冲突时以中文为准）
 
