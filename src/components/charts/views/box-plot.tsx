@@ -24,8 +24,9 @@ export const BoxPlotView = React.memo(function BoxPlotView({
       const key = String(d[xKey] ?? "")
       const val = Number(d[yKey])
       if (!isNaN(val)) {
-        if (!map.has(key)) map.set(key, [])
-        map.get(key)!.push(val)
+        const values = map.get(key)
+        if (values) values.push(val)
+        else map.set(key, [val])
       }
     })
     return Array.from(map.entries())
