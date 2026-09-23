@@ -27,7 +27,12 @@ function semanticType(name: string, databaseType: string, values: unknown[], uni
 function direction(values: Array<number | string>): ColumnProfile["sorted"] {
   if (values.length < 2) return "none"
   let ascending = true; let descending = true
-  for (let i = 1; i < values.length; i += 1) { if (values[i] < values[i - 1]) ascending = false; if (values[i] > values[i - 1]) descending = false }
+  for (let i = 1; i < values.length; i += 1) {
+    const prev = values[i - 1]
+    const current = values[i]
+    if (prev === undefined || current === undefined) break
+    if (current < prev) ascending = false; if (current > prev) descending = false
+  }
   return ascending ? "ascending" : descending ? "descending" : "none"
 }
 
@@ -49,7 +54,7 @@ export function recommendCharts(profile: DataProfile): ChartRecommendation[] {
   const recommendations: ChartRecommendation[] = []
   if (temporal && numeric[0]) recommendations.push({ chartType: "line", mapping: { chartType: "line", x: temporal.name, y: numeric[0].name, showLegend: true }, reason: "时间列与数值列适合展示趋势", score: 95 })
   if (categorical && numeric[0]) recommendations.push({ chartType: "bar", mapping: { chartType: "bar", x: categorical.name, y: numeric[0].name, showLegend: true }, reason: "类别与数值列适合比较", score: 85 })
-  if (numeric.length >= 2) recommendations.push({ chartType: "scatter", mapping: { chartType: "scatter", x: numeric[0].name, y: numeric[1].name }, reason: "两个数值列适合观察关系", score: 75 })
+  if (numeric[0] && numeric[1]) recommendations.push({ chartType: "scatter", mapping: { chartType: "scatter", x: numeric[0].name, y: numeric[1].name }, reason: "两个数值列适合观察关系", score: 75 })
   if (numeric[0]) recommendations.push({ chartType: "histogram", mapping: { chartType: "histogram", value: numeric[0].name }, reason: "数值列适合查看分布", score: 65 })
   return recommendations.sort((a, b) => b.score - a.score)
 }

@@ -185,7 +185,11 @@ export function buildHeatmap(
 function selectEvenly<T>(values: T[], count: number): T[] {
   if (count <= 0) return []
   if (count >= values.length) return values
-  return Array.from({ length: count }, (_, index) => values[Math.floor(index * values.length / count)])
+  return Array.from({ length: count }, (_, index) => {
+    const value = values[Math.floor(index * values.length / count)]
+    if (value === undefined) throw new Error(`等距抽样越界：count=${count} 长度=${values.length}`)
+    return value
+  })
 }
 
 function unique(values: string[]): string[] {

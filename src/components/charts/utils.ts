@@ -1,7 +1,9 @@
 import { COLORS } from "./constants"
 
 export function getColor(index: number): string {
-  return COLORS[index % COLORS.length]
+  const color = COLORS[index % COLORS.length] ?? COLORS[0]
+  if (color === undefined) throw new Error("COLORS 不能为空")
+  return color
 }
 
 export function formatNumber(value: unknown): string {

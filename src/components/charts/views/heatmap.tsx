@@ -71,7 +71,7 @@ export const HeatmapView = React.memo(function HeatmapView({
                 {y.length > 12 ? y.slice(0, 12) + ".." : y}
               </text>
               {xLabels.map((_, col) => {
-                const val = matrix[row][col]
+                const val = matrix[row]?.[col] ?? null
                 const norm = val === null ? 0 : scale === "diverging" ? (val / range + 1) / 2 : (val - minVal) / range
                 const intensity = val === null ? 0 : scale === "diverging" ? Math.abs(val) / range : norm
                 const color = val === null
