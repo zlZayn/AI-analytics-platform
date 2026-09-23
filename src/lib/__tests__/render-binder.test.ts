@@ -30,7 +30,7 @@ describe("render-binder: bindDataToChart", () => {
     const result = bindDataToChart(ds, config)
 
     expect(result.adjustments).toHaveLength(1)
-    expect(result.adjustments[0].code).toBe("AUTO_COORD_FLIP")
+    expect(result.adjustments[0]?.code).toBe("AUTO_COORD_FLIP")
     expect(result.mapping).toMatchObject({ chartType: "line", x: "region", y: "amount" })
     expect(result.warnings).toHaveLength(0)
   })
@@ -70,8 +70,8 @@ describe("render-binder: bindDataToChart", () => {
     expect(result.rows).toHaveLength(2)
     expect(result.rows.map((row) => row.category)).toEqual(["A", "D"])
     expect(result.warnings).toHaveLength(1)
-    expect(result.warnings[0].code).toBe("INVALID_NUMERIC_FILTERED")
-    expect(result.warnings[0].message).toContain("2")
+    expect(result.warnings[0]?.code).toBe("INVALID_NUMERIC_FILTERED")
+    expect(result.warnings[0]?.message).toContain("2")
   })
 
   it("散点图要求 X 与 Y 均为数值，任一无效应被过滤", () => {
@@ -90,7 +90,7 @@ describe("render-binder: bindDataToChart", () => {
     const result = bindDataToChart(ds, config)
 
     expect(result.rows).toHaveLength(1)
-    expect(result.warnings[0].message).toContain("2")
+    expect(result.warnings[0]?.message).toContain("2")
   })
 
   it("饼图过滤无效数值行", () => {

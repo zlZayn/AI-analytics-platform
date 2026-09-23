@@ -10,9 +10,9 @@ describe("computeCorrelationMatrix", () => {
       { a: 4, b: 8, c: 8 },
     ], ["a", "b", "c"], "pearson")
 
-    expect(result.cells[0][1]).toEqual({ value: 1, sampleSize: 3 })
-    expect(result.cells[1][2]).toEqual({ value: 1, sampleSize: 2 })
-    expect(result.cells[0][2]).toEqual({ value: 1, sampleSize: 3 })
+    expect(result.cells[0]?.[1]).toEqual({ value: 1, sampleSize: 3 })
+    expect(result.cells[1]?.[2]).toEqual({ value: 1, sampleSize: 2 })
+    expect(result.cells[0]?.[2]).toEqual({ value: 1, sampleSize: 3 })
   })
 
   it("returns null for constant columns and insufficient pairs", () => {
@@ -21,9 +21,9 @@ describe("computeCorrelationMatrix", () => {
       { constant: 1, varying: 4, sparse: 9 },
     ], ["constant", "varying", "sparse"], "spearman")
 
-    expect(result.cells[0][1]).toEqual({ value: null, sampleSize: 2 })
-    expect(result.cells[1][2]).toEqual({ value: null, sampleSize: 1 })
-    expect(result.cells[1][1]).toEqual({ value: 1, sampleSize: 2 })
+    expect(result.cells[0]?.[1]).toEqual({ value: null, sampleSize: 2 })
+    expect(result.cells[1]?.[2]).toEqual({ value: null, sampleSize: 1 })
+    expect(result.cells[1]?.[1]).toEqual({ value: 1, sampleSize: 2 })
   })
 
   it("limits the matrix to twenty explicitly selected columns", () => {

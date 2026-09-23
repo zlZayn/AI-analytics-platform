@@ -24,6 +24,7 @@ function providerReturning(...completions: AICompletion[]): AICompletionProvider
   return {
     async complete() {
       const completion = completions[Math.min(index, completions.length - 1)]
+      if (completion === undefined) throw new Error("预置 completion 为空")
       index += 1
       return completion
     },
@@ -100,7 +101,7 @@ describe("generateAnalysis 有界修复", () => {
     expect(result.items).toHaveLength(1)
     expect(result.attempts).toBe(2)
     expect(result.reason).toBe("ok")
-    expect(complete.mock.calls[1][0].messages.at(-1)?.content).toContain("只输出 1 条 items")
+    expect(complete.mock.calls[1]?.[0].messages.at(-1)?.content).toContain("只输出 1 条 items")
   })
 
   it("连续两次不可用时返回后端一句话（不做第三次尝试）", async () => {

@@ -88,7 +88,7 @@ describe("WebRClient", () => {
     await client.execute("1 + 1")
     const s = client.getState()
     expect(s.output).toHaveLength(1)
-    expect(s.output[0].type).toBe("stdout")
+    expect(s.output[0]?.type).toBe("stdout")
     expect(s.lastExecMs).not.toBeNull()
     expect(s.busy).toBe(false)
   })
@@ -180,7 +180,9 @@ describe("WebRClient", () => {
     await client.init()
     await client.injectData(smallDataset)
     expect(fake.webR.evalR).toHaveBeenCalledTimes(1)
-    const code = fake.webR.evalR.mock.calls[0][0] as string
+    const firstCall = fake.webR.evalR.mock.calls[0]
+    if (firstCall === undefined) throw new Error("evalR 未记录调用参数")
+    const code = firstCall[0] as string
     expect(code).toContain("df <- data.frame(")
     expect(code).toContain("sales = c(1, 2)")
   })

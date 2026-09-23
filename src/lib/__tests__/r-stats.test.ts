@@ -58,7 +58,7 @@ describe("buildStatTestCode", () => {
     const code = buildStatTestCode(big, { kind: "cor", x: "sales", y: "region", hypothesis: "h" })
     expect(code.split("NA").length).toBe(1) // 无 NA，行数 = STAT_SAMPLE_ROWS
     const xPart = code.split("\n")[0]
-    const values = xPart.match(/c\((.+)\)/)![1].split(", ").length
+    const values = xPart?.match(/c\((.+)\)/)?.[1]?.split(", ").length
     expect(values).toBe(STAT_SAMPLE_ROWS)
   })
 })
