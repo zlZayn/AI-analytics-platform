@@ -263,7 +263,7 @@ function Field({ label, value, onChange, type = "text", placeholder }: {
   value: string
   onChange: (v: string) => void
   type?: string
-  placeholder?: string
+  placeholder?: string | undefined
 }) {
   const id = useId()
   return (

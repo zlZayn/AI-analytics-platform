@@ -6,7 +6,7 @@ import type { SemanticDataset } from "@/types/session"
 
 export interface UseWebRReturn {
   status: "idle" | "loading" | "ready" | "error"
-  error?: string
+  error?: string | undefined
   packages: string[]
   busy: boolean
   injecting: boolean

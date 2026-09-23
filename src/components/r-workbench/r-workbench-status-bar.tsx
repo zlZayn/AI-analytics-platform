@@ -5,7 +5,7 @@ interface RWorkbenchStatusBarProps {
   lastExecMs: number | null
   busy: boolean
   status: "idle" | "loading" | "ready" | "error"
-  error?: string
+  error?: string | undefined
   /** 正在把当前结果集注入 df（由 WebRClient 状态驱动） */
   injecting?: boolean
 }

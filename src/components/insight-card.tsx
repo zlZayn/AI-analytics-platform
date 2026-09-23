@@ -32,7 +32,7 @@ export function InsightCard({ index, item, sql, onExecute, loading, error, resul
   const [expanded, setExpanded] = useState(false)
   const sqlText = sql ?? item.sql ?? ""
   const webR = useWebR()
-  const [statOutcome, setStatOutcome] = useState<{ result?: StatTestResult; message?: string }>({})
+  const [statOutcome, setStatOutcome] = useState<{ result?: StatTestResult | undefined; message?: string | undefined }>({})
   // 派生 loading：有 statTest 且结果就绪但尚无结果/错误（状态只在异步链中写入）
   const statRunning = !!item.statTest && !!result && !statOutcome.result && !statOutcome.message
 

@@ -43,7 +43,7 @@ export const DEFAULT_TIMEOUT_MS = 60_000
 
 export interface WebRClientState {
   status: "idle" | "loading" | "ready" | "error"
-  error?: string
+  error?: string | undefined
   packages: string[]
   busy: boolean
   /** 正在把当前结果集注入 df：运行前必须先等它完成（否则会用到上一份数据） */

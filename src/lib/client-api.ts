@@ -6,9 +6,9 @@ interface ErrorEnvelope {
 
 export class ApiRequestError extends Error {
   readonly code: string
-  readonly status?: number
+  readonly status?: number | undefined
   readonly retryable: boolean
-  readonly requestId?: string
+  readonly requestId?: string | undefined
 
   constructor(message: string, code: string, retryable: boolean, status?: number, requestId?: string) {
     super(message)

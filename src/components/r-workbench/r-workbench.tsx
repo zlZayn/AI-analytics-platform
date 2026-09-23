@@ -37,7 +37,7 @@ interface RWorkbenchProps {
   /** 当前结果集来源的 SQL：随 R 执行历史落库，历史面板据此带回工作台重跑 df */
   sourceSql: string
   /** 历史回放条目 id（来自 URL `?r=`）：打开面板时载入并**重新执行**该条代码（而非最近一条） */
-  replayId?: string
+  replayId?: string | undefined
 }
 
 // 代码/输出分割：统一句柄 + 统一预设（src/lib/split.ts 的 SPLIT_PRESETS.rWorkbench）
