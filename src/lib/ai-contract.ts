@@ -341,44 +341,63 @@ export function parseInsightItems(content: string): InsightItem[] {
     const context = parseContext(raw.context)
     const statTest = parseStatTest(raw.statTest)
     if (querySpec && displayConfig) {
-      // 过渡期：AI 同时输出 sql 时一并透传，供旧客户端（InsightCard）展示
-      items.push({
-        title: raw.title.slice(0, INSIGHT_FIELDS.title.maxLength),
-        insight: raw.insight.slice(0, INSIGHT_FIELDS.insight.maxLength),
-        sql: rawSql || undefined,
-        sqlValid: rawSql ? sqlValid : undefined,
-        chart: displayConfig.mapping,
-        querySpec,
-        displayConfig,
-        fallback: false,
-        context,
-        statTest,
-        notice: notices.length > 0 ? notices.join("；") : undefined,
-      })
+      items.push(buildQuerySpecItem({ title: raw.title, insight: raw.insight, rawSql, sqlValid, notices, context, statTest, querySpec, displayConfig }))
       continue
     }
-
-    // 无 querySpec：靠 SQL 兜底；图表映射无效则回退表格——渲染失败不作为丢弃该项的理由
-    let chart = parseChartMapping(raw.chart, rawSql) ?? (displayConfig ? displayConfig.mapping : null)
-    if (!chart) {
-      chart = { chartType: "table" }
-      notices.push("图表映射无效，已回退为表格")
-    }
-    if (!rawSql) notices.push("AI 未给出可执行 SQL")
-    items.push({
-      title: raw.title.slice(0, INSIGHT_FIELDS.title.maxLength),
-      insight: raw.insight.slice(0, INSIGHT_FIELDS.insight.maxLength),
-      sql: rawSql || undefined,
-      sqlValid: rawSql ? sqlValid : undefined,
-      chart,
-      displayConfig: displayConfig ?? undefined,
-      fallback: true,
-      context,
-      statTest,
-      notice: notices.length > 0 ? notices.join("；") : undefined,
-    })
+    items.push(buildFallbackItem(raw, { title: raw.title, insight: raw.insight, rawSql, sqlValid, notices, context, statTest, displayConfig }))
   }
   return items
+}
+
+interface ParsedInsightParts {
+  title: string
+  insight: string
+  rawSql: string
+  sqlValid: boolean
+  notices: string[]
+  context: InsightContext[] | undefined
+  statTest: StatTestRequest | undefined
+}
+
+function buildQuerySpecItem(parts: ParsedInsightParts & { querySpec: QuerySpec; displayConfig: DisplayConfig }): InsightItem {
+  const { title, insight, rawSql, sqlValid, notices, context, statTest, querySpec, displayConfig } = parts
+  // 过渡期：AI 同时输出 sql 时一并透传，供旧客户端（InsightCard）展示
+  return {
+    title: title.slice(0, INSIGHT_FIELDS.title.maxLength),
+    insight: insight.slice(0, INSIGHT_FIELDS.insight.maxLength),
+    sql: rawSql || undefined,
+    sqlValid: rawSql ? sqlValid : undefined,
+    chart: displayConfig.mapping,
+    querySpec,
+    displayConfig,
+    fallback: false,
+    context,
+    statTest,
+    notice: notices.length > 0 ? notices.join("；") : undefined,
+  }
+}
+
+function buildFallbackItem(raw: Record<string, unknown>, parts: ParsedInsightParts & { displayConfig: DisplayConfig | null }): InsightItem {
+  const { title, insight, rawSql, sqlValid, notices, context, statTest, displayConfig } = parts
+  // 无 querySpec：靠 SQL 兜底；图表映射无效则回退表格——渲染失败不作为丢弃该项的理由
+  let chart = parseChartMapping(raw.chart, rawSql) ?? (displayConfig ? displayConfig.mapping : null)
+  if (!chart) {
+    chart = { chartType: "table" }
+    notices.push("图表映射无效，已回退为表格")
+  }
+  if (!rawSql) notices.push("AI 未给出可执行 SQL")
+  return {
+    title: title.slice(0, INSIGHT_FIELDS.title.maxLength),
+    insight: insight.slice(0, INSIGHT_FIELDS.insight.maxLength),
+    sql: rawSql || undefined,
+    sqlValid: rawSql ? sqlValid : undefined,
+    chart,
+    displayConfig: displayConfig ?? undefined,
+    fallback: true,
+    context,
+    statTest,
+    notice: notices.length > 0 ? notices.join("；") : undefined,
+  }
 }
 
 export function parseChartMapping(raw: unknown, sql: string): ChartMapping | null {
@@ -440,16 +459,8 @@ function parseQuerySpec(raw: unknown): QuerySpec | null {
     const dimensions = raw.dimensions.filter((d): d is string => typeof d === "string" && d.length > 0)
     if (dimensions.length > 0) spec.dimensions = dimensions
   }
-  if (Array.isArray(raw.measures)) {
-    const measures = raw.measures
-      .filter((m): m is Record<string, unknown> => isRecord(m) && typeof m.field === "string" && typeof m.aggregation === "string" && MEASURE_AGGREGATIONS.has(m.aggregation))
-      .map((m) => ({
-        field: m.field as string,
-        aggregation: m.aggregation as Measure["aggregation"],
-        alias: typeof m.alias === "string" ? m.alias : undefined,
-      }))
-    if (measures.length > 0) spec.measures = measures
-  }
+  const measures = parseMeasureList(raw)
+  if (measures.length > 0) spec.measures = measures
   if (Array.isArray(raw.filters)) {
     const filters = raw.filters
       .filter((f): f is Record<string, unknown> => isRecord(f) && typeof f.field === "string" && typeof f.op === "string" && FILTER_OPERATORS.has(f.op))
@@ -472,37 +483,54 @@ function parseQuerySpec(raw: unknown): QuerySpec | null {
       }))
     if (having.length > 0) spec.having = having
   }
-  if (Array.isArray(raw.sort)) {
-    const sort = raw.sort
-      .filter((s): s is Record<string, unknown> => isRecord(s) && typeof s.field === "string" && (s.direction === "asc" || s.direction === "desc"))
-      .map((s) => ({ field: s.field as string, direction: s.direction as SortSpec["direction"] }))
-    if (sort.length > 0) spec.sort = sort
-  }
+  const sort = parseSortList(raw)
+  if (sort.length > 0) spec.sort = sort
   if (typeof raw.limit === "number" && raw.limit > 0 && Number.isFinite(raw.limit)) {
     spec.limit = Math.floor(raw.limit)
   }
-  if (Array.isArray(raw.joins)) {
-    const joins = raw.joins
-      .filter(
-        (j): j is Record<string, unknown> =>
-          isRecord(j) &&
-          typeof j.table === "string" &&
-          (j.type === "inner" || j.type === "left" || j.type === "right") &&
-          isRecord(j.on) &&
-          typeof j.on.left === "string" &&
-          typeof j.on.right === "string",
-      )
-      .map((j) => {
-        const on = j.on as { left: string; right: string }
-        return {
-          table: j.table as string,
-          type: j.type as Join["type"],
-          on: { left: on.left, right: on.right },
-        }
-      })
-    if (joins.length > 0) spec.joins = joins
-  }
+  const joins = parseJoinList(raw)
+  if (joins.length > 0) spec.joins = joins
   return spec
+}
+
+function parseMeasureList(raw: Record<string, unknown>): Measure[] {
+  if (!Array.isArray(raw.measures)) return []
+  return raw.measures
+    .filter((m): m is Record<string, unknown> => isRecord(m) && typeof m.field === "string" && typeof m.aggregation === "string" && MEASURE_AGGREGATIONS.has(m.aggregation))
+    .map((m) => ({
+      field: m.field as string,
+      aggregation: m.aggregation as Measure["aggregation"],
+      alias: typeof m.alias === "string" ? m.alias : undefined,
+    }))
+}
+
+function parseSortList(raw: Record<string, unknown>): SortSpec[] {
+  if (!Array.isArray(raw.sort)) return []
+  return raw.sort
+    .filter((s): s is Record<string, unknown> => isRecord(s) && typeof s.field === "string" && (s.direction === "asc" || s.direction === "desc"))
+    .map((s) => ({ field: s.field as string, direction: s.direction as SortSpec["direction"] }))
+}
+
+function parseJoinList(raw: Record<string, unknown>): Join[] {
+  if (!Array.isArray(raw.joins)) return []
+  return raw.joins
+    .filter(
+      (j): j is Record<string, unknown> =>
+        isRecord(j) &&
+        typeof j.table === "string" &&
+        (j.type === "inner" || j.type === "left" || j.type === "right") &&
+        isRecord(j.on) &&
+        typeof j.on.left === "string" &&
+        typeof j.on.right === "string",
+    )
+    .map((j) => {
+      const on = j.on as { left: string; right: string }
+      return {
+        table: j.table as string,
+        type: j.type as Join["type"],
+        on: { left: on.left, right: on.right },
+      }
+    })
 }
 
 function extractOutputAliases(sql: string): Set<string> {
