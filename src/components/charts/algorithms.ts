@@ -98,16 +98,22 @@ function kendallTauB(x: number[], y: number[]): number | null {
   const pairs = x.map((value, index) => ({ x: value, y: y[index] })).sort((a, b) => a.x - b.x || a.y - b.y)
   const uniqueY = Array.from(new Set(y)).sort((a, b) => a - b)
   const yRank = new Map(uniqueY.map((value, index) => [value, index]))
+  /** 秩查找：yRank 与 pairs 取自同一 y 序列，必命中；未命中即不变量被破坏，明确抛错而非静默 NaN */
+  const rankOf = (value: number): number => {
+    const rank = yRank.get(value)
+    if (rank === undefined) throw new Error(`y 秩查找失败: ${value}`)
+    return rank
+  }
   const tree = new FenwickTree(uniqueY.length)
   let previous = 0; let discordant = 0
   for (let start = 0; start < pairs.length;) {
     let end = start + 1
     while (end < pairs.length && pairs[end].x === pairs[start].x) end += 1
     for (let i = start; i < end; i += 1) {
-      const rank = yRank.get(pairs[i].y)!
+      const rank = rankOf(pairs[i].y)
       discordant += previous - tree.sum(rank)
     }
-    for (let i = start; i < end; i += 1) tree.add(yRank.get(pairs[i].y)!)
+    for (let i = start; i < end; i += 1) tree.add(rankOf(pairs[i].y))
     previous += end - start; start = end
   }
   const total = x.length * (x.length - 1) / 2
