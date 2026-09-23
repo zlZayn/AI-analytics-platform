@@ -72,7 +72,8 @@ export async function executeQuery(
     await client.query("SET TRANSACTION READ ONLY")
     await client.query("SELECT set_config('statement_timeout', $1, true)", [String(Math.floor(boundedTimeout))])
     const backend = await client.query<{ pid: number }>("SELECT pg_backend_pid() AS pid")
-    const backendPid = backend.rows[0].pid
+    const backendPid = backend.rows[0]?.pid
+    if (backendPid === undefined) throw new Error("pg_backend_pid() 未返回行")
     const wrappedSQL = `SELECT * FROM (${validation.sanitizedSQL.trim()}) AS __query_result LIMIT ${MAX_RETURNED_ROWS + 1}`
     const result = await executeCancelable(
       () => client.query(wrappedSQL),
