@@ -1,7 +1,8 @@
-import { describe, expect, it, vi } from "vitest"
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import {
   buildDataProfileText,
   buildSchemaContext,
+  scanSchema,
   type ColumnDataProfile,
   type ColumnInfo,
   type DatabaseSchema,
@@ -10,11 +11,65 @@ import {
   type TableInfo,
 } from "../schema-service"
 
+const stub = vi.hoisted(() => ({
+  connection: null as
+    | { host: string; port: number; database: string; username: string; passwordEncrypted: string; ssl: boolean }
+    | null,
+  configs: [] as Record<string, unknown>[],
+  calls: [] as { sql: string; params: unknown[] | undefined }[],
+  rows: new Map<string, unknown[]>(),
+  throwOn: null as string | null,
+  endCount: 0,
+}))
+
 // schema-service 在模块顶层就实例化两个配置敏感的单例（缺 ENCRYPTION_KEY / DATABASE_URL
-// 会在 import 阶段直接抛），本文件只测纯文本生成，不碰任何连接与加解密，
-// 故把这两个叶子模块换成最小空壳（vitest 会把 vi.mock 提到 import 之前）。
-vi.mock("../prisma", () => ({ prisma: {} }))
+// 会在 import 阶段直接抛），而 scanSchema 会真的 new Pool 去连库。
+// 故把 prisma / encryption / pg 三个叶子模块换成可编排的空壳：
+// 被测函数本身——SQL 文本、映射逻辑、资源回收——全部跑真实实现。
+vi.mock("../prisma", () => ({
+  prisma: { connection: { findUnique: async () => stub.connection } },
+}))
 vi.mock("../encryption", () => ({ decrypt: (value: string) => value }))
+vi.mock("pg", () => ({
+  Pool: class FakePool {
+    constructor(config: Record<string, unknown>) {
+      stub.configs.push(config)
+    }
+    async query(sql: string, params?: unknown[]) {
+      stub.calls.push({ sql, params })
+      if (stub.throwOn && sql.includes(stub.throwOn)) throw new Error("查询失败")
+      for (const [key, rows] of stub.rows) {
+        if (sql.includes(key)) return { rows }
+      }
+      return { rows: [] }
+    }
+    async end() {
+      stub.endCount += 1
+    }
+  },
+}))
+
+const TABLES_KEY = "information_schema.tables t"
+const COLUMNS_KEY = "information_schema.columns c"
+const INDEXES_KEY = "pg_indexes"
+const STATS_KEY = "reltuples"
+const RELATIONS_KEY = "FOREIGN KEY"
+
+function resetStub() {
+  stub.connection = {
+    host: "db.internal",
+    port: 5432,
+    database: "app",
+    username: "analyst",
+    passwordEncrypted: "cipher-text",
+    ssl: true,
+  }
+  stub.configs.length = 0
+  stub.calls.length = 0
+  stub.rows.clear()
+  stub.throwOn = null
+  stub.endCount = 0
+}
 
 const column = (over: Partial<ColumnInfo> & { name: string; type: string }): ColumnInfo => ({
   nullable: true,
@@ -50,6 +105,124 @@ const profile = (table: string, rowCount: number, columns: ColumnDataProfile[]):
   table,
   rowCount,
   columns,
+})
+
+describe("scanSchema", () => {
+  beforeEach(() => {
+    resetStub()
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  it("列 / 索引 / 行数估计 / 外键映射成 DatabaseSchema（时间戳冻结在整秒）", async () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date("2026-01-02T03:04:05.000Z"))
+    stub.rows.set(TABLES_KEY, [{ table_name: "orders", table_comment: "订单表" }])
+    stub.rows.set(COLUMNS_KEY, [
+      { column_name: "id", data_type: "integer", is_nullable: "NO", column_default: "nextval('orders_id_seq'::regclass)", column_comment: null, is_primary: true },
+      { column_name: "note", data_type: "text", is_nullable: "YES", column_default: null, column_comment: "备注", is_primary: false },
+    ])
+    stub.rows.set(INDEXES_KEY, [
+      { indexname: "orders_pkey", indexdef: "CREATE UNIQUE INDEX orders_pkey ON public.orders USING btree (id)" },
+      { indexname: "orders_region_idx", indexdef: "CREATE INDEX orders_region_idx ON public.orders USING btree (region)" },
+    ])
+    stub.rows.set(STATS_KEY, [{ estimate: "12345" }])
+    stub.rows.set(RELATIONS_KEY, [
+      { constraint_name: "fk_orders_user", from_table: "orders", from_column: "user_id", to_table: "users", to_column: "id" },
+    ])
+
+    const result = await scanSchema("conn-1")
+
+    expect(result.version).toBe(Math.floor(Date.now() / 1000))
+    expect(result.scannedAt.toISOString()).toBe("2026-01-02T03:04:05.000Z")
+    expect(result.tables).toEqual([
+      {
+        name: "orders",
+        schema: "public",
+        comment: "订单表",
+        columns: [
+          { name: "id", type: "integer", nullable: false, isPrimary: true, comment: null, defaultValue: "nextval('orders_id_seq'::regclass)" },
+          { name: "note", type: "text", nullable: true, isPrimary: false, comment: "备注", defaultValue: null },
+        ],
+        indexes: [
+          { name: "orders_pkey", columns: [], unique: true },
+          { name: "orders_region_idx", columns: [], unique: false },
+        ],
+        rowEstimate: 12345,
+      },
+    ])
+    expect(result.relations).toEqual([
+      { name: "fk_orders_user", fromTable: "orders", fromColumn: "user_id", toTable: "users", toColumn: "id" },
+    ])
+  })
+
+  it("连接池按连接记录建，密码走 decrypt；用完关闭", async () => {
+    await scanSchema("conn-1")
+
+    expect(stub.configs).toHaveLength(1)
+    expect(stub.configs[0]).toEqual({
+      host: "db.internal",
+      port: 5432,
+      database: "app",
+      user: "analyst",
+      password: "cipher-text",
+      ssl: true,
+      max: 5,
+    })
+    expect(stub.endCount).toBe(1)
+  })
+
+  it("平台元数据表靠占位符参数排除，不拼进 SQL 字面量", async () => {
+    await scanSchema("conn-1")
+
+    const tablesCall = stub.calls[0]
+    expect(tablesCall).toBeDefined()
+    const placeholders = tablesCall?.sql.match(/\$\d+/g) ?? []
+    expect(placeholders).toEqual(tablesCall?.params?.map((_, i) => `$${i + 1}`))
+    expect(placeholders.length).toBe((tablesCall?.params ?? []).length)
+    expect(tablesCall?.sql).not.toMatch(/'users'|'connections'/)
+  })
+
+  it("行数估计缺行时记 0，无外键时 relations 为空数组", async () => {
+    stub.rows.set(TABLES_KEY, [{ table_name: "empty_t", table_comment: null }])
+
+    const result = await scanSchema("conn-1")
+
+    expect(result.tables).toEqual([
+      { name: "empty_t", schema: "public", comment: null, columns: [], indexes: [], rowEstimate: 0 },
+    ])
+    expect(result.relations).toEqual([])
+  })
+
+  it("连接不存在时直接抛，且不建池也不关池", async () => {
+    stub.connection = null
+
+    await expect(scanSchema("conn-1")).rejects.toThrow("连接不存在")
+    expect(stub.configs).toHaveLength(0)
+    expect(stub.endCount).toBe(0)
+  })
+
+  it("扫描中途查询失败时仍然关闭连接池（finally 回收）", async () => {
+    stub.rows.set(TABLES_KEY, [{ table_name: "orders", table_comment: null }])
+    stub.throwOn = INDEXES_KEY
+
+    await expect(scanSchema("conn-1")).rejects.toThrow("查询失败")
+    expect(stub.endCount).toBe(1)
+  })
+
+  it("现状：每张表额外 3 次查询（列/索引/行数），合并成批量查询会让这条变红", async () => {
+    stub.rows.set(TABLES_KEY, [
+      { table_name: "orders", table_comment: null },
+      { table_name: "users", table_comment: null },
+    ])
+
+    await scanSchema("conn-1")
+
+    expect(stub.calls.map((c) => (c.sql.includes(TABLES_KEY) ? "tables" : c.sql.includes(COLUMNS_KEY) ? "columns" : c.sql.includes(INDEXES_KEY) ? "indexes" : c.sql.includes(STATS_KEY) ? "stats" : "relations")))
+      .toEqual(["tables", "columns", "indexes", "stats", "columns", "indexes", "stats", "relations"])
+  })
 })
 
 describe("buildSchemaContext", () => {
