@@ -15,6 +15,7 @@ import { useGroupedData } from "../hooks/use-grouped-data"
 import { AXIS_CONFIG, GRID_CONFIG } from "../constants"
 import { getColor, formatNumber, TooltipFormatter } from "../utils"
 import { EmptyState } from "../empty-state"
+import type { XYChartProps } from "../types"
 
 export const BarChartView = React.memo(function BarChartView({
   data,
@@ -23,10 +24,7 @@ export const BarChartView = React.memo(function BarChartView({
   fillKey,
   showLegend = true,
   mode = "grouped",
-}: {
-  data: Record<string, unknown>[]
-  xKey: string
-  yKey: string
+}: XYChartProps & {
   fillKey?: string
   showLegend?: boolean
   mode?: "grouped" | "stacked" | "normalized"

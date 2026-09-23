@@ -2,8 +2,9 @@
 
 import React from "react"
 import { formatNumber } from "../utils"
+import type { ChartRow } from "../types"
 
-export const KpiView = React.memo(function KpiView({ data, valueKey, labelKey, comparisonKey }: { data: Record<string, unknown>[]; valueKey: string; labelKey?: string; comparisonKey?: string }) {
+export const KpiView = React.memo(function KpiView({ data, valueKey, labelKey, comparisonKey }: { data: ChartRow[]; valueKey: string; labelKey?: string; comparisonKey?: string }) {
   const row = data[0]
   const value = Number(row?.[valueKey])
   const comparison = comparisonKey ? Number(row?.[comparisonKey]) : Number.NaN

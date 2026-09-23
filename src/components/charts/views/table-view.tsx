@@ -3,6 +3,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react"
 import { formatNumber } from "../utils"
 import { calculateVirtualWindow } from "../table-virtualization"
+import type { ChartRow } from "../types"
 
 const ROW_HEIGHT = 32
 /** 默认窗口高度，与未填满容器时的 max-h-[400px] 对应 */
@@ -19,7 +20,7 @@ export const TableView = React.memo(function TableView({
   columns,
   fillHeight = false,
 }: {
-  data: Record<string, unknown>[]
+  data: ChartRow[]
   columns: string[]
   /** 撑满容器高度（结果区「明细」Tab），虚拟窗口跟随容器实测高度 */
   fillHeight?: boolean

@@ -12,6 +12,7 @@ import { getColor, formatNumber } from "../utils"
 import { groupPieData } from "../transform"
 import { ChartNotice } from "../chart-notice"
 import { EmptyState } from "../empty-state"
+import type { ChartRow } from "../types"
 
 export const PieChartView = React.memo(function PieChartView({
   data,
@@ -19,7 +20,7 @@ export const PieChartView = React.memo(function PieChartView({
   valueKey,
   categoryLimit,
 }: {
-  data: Record<string, unknown>[]
+  data: ChartRow[]
   nameKey: string
   valueKey: string
   categoryLimit?: number

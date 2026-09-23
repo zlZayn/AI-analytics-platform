@@ -15,6 +15,7 @@ import { useGroupedData } from "../hooks/use-grouped-data"
 import { AXIS_CONFIG, GRID_CONFIG } from "../constants"
 import { getColor, formatNumber, TooltipFormatter } from "../utils"
 import { EmptyState } from "../empty-state"
+import type { XYChartProps } from "../types"
 
 export const LineChartView = React.memo(function LineChartView({
   data,
@@ -22,10 +23,7 @@ export const LineChartView = React.memo(function LineChartView({
   yKey,
   colorKey,
   showLegend = true,
-}: {
-  data: Record<string, unknown>[]
-  xKey: string
-  yKey: string
+}: XYChartProps & {
   colorKey?: string
   showLegend?: boolean
 }) {

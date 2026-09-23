@@ -1,7 +1,7 @@
 "use client"
 
 import React, { useMemo } from "react"
-import type { CorrelationMethod } from "../types"
+import type { ChartRow, CorrelationMethod } from "../types"
 import { MAX_CORR_COLUMNS } from "../constants"
 import { findNumericColumns } from "../correlation-matrix"
 import { useCorrelationMatrix } from "../use-correlation-matrix"
@@ -13,7 +13,7 @@ export const CorrelationHeatmap = React.memo(function CorrelationHeatmap({
   method = "pearson",
   columns,
 }: {
-  data: Record<string, unknown>[]
+  data: ChartRow[]
   method?: CorrelationMethod
   columns?: string[]
 }) {
