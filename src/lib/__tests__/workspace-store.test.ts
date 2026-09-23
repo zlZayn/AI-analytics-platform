@@ -56,7 +56,7 @@ describe("workspace-store", () => {
     expect(restored?.session.querySpec).toEqual({ table: "" })
     expect(restored?.lastSql).toBe("SELECT 1 AS total")
     expect(restored?.insights).toHaveLength(1)
-    expect(restored?.session.conversationHistory[0].createdAt).toBeInstanceOf(Date)
+    expect(restored?.session.conversationHistory[0]?.createdAt).toBeInstanceOf(Date)
   })
 
   it("恢复不带执行物：compiledSql/querySpec 归零，避免一进工作台就自动重跑", () => {

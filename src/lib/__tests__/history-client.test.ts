@@ -74,7 +74,9 @@ describe("history-client", () => {
     expect(() => appendHistory({ kind: "r", connectionId: "c1", sessionId: "s1", code: "plot(df)", output: [], ok: true })).not.toThrow()
     await Promise.resolve()
 
-    const [url, init] = fetchMock.mock.calls[0]
+    const firstCall = fetchMock.mock.calls[0]
+    if (firstCall === undefined) throw new Error("fetch 未记录调用")
+    const [url, init] = firstCall
     expect(url).toBe("/api/history")
     expect(init?.method).toBe("POST")
     expect(JSON.parse(String(init?.body))).toMatchObject({ kind: "r", connectionId: "c1", code: "plot(df)" })

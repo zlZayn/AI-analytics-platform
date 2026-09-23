@@ -150,7 +150,9 @@ describe("RWorkbench 历史回放", () => {
 
     expect(webr.clearOutput).toHaveBeenCalledTimes(1)
     expect(webr.execute).toHaveBeenCalledTimes(1)
-    const code = webr.execute.mock.calls[0][0]
+    const firstCall = webr.execute.mock.calls[0]
+    if (firstCall === undefined) throw new Error("execute 未记录调用参数")
+    const code = firstCall[0]
     expect(code).toContain("geom_histogram")
     // 不是最近一条，也不是按当前数据集重生成的模板
     expect(code).not.toContain("summary(df)")
@@ -159,7 +161,10 @@ describe("RWorkbench 历史回放", () => {
     expect(code.startsWith("df <- data.frame(")).toBe(true)
     expect(code).toContain('region = c("A")')
     // 先清后跑：旧文本/旧图不会与回放结果混在一起
-    expect(webr.clearOutput.mock.invocationCallOrder[0]).toBeLessThan(webr.execute.mock.invocationCallOrder[0])
+    const clearOrder = webr.clearOutput.mock.invocationCallOrder[0]
+    const executeOrder = webr.execute.mock.invocationCallOrder[0]
+    if (clearOrder === undefined || executeOrder === undefined) throw new Error("invocationCallOrder 未记录")
+    expect(clearOrder).toBeLessThan(executeOrder)
     expect(webr.restoreOutput).not.toHaveBeenCalled()
 
     await act(async () => root.unmount())

@@ -31,7 +31,7 @@ describe("chart pipeline", () => {
     const profile = profileData(columns, rows)
     const recommendations = recommendCharts(profile)
     expect(recommendations[0]).toMatchObject({ chartType: "line" })
-    expect(recommendations[0].reason).toContain("时间")
+    expect(recommendations[0]?.reason).toContain("时间")
   })
 
   it("creates legal defaults only after the user selects a chart type", () => {
