@@ -40,15 +40,16 @@ export function InsightCard({ index, item, sql, onExecute, loading, error, resul
   // 先确保 WebR 初始化（失败 → 卡片内提示，读卡不受影响）；状态写入全部在异步链中
   useEffect(() => {
     if (!item.statTest || !result) return
+    const statTest = item.statTest
     let cancelled = false
     void (async () => {
       try {
-        const code = buildStatTestCode(result, item.statTest!)
+        const code = buildStatTestCode(result, statTest)
         await webR.init()
         if (cancelled) return
         const stdout = await webR.runStats(code)
         if (cancelled) return
-        const parsed = parseStatTestOutput(stdout, item.statTest!.kind)
+        const parsed = parseStatTestOutput(stdout, statTest.kind)
         setStatOutcome({
           result: parsed ?? undefined,
           message: parsed ? undefined : "统计检验无输出",
