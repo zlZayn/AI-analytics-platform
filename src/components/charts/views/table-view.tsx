@@ -89,7 +89,8 @@ export const TableView = React.memo(function TableView({
       PageDown: viewportHeight,
       PageUp: -viewportHeight,
     }
-    if (event.key in movement) viewport.scrollBy({ top: movement[event.key], behavior: "auto" })
+    const offset = movement[event.key]
+    if (offset !== undefined) viewport.scrollBy({ top: offset, behavior: "auto" })
     else if (event.key === "Home") viewport.scrollTo({ top: 0, behavior: "auto" })
     else if (event.key === "End") viewport.scrollTo({ top: data.length * ROW_HEIGHT, behavior: "auto" })
     else return

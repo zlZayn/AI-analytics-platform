@@ -14,8 +14,8 @@ export const CorrelationHeatmap = React.memo(function CorrelationHeatmap({
   columns,
 }: {
   data: ChartRow[]
-  method?: CorrelationMethod
-  columns?: string[]
+  method?: CorrelationMethod | undefined
+  columns?: string[] | undefined
 }) {
   const numericColumns = useMemo(() => columns ?? findNumericColumns(data), [columns, data])
   const { loading, result, error } = useCorrelationMatrix(data, numericColumns, method)

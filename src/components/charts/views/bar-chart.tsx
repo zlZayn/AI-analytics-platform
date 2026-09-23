@@ -25,9 +25,9 @@ export const BarChartView = React.memo(function BarChartView({
   showLegend = true,
   mode = "grouped",
 }: XYChartProps & {
-  fillKey?: string
+  fillKey?: string | undefined
   showLegend?: boolean
-  mode?: "grouped" | "stacked" | "normalized"
+  mode?: "grouped" | "stacked" | "normalized" | undefined
 }) {
   const transformed = useGroupedData(data, xKey, yKey, fillKey, { rejectDuplicates: true })
   if (!transformed.ok) return <EmptyState message={transformed.message} />
@@ -67,7 +67,7 @@ export const BarChartView = React.memo(function BarChartView({
               fill={getColor(i)}
               radius={mode !== "grouped" ? (i === groups.length - 1 ? [3, 3, 0, 0] : [0, 0, 0, 0]) : [3, 3, 0, 0]}
               maxBarSize={maxBarSize}
-              stackId={mode === "grouped" ? undefined : "stack"}
+              {...(mode === "grouped" ? {} : { stackId: "stack" })}
             />
           ))
         ) : (

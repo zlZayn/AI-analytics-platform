@@ -3,7 +3,7 @@ import { getMappingSlot, type ChartMappingSlot } from "./mapping"
 import { createChartMapping } from "./mapping"
 
 export type SemanticType = "numeric" | "temporal" | "categorical" | "boolean" | "identifier" | "text" | "unknown"
-export interface ColumnProfile { name: string; databaseType: string; semanticType: SemanticType; validCount: number; nullCount: number; invalidCount: number; uniqueCount: number; min?: number | string; max?: number | string; sorted: "ascending" | "descending" | "none" }
+export interface ColumnProfile { name: string; databaseType: string; semanticType: SemanticType; validCount: number; nullCount: number; invalidCount: number; uniqueCount: number; min?: number | string | undefined; max?: number | string | undefined; sorted: "ascending" | "descending" | "none" }
 export interface DataProfile { rowCount: number; columns: ColumnProfile[] }
 export interface ChartRecommendation { chartType: ChartType; mapping: ChartMapping; reason: string; score: number }
 export interface MappingIssue { code: string; message: string; field?: string; severity: "error" | "warning" }

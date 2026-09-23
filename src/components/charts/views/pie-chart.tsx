@@ -23,7 +23,7 @@ export const PieChartView = React.memo(function PieChartView({
   data: ChartRow[]
   nameKey: string
   valueKey: string
-  categoryLimit?: number
+  categoryLimit?: number | undefined
 }) {
   const transformed = useMemo(() => groupPieData(data, nameKey, valueKey, categoryLimit), [data, nameKey, valueKey, categoryLimit])
 
