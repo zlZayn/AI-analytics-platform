@@ -5,16 +5,14 @@ import { MAX_HEATMAP_ENTRIES } from "../constants"
 import { EmptyState } from "../empty-state"
 import { buildHeatmap } from "../transform"
 import { ChartNotice } from "../chart-notice"
+import type { XYChartProps } from "../types"
 
 export const HeatmapView = React.memo(function HeatmapView({
   data,
   xKey,
   yKey,
   fillKey,
-}: {
-  data: Record<string, unknown>[]
-  xKey: string
-  yKey: string
+}: XYChartProps & {
   fillKey?: string
 }) {
   const valueKey = fillKey || yKey

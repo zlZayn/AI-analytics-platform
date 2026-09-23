@@ -4,8 +4,9 @@ import React, { useMemo } from "react"
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts"
 import { computeHistogram } from "../algorithms"
 import { formatNumber } from "../utils"
+import type { ChartRow } from "../types"
 
-export const HistogramView = React.memo(function HistogramView({ data, valueKey }: { data: Record<string, unknown>[]; valueKey: string }) {
+export const HistogramView = React.memo(function HistogramView({ data, valueKey }: { data: ChartRow[]; valueKey: string }) {
   const histogram = useMemo(() => computeHistogram(data.map((row) => row[valueKey])), [data, valueKey])
   const chartData = histogram.bins.map((bin) => ({ label: `${formatNumber(bin.start)} - ${formatNumber(bin.end)}`, count: bin.count }))
   if (!chartData.length) return <div className="flex h-[280px] items-center justify-center text-xs text-[var(--muted-foreground)]">没有可绘制的数值</div>

@@ -5,16 +5,13 @@ import { useContainerWidth } from "../hooks/use-container-width"
 import { getColor, formatNumber } from "../utils"
 import { computeBoxStats } from "../algorithms"
 import { EmptyState } from "../empty-state"
+import type { XYChartProps } from "../types"
 
 export const BoxPlotView = React.memo(function BoxPlotView({
   data,
   xKey,
   yKey,
-}: {
-  data: Record<string, unknown>[]
-  xKey: string
-  yKey: string
-}) {
+}: XYChartProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const width = useContainerWidth(containerRef)
 

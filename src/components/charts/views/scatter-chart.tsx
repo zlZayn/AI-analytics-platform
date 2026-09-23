@@ -15,6 +15,7 @@ import { AXIS_CONFIG, GRID_CONFIG } from "../constants"
 import { getColor, formatNumber, TooltipFormatter } from "../utils"
 import { sampleScatterData } from "../transform"
 import { ChartNotice } from "../chart-notice"
+import type { XYChartProps } from "../types"
 
 export const ScatterChartView = React.memo(function ScatterChartView({
   data,
@@ -22,10 +23,7 @@ export const ScatterChartView = React.memo(function ScatterChartView({
   yKey,
   colorKey,
   pointLimit,
-}: {
-  data: Record<string, unknown>[]
-  xKey: string
-  yKey: string
+}: XYChartProps & {
   colorKey?: string
   pointLimit?: number
 }) {

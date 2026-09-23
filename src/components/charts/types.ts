@@ -2,6 +2,16 @@ import type { ChartType, CorrelationMethod } from "@/lib/variable-types"
 
 export type { ChartType, CorrelationMethod }
 
+/** 图表数据行：列名 → 单元格值（各视图按 xKey / yKey / valueKey 等键名取用） */
+export type ChartRow = Record<string, unknown>
+
+/** xKey / yKey 族视图的公共入参（bar / box-plot / heatmap / line / scatter 同形） */
+export interface XYChartProps {
+  data: ChartRow[]
+  xKey: string
+  yKey: string
+}
+
 interface LegendOptions { showLegend?: boolean }
 
 export type ChartMapping =
@@ -18,7 +28,7 @@ export type ChartMapping =
 
 export interface ChartProps {
   mapping: ChartMapping
-  data: Record<string, unknown>[]
+  data: ChartRow[]
   showLegend?: boolean
   /** 视图填满容器高度（结果区「明细」Tab）；当前由表格视图消费 */
   fillHeight?: boolean
