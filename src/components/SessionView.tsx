@@ -32,7 +32,7 @@ interface SessionViewProps {
   /** 历史作用域键（连接 id）：R 执行历史按此落库，与后端 SQL 历史同轴 */
   connectionId: string | null
   /** 历史回放条目 id（URL `?r=`）：结果就绪后自动打开面板并载入该条代码 */
-  replayRId?: string
+  replayRId?: string | undefined
   /** AI 多洞察（会话外临时状态，不进 AnalysisSession） */
   insights?: InsightItem[]
   /** 正在执行的洞察卡片索引（卡片 loading 态） */

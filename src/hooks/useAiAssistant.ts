@@ -28,7 +28,7 @@ export interface UseAiAssistantOptions {
   onTabChange: (tab: string) => void
   notify: (message: string, tone: AssistantTone) => void
   /** 恢复出来的洞察流（工作台持久化，见 lib/workspace-store.ts） */
-  initialInsights?: InsightItem[]
+  initialInsights?: InsightItem[] | undefined
 }
 
 export interface AiAssistant {

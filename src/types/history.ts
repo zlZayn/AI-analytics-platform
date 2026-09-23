@@ -29,11 +29,11 @@ export interface RHistoryEntry extends HistoryBase {
   kind: "r"
   code: string
   /** 执行时结果集来源的 SQL（回放时带回工作台重跑 df）；无结果集时缺省 */
-  sourceSql?: string
+  sourceSql?: string | undefined
   /** 文本输出（stdout/error/warning 合并，已截断）；图片不持久化 */
   output: string[]
   /** 本次执行产出的图片张数（图片不持久化，回放靠重跑重绘） */
-  imageCount?: number
+  imageCount?: number | undefined
   ok: boolean
 }
 
@@ -44,5 +44,5 @@ export type HistoryEntry = AiHistoryEntry | RHistoryEntry
  * createdAt 缺省 = 服务端当前时间，仅"导入旧浏览器记录"时透传原时间。
  */
 export type NewHistoryEntry =
-  | (Omit<AiHistoryEntry, "id" | "createdAt"> & { createdAt?: string })
-  | (Omit<RHistoryEntry, "id" | "createdAt"> & { createdAt?: string })
+  | (Omit<AiHistoryEntry, "id" | "createdAt"> & { createdAt?: string | undefined })
+  | (Omit<RHistoryEntry, "id" | "createdAt"> & { createdAt?: string | undefined })

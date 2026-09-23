@@ -21,7 +21,7 @@ export interface UseSessionOptions {
   schema: SchemaData | null
   /** 执行编译后的 SQL，返回语义数据集（调用方负责与后端 API 对接） */
   executeCompiled: (compiledSql: CompiledSql, connectionId: string) => Promise<SemanticDataset>
-  initialSession?: Partial<AnalysisSession>
+  initialSession?: Partial<AnalysisSession> | undefined
   /** 是否自动编译并执行（feature flag，默认 true；关闭后仅管理状态，由调用方手动 dispatch） */
   autoRun?: boolean
 }
