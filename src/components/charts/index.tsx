@@ -29,8 +29,8 @@ function ChartInner({ mapping, data, showLegend = true, fillHeight = false }: Ch
         <ChartErrorBoundary chartType="折线图" resetKeys={[mapping, data]}>
           <LineChartView
             data={data}
-            xKey={mapping.x!}
-            yKey={mapping.y!}
+            xKey={mapping.x}
+            yKey={mapping.y}
             colorKey={mapping.color}
             showLegend={showLegend}
           />
@@ -43,8 +43,8 @@ function ChartInner({ mapping, data, showLegend = true, fillHeight = false }: Ch
         <ChartErrorBoundary chartType="柱状图" resetKeys={[mapping, data]}>
           <BarChartView
             data={data}
-            xKey={mapping.x!}
-            yKey={mapping.y!}
+            xKey={mapping.x}
+            yKey={mapping.y}
             fillKey={mapping.fill}
             showLegend={showLegend}
             mode={mapping.mode}
@@ -58,8 +58,8 @@ function ChartInner({ mapping, data, showLegend = true, fillHeight = false }: Ch
         <ChartErrorBoundary chartType="饼图" resetKeys={[mapping, data]}>
           <PieChartView
             data={data}
-            nameKey={mapping.name!}
-            valueKey={mapping.value!}
+            nameKey={mapping.name}
+            valueKey={mapping.value}
             categoryLimit={mapping.categoryLimit}
           />
         </ChartErrorBoundary>
@@ -71,8 +71,8 @@ function ChartInner({ mapping, data, showLegend = true, fillHeight = false }: Ch
         <ChartErrorBoundary chartType="散点图" resetKeys={[mapping, data]}>
           <ScatterChartView
             data={data}
-            xKey={mapping.x!}
-            yKey={mapping.y!}
+            xKey={mapping.x}
+            yKey={mapping.y}
             colorKey={mapping.color}
             pointLimit={mapping.pointLimit}
           />
@@ -85,8 +85,8 @@ function ChartInner({ mapping, data, showLegend = true, fillHeight = false }: Ch
         <ChartErrorBoundary chartType="箱线图" resetKeys={[mapping, data]}>
           <BoxPlotView
             data={data}
-            xKey={mapping.category!}
-            yKey={mapping.value!}
+            xKey={mapping.category}
+            yKey={mapping.value}
           />
         </ChartErrorBoundary>
       )
@@ -97,8 +97,8 @@ function ChartInner({ mapping, data, showLegend = true, fillHeight = false }: Ch
         <ChartErrorBoundary chartType="热力图" resetKeys={[mapping, data]}>
           <HeatmapView
             data={data}
-            xKey={mapping.x!}
-            yKey={mapping.y!}
+            xKey={mapping.x}
+            yKey={mapping.y}
             fillKey={mapping.value}
           />
         </ChartErrorBoundary>
@@ -112,11 +112,11 @@ function ChartInner({ mapping, data, showLegend = true, fillHeight = false }: Ch
       )
     case "histogram": {
       if (!mapping.value) return <EmptyState message="请选择数值字段" />
-      return <ChartErrorBoundary chartType="直方图" resetKeys={[mapping, data]}><HistogramView data={data} valueKey={mapping.value!} /></ChartErrorBoundary>
+      return <ChartErrorBoundary chartType="直方图" resetKeys={[mapping, data]}><HistogramView data={data} valueKey={mapping.value} /></ChartErrorBoundary>
     }
     case "kpi": {
       if (!mapping.value) return <EmptyState message="请选择指标值字段" />
-      return <ChartErrorBoundary chartType="指标卡" resetKeys={[mapping, data]}><KpiView data={data} valueKey={mapping.value!} labelKey={mapping.label} comparisonKey={mapping.comparison} /></ChartErrorBoundary>
+      return <ChartErrorBoundary chartType="指标卡" resetKeys={[mapping, data]}><KpiView data={data} valueKey={mapping.value} labelKey={mapping.label} comparisonKey={mapping.comparison} /></ChartErrorBoundary>
     }
     case "table":
     default: {

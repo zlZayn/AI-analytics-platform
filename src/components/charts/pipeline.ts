@@ -96,7 +96,9 @@ export function validateChartMapping(mapping: ChartMapping, profile: DataProfile
     else if (!allowed.includes(column.semanticType)) issues.push({ code: "INCOMPATIBLE_TYPE", message: `${name} 不适用于 ${field}`, field, severity: "error" })
   }
   if (mapping.chartType === "line" && mapping.x && mapping.color) {
-    const seen = new Set<string>(); const duplicate = rows.some((row) => { const key = JSON.stringify([row[mapping.x!], row[mapping.color!]]); if (seen.has(key)) return true; seen.add(key); return false })
+    const x = mapping.x
+    const color = mapping.color
+    const seen = new Set<string>(); const duplicate = rows.some((row) => { const key = JSON.stringify([row[x], row[color]]); if (seen.has(key)) return true; seen.add(key); return false })
     if (duplicate) issues.push({ code: "DUPLICATE_COORDINATE", message: "存在重复坐标，请先在 SQL 中聚合", severity: "error" })
   }
   return { valid: !issues.some((issue) => issue.severity === "error"), issues }

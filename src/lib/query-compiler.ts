@@ -37,6 +37,11 @@ function escapeLike(value: string): string {
   return value.replace(/[\\%_]/g, (m) => `\\${m}`)
 }
 
+/** 穷尽性守卫：联合字段新增成员时此处编译报错；运行期到达说明值越过了类型（断言 / JS 调用），原文照抛 */
+function assertNever(value: never, label: string): never {
+  throw new Error(`${label}: ${String(value)}`)
+}
+
 // ---- 表达式渲染 ----
 
 function renderExpression(expr: Expression, index: number): { sql: string; alias: string } {
@@ -68,7 +73,7 @@ function renderExpression(expr: Expression, index: number): { sql: string; alias
     )
     return { sql: `concat(${parts.join(", ")})`, alias: `expr_${index}` }
   }
-  throw new Error(`未知表达式类型: ${(expr as Expression).kind}`)
+  throw assertNever(expr.kind, "未知表达式类型")
 }
 
 function renderDimension(dim: Dimension, index: number): string {
@@ -101,7 +106,7 @@ function renderMeasure(measure: Measure): string {
       sql = `max(${field})`
       break
     default:
-      throw new Error(`未知聚合: ${(measure as Measure).aggregation}`)
+      throw assertNever(measure.aggregation, "未知聚合")
   }
   const alias = measure.alias ?? `${measure.aggregation}_${measure.field}`
   return `${sql} AS ${quoteIdent(alias)}`
@@ -152,7 +157,7 @@ function renderFilter(filter: Filter, params: unknown[], having: boolean): strin
     case "is_not_null":
       return `${field} IS NOT NULL`
     default:
-      throw new Error(`未知过滤操作符: ${(filter as Filter).op}${having ? "（HAVING）" : ""}`)
+      throw assertNever(filter.op, `未知过滤操作符${having ? "（HAVING）" : ""}`)
   }
 }
 
@@ -224,7 +229,7 @@ export function compileQuerySpec(querySpec: QuerySpec, schema?: SchemaData): Com
   dimensions.forEach((dim, i) => {
     const dimSql = renderDimension(dim, i)
     // 表达式维度需要别名，保证输出列名可预测（expr_0 / expr_1 ...）
-    const alias = typeof dim === "string" ? null : renderExpression(dim as Expression, i).alias
+    const alias = typeof dim === "string" ? null : renderExpression(dim, i).alias
     selectParts.push(alias ? `${dimSql} AS ${quoteIdent(alias)}` : dimSql)
   })
   measures.forEach((measure) => selectParts.push(renderMeasure(measure)))
