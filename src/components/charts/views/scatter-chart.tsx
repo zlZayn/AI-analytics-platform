@@ -24,8 +24,8 @@ export const ScatterChartView = React.memo(function ScatterChartView({
   colorKey,
   pointLimit,
 }: XYChartProps & {
-  colorKey?: string
-  pointLimit?: number
+  colorKey?: string | undefined
+  pointLimit?: number | undefined
 }) {
   const transformed = useMemo(
     () => sampleScatterData(data, xKey, yKey, colorKey, pointLimit),

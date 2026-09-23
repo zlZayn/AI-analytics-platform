@@ -24,7 +24,7 @@ export const LineChartView = React.memo(function LineChartView({
   colorKey,
   showLegend = true,
 }: XYChartProps & {
-  colorKey?: string
+  colorKey?: string | undefined
   showLegend?: boolean
 }) {
   const sortTemporal = data.length > 0 && data.every((row) => row[xKey] == null || !Number.isNaN(Date.parse(String(row[xKey]))))

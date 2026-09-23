@@ -14,16 +14,21 @@ export interface XYChartProps {
 
 interface LegendOptions { showLegend?: boolean }
 
+/**
+ * 图表映射槽位全部允许显式 undefined：
+ * 上游（AI 契约解析、自动推荐、render-binder）按「有就填、没有就传 undefined」构造，
+ * 消费处 charts/index.tsx 一律用真值判断分派，槽位取值为 undefined 与键不存在同义。
+ */
 export type ChartMapping =
-  | ({ chartType: "line"; x?: string; y?: string; color?: string } & LegendOptions)
-  | ({ chartType: "bar"; x?: string; y?: string; fill?: string; mode?: "grouped" | "stacked" | "normalized" } & LegendOptions)
-  | { chartType: "pie"; name?: string; value?: string; categoryLimit?: number }
-  | ({ chartType: "scatter"; x?: string; y?: string; color?: string; pointLimit?: number } & LegendOptions)
-  | { chartType: "boxplot"; category?: string; value?: string }
-  | { chartType: "heatmap"; x?: string; y?: string; value?: string }
-  | { chartType: "correlation"; columns?: string[]; method?: CorrelationMethod }
-  | { chartType: "kpi"; value?: string; label?: string; comparison?: string }
-  | { chartType: "histogram"; value?: string; color?: string }
+  | ({ chartType: "line"; x?: string | undefined; y?: string | undefined; color?: string | undefined } & LegendOptions)
+  | ({ chartType: "bar"; x?: string | undefined; y?: string | undefined; fill?: string | undefined; mode?: "grouped" | "stacked" | "normalized" | undefined } & LegendOptions)
+  | { chartType: "pie"; name?: string | undefined; value?: string | undefined; categoryLimit?: number | undefined }
+  | ({ chartType: "scatter"; x?: string | undefined; y?: string | undefined; color?: string | undefined; pointLimit?: number | undefined } & LegendOptions)
+  | { chartType: "boxplot"; category?: string | undefined; value?: string | undefined }
+  | { chartType: "heatmap"; x?: string | undefined; y?: string | undefined; value?: string | undefined }
+  | { chartType: "correlation"; columns?: string[] | undefined; method?: CorrelationMethod | undefined }
+  | { chartType: "kpi"; value?: string | undefined; label?: string | undefined; comparison?: string | undefined }
+  | { chartType: "histogram"; value?: string | undefined; color?: string | undefined }
   | { chartType: "table" }
 
 export interface ChartProps {
