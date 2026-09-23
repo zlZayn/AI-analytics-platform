@@ -38,7 +38,7 @@ export default function ExplorerPage() {
     setLoading(true)
     setError("")
     try {
-      const data = await fetchApi<ApiResponse<SchemaData>>(`/api/schema/${connectionId}${refresh ? "?refresh=true" : ""}`, { signal })
+      const data = await fetchApi<ApiResponse<SchemaData>>(`/api/schema/${connectionId}${refresh ? "?refresh=true" : ""}`, { ...(signal === undefined ? {} : { signal }) })
       if (data.success) setSchema({ tables: data.data.tables || [], relations: data.data.relations || [], version: data.data.version })
     } catch (requestError) {
       if (!(requestError instanceof DOMException && requestError.name === "AbortError")) setError(requestError instanceof ApiRequestError ? requestError.message : "Schema 加载失败")
