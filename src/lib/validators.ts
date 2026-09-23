@@ -166,28 +166,41 @@ function checkRequiredSlots(
     }
     // data 模式的额外检查
     if (context.mode === "data") {
-      if (allowed.includes("numeric")) {
-        const invalid = countInvalidNumeric(rows, field)
-        if (invalid > 0) {
-          found.push({
-            code: "INVALID_NUMERIC",
-            message: `${field} 有 ${invalid} 个无效数值`,
-            field: slot,
-            severity: "warning",
-          })
-        }
-      }
-      if (column.semanticType === "categorical" || column.semanticType === "text") {
-        const unique = uniqueCount(rows, field)
-        if (unique > 50) {
-          found.push({
-            code: "HIGH_CARDINALITY",
-            message: `${field} 有 ${unique} 个唯一值，图表可能过于拥挤`,
-            field: slot,
-            severity: "warning",
-          })
-        }
-      }
+      found.push(...checkDataModeSlot(column, allowed, field, slot, rows))
+    }
+  }
+  return found
+}
+
+/** data 模式的每槽位数据质量检查：无效数值 + 高基数 */
+function checkDataModeSlot(
+  column: { name: string; semanticType: SemanticType },
+  allowed: SemanticType[],
+  field: string,
+  slot: ChartMappingSlot,
+  rows: Record<string, unknown>[],
+): ValidationIssue[] {
+  const found: ValidationIssue[] = []
+  if (allowed.includes("numeric")) {
+    const invalid = countInvalidNumeric(rows, field)
+    if (invalid > 0) {
+      found.push({
+        code: "INVALID_NUMERIC",
+        message: `${field} 有 ${invalid} 个无效数值`,
+        field: slot,
+        severity: "warning",
+      })
+    }
+  }
+  if (column.semanticType === "categorical" || column.semanticType === "text") {
+    const unique = uniqueCount(rows, field)
+    if (unique > 50) {
+      found.push({
+        code: "HIGH_CARDINALITY",
+        message: `${field} 有 ${unique} 个唯一值，图表可能过于拥挤`,
+        field: slot,
+        severity: "warning",
+      })
     }
   }
   return found
