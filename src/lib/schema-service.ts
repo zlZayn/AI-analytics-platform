@@ -83,42 +83,7 @@ export async function scanSchema(connectionId: string): Promise<DatabaseSchema> 
 
     for (const tableRow of tablesResult.rows) {
       const tableName = tableRow.table_name
-
-      // 获取列信息
-      const columnsResult = await pool.query(`
-        SELECT
-          c.column_name,
-          c.data_type,
-          c.is_nullable,
-          c.column_default,
-          col_description((quote_ident(c.table_name))::regclass, c.ordinal_position) as column_comment,
-          CASE WHEN pk.column_name IS NOT NULL THEN true ELSE false END as is_primary
-        FROM information_schema.columns c
-        LEFT JOIN (
-          SELECT kcu.column_name
-          FROM information_schema.table_constraints tc
-          JOIN information_schema.key_column_usage kcu ON tc.constraint_name = kcu.constraint_name
-          WHERE tc.constraint_type = 'PRIMARY KEY' AND tc.table_name = $1
-        ) pk ON c.column_name = pk.column_name
-        WHERE c.table_name = $1
-        ORDER BY c.ordinal_position
-      `, [tableName])
-
-      // 获取索引
-      const indexesResult = await pool.query(`
-        SELECT
-          indexname,
-          indexdef
-        FROM pg_indexes
-        WHERE tablename = $1
-      `, [tableName])
-
-      // 获取行数估计
-      const statsResult = await pool.query(`
-        SELECT reltuples::bigint as estimate
-        FROM pg_class
-        WHERE relname = $1
-      `, [tableName])
+      const { columnsResult, indexesResult, statsResult } = await fetchTableDetails(pool, tableName)
 
       tables.push({
         name: tableName,
@@ -141,29 +106,7 @@ export async function scanSchema(connectionId: string): Promise<DatabaseSchema> 
       })
     }
 
-    // 获取外键关系
-    const relationsResult = await pool.query(`
-      SELECT
-        tc.constraint_name,
-        tc.table_name as from_table,
-        kcu.column_name as from_column,
-        ccu.table_name as to_table,
-        ccu.column_name as to_column
-      FROM information_schema.table_constraints tc
-      JOIN information_schema.key_column_usage kcu
-        ON tc.constraint_name = kcu.constraint_name
-      JOIN information_schema.constraint_column_usage ccu
-        ON tc.constraint_name = ccu.constraint_name
-      WHERE tc.constraint_type = 'FOREIGN KEY'
-    `)
-
-    const relations: RelationInfo[] = relationsResult.rows.map(row => ({
-      name: row.constraint_name,
-      fromTable: row.from_table,
-      fromColumn: row.from_column,
-      toTable: row.to_table,
-      toColumn: row.to_column
-    }))
+    const relations = await fetchRelations(pool)
 
     return {
       version: Math.floor(Date.now() / 1000),
@@ -174,6 +117,74 @@ export async function scanSchema(connectionId: string): Promise<DatabaseSchema> 
   } finally {
     await pool.end()
   }
+}
+
+/** 单表三项信息：列、索引、行数估计（现状每表 3 次查询） */
+async function fetchTableDetails(pool: Pool, tableName: string) {
+  // 获取列信息
+  const columnsResult = await pool.query(`
+    SELECT
+      c.column_name,
+      c.data_type,
+      c.is_nullable,
+      c.column_default,
+      col_description((quote_ident(c.table_name))::regclass, c.ordinal_position) as column_comment,
+      CASE WHEN pk.column_name IS NOT NULL THEN true ELSE false END as is_primary
+    FROM information_schema.columns c
+    LEFT JOIN (
+      SELECT kcu.column_name
+      FROM information_schema.table_constraints tc
+      JOIN information_schema.key_column_usage kcu ON tc.constraint_name = kcu.constraint_name
+      WHERE tc.constraint_type = 'PRIMARY KEY' AND tc.table_name = $1
+    ) pk ON c.column_name = pk.column_name
+    WHERE c.table_name = $1
+    ORDER BY c.ordinal_position
+  `, [tableName])
+
+  // 获取索引
+  const indexesResult = await pool.query(`
+    SELECT
+      indexname,
+      indexdef
+    FROM pg_indexes
+    WHERE tablename = $1
+  `, [tableName])
+
+  // 获取行数估计
+  const statsResult = await pool.query(`
+    SELECT reltuples::bigint as estimate
+    FROM pg_class
+    WHERE relname = $1
+  `, [tableName])
+
+  return { columnsResult, indexesResult, statsResult }
+}
+
+/** 外键关系：一条查询 + 逐行改名 */
+async function fetchRelations(pool: Pool): Promise<RelationInfo[]> {
+  // 获取外键关系
+  const relationsResult = await pool.query(`
+    SELECT
+      tc.constraint_name,
+      tc.table_name as from_table,
+      kcu.column_name as from_column,
+      ccu.table_name as to_table,
+      ccu.column_name as to_column
+    FROM information_schema.table_constraints tc
+    JOIN information_schema.key_column_usage kcu
+      ON tc.constraint_name = kcu.constraint_name
+    JOIN information_schema.constraint_column_usage ccu
+      ON tc.constraint_name = ccu.constraint_name
+    WHERE tc.constraint_type = 'FOREIGN KEY'
+  `)
+
+  return relationsResult.rows.map(row => ({
+    name: row.constraint_name,
+    fromTable: row.from_table,
+    fromColumn: row.from_column,
+    toTable: row.to_table,
+    toColumn: row.to_column
+  }))
 }
 
 export function buildSchemaContext(schema: DatabaseSchema): string {
