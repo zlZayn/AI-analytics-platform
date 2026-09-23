@@ -168,13 +168,7 @@ export async function generateAnalysis(
   console.warn(
     `[ai] 首次输出不可用（${outcome.reason}，finish=${completion.finishReason}，${completion.content.length} 字符）：${outcome.rawPreview}`,
   )
-  const retryMessages: AIMessage[] = [
-    ...messages,
-    {
-      role: "user",
-      content: `上一次输出未通过解析（${outcome.reason}）。请只输出 1 条 items，insight 不超过 120 字，确保 JSON 完整闭合后再结束。`,
-    },
-  ]
+  const retryMessages = withRetryInstruction(messages, outcome.reason)
   const retry = await provider.complete({
     messages: retryMessages,
     responseSchema: AI_RESPONSE_JSON_SCHEMA,
@@ -192,14 +186,33 @@ export async function generateAnalysis(
   console.warn(
     `[ai] 修复后仍不可用（${retryOutcome.reason}，finish=${retry.finishReason}，${retry.content.length} 字符）：${retryOutcome.rawPreview}`,
   )
+  return buildRetryFailureResult(retry, retryOutcome)
+}
+
+/** 有界修复只追加这一条纠正指令（不是 agent loop，不引入工具与多轮规划） */
+function withRetryInstruction(messages: AIMessage[], reason: AIOutcomeReason): AIMessage[] {
+  return [
+    ...messages,
+    {
+      role: "user",
+      content: `上一次输出未通过解析（${reason}）。请只输出 1 条 items，insight 不超过 120 字，确保 JSON 完整闭合后再结束。`,
+    },
+  ]
+}
+
+/** 两次都不合格的终态：items 留空，分类与原始片段取第二次的 */
+function buildRetryFailureResult(
+  completion: AICompletion,
+  outcome: ReturnType<typeof describeOutcome>,
+): AIServiceResult {
   return {
     items: [],
-    reason: retryOutcome.reason,
-    message: retryOutcome.message,
+    reason: outcome.reason,
+    message: outcome.message,
     attempts: 2,
-    finishReason: retry.finishReason,
-    usage: retry.usage,
-    rawPreview: retryOutcome.rawPreview,
+    finishReason: completion.finishReason,
+    usage: completion.usage,
+    rawPreview: outcome.rawPreview,
   }
 }
 
@@ -312,26 +325,12 @@ function createOpenAIProvider(): AICompletionProvider {
       let lastError: unknown
       for (let index = 0; index < chain.length; index += 1) {
         const mode = chain[index]
-        const body: OpenAI.Chat.Completions.ChatCompletionCreateParamsNonStreaming = {
-          model: AI_CONFIG.model,
-          messages,
-          temperature: 0.2,
-          max_tokens: AI_CONFIG.maxTokens,
-        }
-        if (mode === "json_object") body.response_format = { type: "json_object" }
-        if (mode === "json_schema") {
-          body.response_format = { type: "json_schema", json_schema: responseSchema }
-        }
+        const body = buildRequestBody(mode, messages, responseSchema)
         try {
           const response = await client.chat.completions.create(body, { headers })
           availableFormats = chain.slice(index)
           if (index > 0) console.warn(`[ai] 使用降级的 response_format=${mode}`)
-          const choice = response.choices[0]
-          return {
-            content: choice?.message.content ?? "",
-            finishReason: choice?.finish_reason ?? "unknown",
-            usage: mapUsage(response.usage),
-          }
+          return toCompletion(response)
         } catch (error) {
           lastError = error
           const next = chain[index + 1]
@@ -341,6 +340,35 @@ function createOpenAIProvider(): AICompletionProvider {
       }
       throw lastError
     },
+  }
+}
+
+/** response_format 三种模式的请求体差异集中在这里：降级链只关心顺序 */
+function buildRequestBody(
+  mode: ResponseFormatMode | undefined,
+  messages: AIMessage[],
+  responseSchema: typeof AI_RESPONSE_JSON_SCHEMA,
+): OpenAI.Chat.Completions.ChatCompletionCreateParamsNonStreaming {
+  const body: OpenAI.Chat.Completions.ChatCompletionCreateParamsNonStreaming = {
+    model: AI_CONFIG.model,
+    messages,
+    temperature: 0.2,
+    max_tokens: AI_CONFIG.maxTokens,
+  }
+  if (mode === "json_object") body.response_format = { type: "json_object" }
+  if (mode === "json_schema") {
+    body.response_format = { type: "json_schema", json_schema: responseSchema }
+  }
+  return body
+}
+
+/** SDK 响应 → 一次补全：choices[0] 可能不存在，取不到就当空内容 */
+function toCompletion(response: OpenAI.Chat.Completions.ChatCompletion): AICompletion {
+  const choice = response.choices[0]
+  return {
+    content: choice?.message.content ?? "",
+    finishReason: choice?.finish_reason ?? "unknown",
+    usage: mapUsage(response.usage),
   }
 }
 
