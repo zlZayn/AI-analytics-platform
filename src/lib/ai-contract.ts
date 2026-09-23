@@ -9,7 +9,7 @@ interface ChartContract {
   description: string
 }
 
-export const CHART_CONTRACTS: Record<ChartType, ChartContract> = {
+export const CHART_CONTRACTS = {
   table: { required: [], optional: [], description: "原始结果；首次结果默认使用" },
   line: { required: ["x", "y"], optional: ["color"], description: "时间或有序类别趋势" },
   bar: { required: ["x", "y"], optional: ["fill", "mode"], description: "类别比较；mode 可为 grouped/stacked/normalized" },
@@ -20,7 +20,7 @@ export const CHART_CONTRACTS: Record<ChartType, ChartContract> = {
   correlation: { required: [], optional: ["columns", "method"], description: "多个数值列的相关矩阵" },
   kpi: { required: ["value"], optional: ["label", "comparison"], description: "单行核心指标" },
   histogram: { required: ["value"], optional: ["color"], description: "连续数值分布" },
-}
+} as const satisfies Record<ChartType, ChartContract>
 
 const CHART_TYPES = Object.keys(CHART_CONTRACTS) as ChartType[]
 const COLUMN_SLOTS = new Set(["x", "y", "color", "fill", "name", "value", "category", "label", "comparison"])

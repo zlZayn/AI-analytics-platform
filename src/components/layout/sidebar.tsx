@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { useRouter, usePathname } from "next/navigation"
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect, useRef, type ComponentType } from "react"
 import { cn } from "@/lib/utils"
 import { useConnection } from "./connection-context"
 import {
@@ -24,7 +24,7 @@ const navItems = [
   { href: "/workspace", label: "数据工作台", icon: Terminal },
   { href: "/explorer", label: "数据探索", icon: Search },
   { href: "/queries", label: "查询管理", icon: Clock },
-]
+] as const satisfies readonly { href: string; label: string; icon: ComponentType<{ className?: string }> }[]
 
 export function Sidebar({ mobileOpen = false, onClose }: { mobileOpen?: boolean; onClose?: () => void }) {
   const pathname = usePathname()
