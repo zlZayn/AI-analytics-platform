@@ -1,8 +1,6 @@
-export interface ValidationResult {
-  valid: boolean
-  error?: string
-  sanitizedSQL?: string
-}
+export type ValidationResult =
+  | { valid: true; sanitizedSQL: string }
+  | { valid: false; error: string }
 
 const ALLOWED_KEYWORDS = ['SELECT', 'WITH']
 const FORBIDDEN_KEYWORDS = [

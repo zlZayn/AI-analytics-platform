@@ -73,7 +73,7 @@ export async function executeQuery(
     await client.query("SELECT set_config('statement_timeout', $1, true)", [String(Math.floor(boundedTimeout))])
     const backend = await client.query<{ pid: number }>("SELECT pg_backend_pid() AS pid")
     const backendPid = backend.rows[0].pid
-    const wrappedSQL = `SELECT * FROM (${validation.sanitizedSQL!.trim()}) AS __query_result LIMIT ${MAX_RETURNED_ROWS + 1}`
+    const wrappedSQL = `SELECT * FROM (${validation.sanitizedSQL.trim()}) AS __query_result LIMIT ${MAX_RETURNED_ROWS + 1}`
     const result = await executeCancelable(
       () => client.query(wrappedSQL),
       () => cancelBackend(pool.options, backendPid),
