@@ -225,25 +225,11 @@ export function compileQuerySpec(querySpec: QuerySpec, schema?: SchemaData): Com
   const dimensions = querySpec.dimensions ?? []
   const measures = querySpec.measures ?? []
 
-  // SELECT
-  const selectParts: string[] = []
-  dimensions.forEach((dim, i) => {
-    const dimSql = renderDimension(dim, i)
-    // 表达式维度需要别名，保证输出列名可预测（expr_0 / expr_1 ...）
-    const alias = typeof dim === "string" ? null : renderExpression(dim, i).alias
-    selectParts.push(alias ? `${dimSql} AS ${quoteIdent(alias)}` : dimSql)
-  })
-  measures.forEach((measure) => selectParts.push(renderMeasure(measure)))
-
-  if (selectParts.length === 0) {
-    throw new Error("QuerySpec 至少需要 dimensions 或 measures")
-  }
+  const selectParts = renderSelectParts(dimensions, measures)
 
   // FROM + JOIN
   let sql = `SELECT ${selectParts.join(", ")} FROM ${quoteIdent(querySpec.table)}`
-  ;(querySpec.joins ?? []).forEach((join) => {
-    sql += ` ${join.type.toUpperCase()} JOIN ${quoteIdent(join.table)} ON ${quoteIdent(join.on.left)} = ${quoteIdent(join.on.right)}`
-  })
+  sql += renderJoinClause(querySpec)
 
   // WHERE
   const filters = querySpec.filters ?? []
@@ -272,13 +258,46 @@ export function compileQuerySpec(querySpec: QuerySpec, schema?: SchemaData): Com
   }
 
   // LIMIT
-  if (querySpec.limit !== undefined) {
-    const limit = Number(querySpec.limit)
-    if (!Number.isFinite(limit) || limit < 0) {
-      throw new Error(`非法的 limit: ${querySpec.limit}`)
-    }
-    sql += ` LIMIT ${Math.floor(limit)}`
-  }
+  sql += renderLimitClause(querySpec)
 
   return { sql, params }
+}
+
+/** SELECT 片段：维度（表达式维度带可预测别名）+ 度量 */
+function renderSelectParts(
+  dimensions: NonNullable<QuerySpec["dimensions"]>,
+  measures: NonNullable<QuerySpec["measures"]>,
+): string[] {
+  const selectParts: string[] = []
+  dimensions.forEach((dim, i) => {
+    const dimSql = renderDimension(dim, i)
+    // 表达式维度需要别名，保证输出列名可预测（expr_0 / expr_1 ...）
+    const alias = typeof dim === "string" ? null : renderExpression(dim, i).alias
+    selectParts.push(alias ? `${dimSql} AS ${quoteIdent(alias)}` : dimSql)
+  })
+  measures.forEach((measure) => selectParts.push(renderMeasure(measure)))
+
+  if (selectParts.length === 0) {
+    throw new Error("QuerySpec 至少需要 dimensions 或 measures")
+  }
+  return selectParts
+}
+
+/** JOIN 片段：按声明顺序逐个追加，空串表示没有 JOIN */
+function renderJoinClause(querySpec: QuerySpec): string {
+  let sql = ""
+  ;(querySpec.joins ?? []).forEach((join) => {
+    sql += ` ${join.type.toUpperCase()} JOIN ${quoteIdent(join.table)} ON ${quoteIdent(join.on.left)} = ${quoteIdent(join.on.right)}`
+  })
+  return sql
+}
+
+/** LIMIT 片段：非法 limit 直接抛出，合法值向下取整 */
+function renderLimitClause(querySpec: QuerySpec): string {
+  if (querySpec.limit === undefined) return ""
+  const limit = Number(querySpec.limit)
+  if (!Number.isFinite(limit) || limit < 0) {
+    throw new Error(`非法的 limit: ${querySpec.limit}`)
+  }
+  return ` LIMIT ${Math.floor(limit)}`
 }
