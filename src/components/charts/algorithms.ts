@@ -13,13 +13,26 @@ function finiteValues(values: unknown[]): number[] {
   return values.map(Number).filter(Number.isFinite)
 }
 
+/** 本文件的下标全部由数组长度推导，越界即不变量被破坏：抛错而非让 undefined 静默算成 NaN（同 rankOf 的处理） */
+function at(values: readonly number[], index: number): number {
+  const value = values[index]
+  if (value === undefined) throw new Error(`下标 ${index} 越界（长度 ${values.length}）`)
+  return value
+}
+
+function itemAt<T>(values: readonly T[], index: number): T {
+  const value = values[index]
+  if (value === undefined) throw new Error(`下标 ${index} 越界（长度 ${values.length}）`)
+  return value
+}
+
 export function quantileType7(values: number[], probability: number): number {
   if (!values.length) return Number.NaN
   const sorted = [...values].sort((a, b) => a - b)
   const index = (sorted.length - 1) * Math.max(0, Math.min(1, probability))
   const lower = Math.floor(index)
   const upper = Math.ceil(index)
-  return lower === upper ? sorted[lower] : sorted[lower] + (sorted[upper] - sorted[lower]) * (index - lower)
+  return lower === upper ? at(sorted, lower) : at(sorted, lower) + (at(sorted, upper) - at(sorted, lower)) * (index - lower)
 }
 
 export function computeBoxStats(input: number[]): BoxStats | null {
@@ -33,9 +46,9 @@ export function computeBoxStats(input: number[]): BoxStats | null {
   const highFence = q3 + 1.5 * iqr
   const inliers = values.filter((value) => value >= lowFence && value <= highFence)
   return {
-    min: values[0], max: values[values.length - 1], q1, median, q3,
-    whiskerLow: inliers[0] ?? values[0],
-    whiskerHigh: inliers[inliers.length - 1] ?? values[values.length - 1],
+    min: at(values, 0), max: at(values, values.length - 1), q1, median, q3,
+    whiskerLow: inliers[0] ?? at(values, 0),
+    whiskerHigh: inliers[inliers.length - 1] ?? at(values, values.length - 1),
     outliers: values.filter((value) => value < lowFence || value > highFence),
   }
 }
@@ -56,7 +69,7 @@ function pearsonValue(x: number[], y: number[]): number | null {
   const meanY = y.reduce((sum, value) => sum + value, 0) / y.length
   let numerator = 0; let varianceX = 0; let varianceY = 0
   for (let i = 0; i < x.length; i += 1) {
-    const dx = x[i] - meanX; const dy = y[i] - meanY
+    const dx = at(x, i) - meanX; const dy = at(y, i) - meanY
     numerator += dx * dy; varianceX += dx * dx; varianceY += dy * dy
   }
   const denominator = Math.sqrt(varianceX * varianceY)
@@ -68,9 +81,9 @@ function ranks(values: number[]): number[] {
   const result = new Array<number>(values.length)
   for (let start = 0; start < indexed.length;) {
     let end = start + 1
-    while (end < indexed.length && indexed[end].value === indexed[start].value) end += 1
+    while (end < indexed.length && itemAt(indexed, end).value === itemAt(indexed, start).value) end += 1
     const rank = (start + 1 + end) / 2
-    for (let i = start; i < end; i += 1) result[indexed[i].index] = rank
+    for (let i = start; i < end; i += 1) result[itemAt(indexed, i).index] = rank
     start = end
   }
   return result
@@ -89,13 +102,13 @@ function tiedPairs(values: number[]): number {
 class FenwickTree {
   private readonly tree: number[]
   constructor(size: number) { this.tree = new Array(size + 1).fill(0) }
-  add(index: number) { for (let i = index + 1; i < this.tree.length; i += i & -i) this.tree[i] += 1 }
-  sum(index: number) { let total = 0; for (let i = index + 1; i > 0; i -= i & -i) total += this.tree[i]; return total }
+  add(index: number) { for (let i = index + 1; i < this.tree.length; i += i & -i) this.tree[i] = at(this.tree, i) + 1 }
+  sum(index: number) { let total = 0; for (let i = index + 1; i > 0; i -= i & -i) total += at(this.tree, i); return total }
 }
 
 function kendallTauB(x: number[], y: number[]): number | null {
   if (x.length < 2) return null
-  const pairs = x.map((value, index) => ({ x: value, y: y[index] })).sort((a, b) => a.x - b.x || a.y - b.y)
+  const pairs = x.map((value, index) => ({ x: value, y: at(y, index) })).sort((a, b) => a.x - b.x || a.y - b.y)
   const uniqueY = Array.from(new Set(y)).sort((a, b) => a - b)
   const yRank = new Map(uniqueY.map((value, index) => [value, index]))
   /** 秩查找：yRank 与 pairs 取自同一 y 序列，必命中；未命中即不变量被破坏，明确抛错而非静默 NaN */
@@ -108,12 +121,12 @@ function kendallTauB(x: number[], y: number[]): number | null {
   let previous = 0; let discordant = 0
   for (let start = 0; start < pairs.length;) {
     let end = start + 1
-    while (end < pairs.length && pairs[end].x === pairs[start].x) end += 1
+    while (end < pairs.length && itemAt(pairs, end).x === itemAt(pairs, start).x) end += 1
     for (let i = start; i < end; i += 1) {
-      const rank = rankOf(pairs[i].y)
+      const rank = rankOf(itemAt(pairs, i).y)
       discordant += previous - tree.sum(rank)
     }
-    for (let i = start; i < end; i += 1) tree.add(rankOf(pairs[i].y))
+    for (let i = start; i < end; i += 1) tree.add(rankOf(itemAt(pairs, i).y))
     previous += end - start; start = end
   }
   const total = x.length * (x.length - 1) / 2
@@ -122,7 +135,7 @@ function kendallTauB(x: number[], y: number[]): number | null {
   let tiesBoth = 0
   for (let start = 0; start < pairs.length;) {
     let end = start + 1
-    while (end < pairs.length && pairs[end].x === pairs[start].x && pairs[end].y === pairs[start].y) end += 1
+    while (end < pairs.length && itemAt(pairs, end).x === itemAt(pairs, start).x && itemAt(pairs, end).y === itemAt(pairs, start).y) end += 1
     const count = end - start; tiesBoth += count * (count - 1) / 2; start = end
   }
   const denominator = Math.sqrt((total - tiesX) * (total - tiesY))
@@ -148,6 +161,6 @@ export function computeHistogram(input: unknown[], requestedBins?: number): Hist
   const count = max === min ? 1 : Math.min(50, Math.max(5, requestedBins ?? inferred))
   const width = max === min ? 1 : (max - min) / count
   const bins = Array.from({ length: count }, (_, index) => ({ start: min + index * width, end: index === count - 1 ? max : min + (index + 1) * width, count: 0 }))
-  for (const value of values) bins[max === min ? 0 : Math.min(count - 1, Math.floor((value - min) / width))].count += 1
+  for (const value of values) itemAt(bins, max === min ? 0 : Math.min(count - 1, Math.floor((value - min) / width))).count += 1
   return { bins, method, sampleSize: values.length, invalidCount }
 }

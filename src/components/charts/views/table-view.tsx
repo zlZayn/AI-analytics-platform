@@ -56,7 +56,7 @@ export const TableView = React.memo(function TableView({
   }, {})
   const virtual = calculateVirtualWindow(data.length, viewportHeight, ROW_HEIGHT, scrollTop, OVERSCAN)
   const visibleRows = data.slice(virtual.start, virtual.end)
-  const tableWidth = columns.reduce((total, column) => total + widths[column], 0)
+  const tableWidth = columns.reduce((total, column) => total + (widths[column] ?? DEFAULT_COLUMN_WIDTH), 0)
 
   function updateColumnWidth(column: string, width: number) {
     const nextWidth = Math.max(MIN_COLUMN_WIDTH, Math.min(MAX_COLUMN_WIDTH, Math.round(width)))
@@ -70,7 +70,7 @@ export const TableView = React.memo(function TableView({
   function startResize(event: React.PointerEvent, column: string) {
     event.preventDefault()
     const startX = event.clientX
-    const startWidth = widths[column]
+    const startWidth = widths[column] ?? DEFAULT_COLUMN_WIDTH
     const move = (pointerEvent: PointerEvent) => updateColumnWidth(column, startWidth + pointerEvent.clientX - startX)
     const stop = () => {
       window.removeEventListener("pointermove", move)
@@ -119,7 +119,7 @@ export const TableView = React.memo(function TableView({
                   onPointerDown={(event) => startResize(event, column)}
                   onKeyDown={(event) => {
                     if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return
-                    updateColumnWidth(column, widths[column] + (event.key === "ArrowRight" ? 16 : -16))
+                    updateColumnWidth(column, (widths[column] ?? DEFAULT_COLUMN_WIDTH) + (event.key === "ArrowRight" ? 16 : -16))
                     event.preventDefault()
                   }}
                 />
