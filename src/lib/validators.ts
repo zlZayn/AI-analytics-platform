@@ -115,15 +115,29 @@ export function validateDisplayConfig(
   config: DisplayConfig,
   context: ValidationContext,
 ): ValidationResult {
-  const issues: ValidationIssue[] = []
   const { chartType, mapping } = config
   const rows = context.mode === "data" ? context.dataset.rows : []
+  const issues = [
+    ...checkRequiredSlots(chartType, mapping, context, rows),
+    ...checkDuplicateCoordinate(chartType, mapping, context, rows),
+    ...checkCorrelationColumns(chartType, mapping, context),
+  ]
+  return { valid: !issues.some((issue) => issue.severity === "error"), issues }
+}
 
+/** 必填槽位：字段存在 + 语义类型匹配；data 模式追加无效数值与高基数检查 */
+function checkRequiredSlots(
+  chartType: ChartType,
+  mapping: DisplayConfig["mapping"],
+  context: ValidationContext,
+  rows: Record<string, unknown>[],
+): ValidationIssue[] {
+  const found: ValidationIssue[] = []
   for (const [slot, allowed] of REQUIRED_SLOTS[chartType] ?? []) {
     const field = getMappingSlot(mapping, slot)
     const slotLabel = CHART_TYPE_SLOTS[chartType][slot]?.label ?? slot
     if (!field) {
-      issues.push({
+      found.push({
         code: "MISSING_MAPPING",
         message: `请选择${slotLabel}字段`,
         field: slot,
@@ -133,7 +147,7 @@ export function validateDisplayConfig(
     }
     const column = resolveColumn(context, field)
     if (!column) {
-      issues.push({
+      found.push({
         code: "COLUMN_NOT_FOUND",
         message: `字段不存在: ${field}`,
         field: slot,
@@ -142,7 +156,7 @@ export function validateDisplayConfig(
       continue
     }
     if (!allowed.includes(column.semanticType)) {
-      issues.push({
+      found.push({
         code: "INCOMPATIBLE_TYPE",
         message: `${field} 不适用于 ${slotLabel}`,
         field: slot,
@@ -155,7 +169,7 @@ export function validateDisplayConfig(
       if (allowed.includes("numeric")) {
         const invalid = countInvalidNumeric(rows, field)
         if (invalid > 0) {
-          issues.push({
+          found.push({
             code: "INVALID_NUMERIC",
             message: `${field} 有 ${invalid} 个无效数值`,
             field: slot,
@@ -166,7 +180,7 @@ export function validateDisplayConfig(
       if (column.semanticType === "categorical" || column.semanticType === "text") {
         const unique = uniqueCount(rows, field)
         if (unique > 50) {
-          issues.push({
+          found.push({
             code: "HIGH_CARDINALITY",
             message: `${field} 有 ${unique} 个唯一值，图表可能过于拥挤`,
             field: slot,
@@ -176,32 +190,47 @@ export function validateDisplayConfig(
       }
     }
   }
+  return found
+}
 
-  // 重复坐标检查（line / bar）
-  if (context.mode === "data" && (chartType === "line" || chartType === "bar")) {
-    const x = getMappingSlot(mapping, "x")
-    const group = getMappingSlot(mapping, chartType === "line" ? "color" : "fill")
-    if (x && hasDuplicateCoordinate(rows, x, group)) {
-      issues.push({
-        code: "DUPLICATE_COORDINATE",
-        message: "存在重复坐标，请先在 SQL 中聚合",
-        severity: "error",
-      })
-    }
-  }
+/** 重复坐标检查（line / bar） */
+function checkDuplicateCoordinate(
+  chartType: ChartType,
+  mapping: DisplayConfig["mapping"],
+  context: ValidationContext,
+  rows: Record<string, unknown>[],
+): ValidationIssue[] {
+  if (context.mode !== "data" || (chartType !== "line" && chartType !== "bar")) return []
+  const x = getMappingSlot(mapping, "x")
+  const group = getMappingSlot(mapping, chartType === "line" ? "color" : "fill")
+  if (!x || !hasDuplicateCoordinate(rows, x, group)) return []
+  return [
+    {
+      code: "DUPLICATE_COORDINATE",
+      message: "存在重复坐标，请先在 SQL 中聚合",
+      severity: "error",
+    },
+  ]
+}
 
-  // correlation：所有列必须存在且为数值
+/** correlation：所有列必须存在且为数值 */
+function checkCorrelationColumns(
+  chartType: ChartType,
+  mapping: DisplayConfig["mapping"],
+  context: ValidationContext,
+): ValidationIssue[] {
+  const found: ValidationIssue[] = []
   if (chartType === "correlation" && mapping.chartType === "correlation") {
     for (const field of mapping.columns ?? []) {
       const column = resolveColumn(context, field)
       if (!column) {
-        issues.push({
+        found.push({
           code: "COLUMN_NOT_FOUND",
           message: `字段不存在: ${field}`,
           severity: "error",
         })
       } else if (column.semanticType !== "numeric") {
-        issues.push({
+        found.push({
           code: "INCOMPATIBLE_TYPE",
           message: `${field} 不是数值列，不适合相关分析`,
           severity: "error",
@@ -209,6 +238,5 @@ export function validateDisplayConfig(
       }
     }
   }
-
-  return { valid: !issues.some((issue) => issue.severity === "error"), issues }
+  return found
 }
