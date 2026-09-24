@@ -1,15 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
+import { buildSchemaContext, scanSchema, type ColumnInfo, type DatabaseSchema, type RelationInfo, type TableInfo } from "../schema-service"
 import {
   buildDataProfileText,
-  buildSchemaContext,
-  scanSchema,
   type ColumnDataProfile,
-  type ColumnInfo,
-  type DatabaseSchema,
-  type RelationInfo,
   type TableDataProfile,
-  type TableInfo,
-} from "../schema-service"
+} from "../data-profile-service"
 
 const stub = vi.hoisted(() => ({
   connection: null as
