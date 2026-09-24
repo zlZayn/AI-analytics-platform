@@ -6,10 +6,9 @@
 // AI 编排在 useAiAssistant（输入/请求状态）；结果→会话 action 的映射在 lib/ai-session-mapping.ts。
 
 import { useEffect, useMemo, useRef, useState } from "react"
-import { Button } from "@/components/ui/button"
 import { SessionView } from "@/components/SessionView"
 import { SqlEditorPanel } from "@/components/workspace/sql-editor-panel"
-import { AiVisibilityHint } from "@/components/ai-visibility-hint"
+import { AiAssistantPanel } from "@/components/workspace/ai-assistant-panel"
 import { useToast } from "@/components/toast"
 import { fetchApi } from "@/lib/client-api"
 import { useSession } from "@/hooks/useSession"
@@ -17,8 +16,6 @@ import { useAiAssistant } from "@/hooks/useAiAssistant"
 import type { ApiResponse, SchemaData } from "@/types"
 import type { CompiledSql, SemanticDataset } from "@/types/session"
 import type { ChartMapping } from "@/components/chart"
-import { Loader2, Send } from "lucide-react"
-import { AiMentionInput } from "@/components/ai-mention-input"
 import { normalizeWorkspaceSql, workspaceSqlKey } from "@/lib/workspace-navigation"
 import { SPLIT_PRESETS } from "@/lib/split"
 import { useSplitRatio } from "@/hooks/useSplitRatio"
@@ -207,80 +204,16 @@ export function SessionWorkspace({ connectionId, initialSql, rHistoryId }: Sessi
         ref={columnsRef}
         className="flex min-h-0 flex-none flex-col gap-3 pt-3 lg:min-h-0 lg:flex-row lg:gap-0 lg:pt-0 lg:overflow-hidden lg:[flex-basis:0] lg:[flex-grow:var(--content-grow)]"
       >
-        {/* AI 助手 */}
-        <div className="flex min-h-[260px] min-w-0 flex-1 flex-col rounded-lg border lg:min-h-0 lg:[flex-basis:0] lg:[flex-grow:var(--ai-grow)]">
-          <div className="px-3 py-2 border-b flex items-center justify-between">
-            <span className="flex min-w-0 items-center gap-2">
-              <span className="text-xs font-medium text-[var(--muted-foreground)]">AI 助手</span>
-              <span className="hidden truncate text-[10px] text-[var(--muted-foreground)] sm:inline">
-                提问 → 给出可执行洞察 → 点卡片「执行」看结果
-              </span>
-            </span>
-            {conversationHistory.length > 0 && (
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-5 text-[10px]"
-                onClick={() => {
-                  assistant.clearInsights()
-                  dispatch({ type: "RESET" })
-                }}
-                disabled={busy || assistant.asking}
-              >
-                重置
-              </Button>
-            )}
-          </div>
-          <AiVisibilityHint />
-          <div className="flex-1 overflow-auto p-3 space-y-2 min-h-0">
-            {assistant.unavailable && (
-              <div className="p-2 rounded bg-[var(--muted)] border border-[var(--border)] text-xs text-[var(--muted-foreground)] leading-relaxed">
-                AI 服务未配置。请在 <code className="font-mono bg-[var(--border)] px-1 rounded">.env</code> 中设置
-                {' '}<code className="font-mono bg-[var(--border)] px-1 rounded">AI_API_KEY</code>。
-              </div>
-            )}
-            {conversationHistory.length === 0 && !assistant.unavailable && (
-              <div className="flex items-center justify-center h-full text-[var(--muted-foreground)] text-xs">
-                用自然语言描述你想分析的内容
-              </div>
-            )}
-            {conversationHistory.map((msg, i) =>
-              msg.role === "user" ? (
-                <div key={i} className="flex justify-end">
-                  <div className="max-w-[90%] rounded-lg px-2.5 py-1.5 text-xs bg-[var(--primary)] text-[var(--primary-foreground)]">
-                    <div className="whitespace-pre-wrap">{msg.content}</div>
-                  </div>
-                </div>
-              ) : (
-                <div key={i} className="flex justify-start">
-                  <div className="max-w-[90%] rounded-lg px-2.5 py-1.5 text-xs bg-[var(--muted)] text-[var(--foreground)] whitespace-pre-wrap">
-                    {msg.content}
-                  </div>
-                </div>
-              ),
-            )}
-            {assistant.asking && (
-              <div className="flex justify-start">
-                <div className="bg-[var(--muted)] rounded-lg px-2.5 py-1.5 flex items-center gap-1 text-xs text-[var(--muted-foreground)]">
-                  <Loader2 className="w-3 h-3 animate-spin" /> 思考中...
-                </div>
-              </div>
-            )}
-          </div>
-          <div className="p-2 border-t flex gap-1.5">
-            <AiMentionInput
-              value={assistant.input}
-              onChange={assistant.setInput}
-              onSend={assistant.ask}
-              disabled={assistant.asking}
-              placeholder="输入 @ 选表，如：对比 @orders 与 @customers 的销售趋势"
-              schema={schema}
-            />
-            <Button size="sm" onClick={assistant.ask} disabled={assistant.asking || !assistant.input.trim()} className="h-7 w-7 p-0">
-              <Send className="w-3 h-3" />
-            </Button>
-          </div>
-        </div>
+        <AiAssistantPanel
+          assistant={assistant}
+          conversationHistory={conversationHistory}
+          schema={schema}
+          busy={busy}
+          onReset={() => {
+            assistant.clearInsights()
+            dispatch({ type: "RESET" })
+          }}
+        />
 
         <SplitHandle
           axis="x"
