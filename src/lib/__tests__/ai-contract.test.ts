@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest"
-import { AI_RESPONSE_JSON_SCHEMA, buildSystemPrompt, parseInsightItems } from "../ai-contract"
+import { AI_RESPONSE_JSON_SCHEMA, buildSystemPrompt } from "../ai-contract"
+import { parseInsightItems } from "../ai-contract-parse"
 import { generateAnalysis } from "../ai-service"
 import type { AICompletionProvider } from "../ai-provider"
 

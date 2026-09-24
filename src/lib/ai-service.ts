@@ -1,4 +1,5 @@
-import { AI_RESPONSE_JSON_SCHEMA, buildSystemPrompt, parseInsightItems, type InsightItem } from "./ai-contract"
+import { AI_RESPONSE_JSON_SCHEMA, buildSystemPrompt, type InsightItem } from "./ai-contract"
+import { parseInsightItems } from "./ai-contract-parse"
 import { getDefaultProvider, type AICompletion, type AICompletionProvider, type AIMessage } from "./ai-provider"
 import { describeOutcome, type AIOutcomeReason, type AIServiceResult } from "./ai-outcome"
 
