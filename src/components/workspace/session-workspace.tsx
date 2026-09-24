@@ -6,10 +6,9 @@
 // AI 编排在 useAiAssistant（输入/请求状态）；结果→会话 action 的映射在 lib/ai-session-mapping.ts。
 
 import { useEffect, useMemo, useRef, useState } from "react"
-import dynamic from "next/dynamic"
 import { Button } from "@/components/ui/button"
 import { SessionView } from "@/components/SessionView"
-import { SaveQueryControl } from "@/components/workspace/save-query-control"
+import { SqlEditorPanel } from "@/components/workspace/sql-editor-panel"
 import { AiVisibilityHint } from "@/components/ai-visibility-hint"
 import { useToast } from "@/components/toast"
 import { fetchApi } from "@/lib/client-api"
@@ -18,7 +17,7 @@ import { useAiAssistant } from "@/hooks/useAiAssistant"
 import type { ApiResponse, SchemaData } from "@/types"
 import type { CompiledSql, SemanticDataset } from "@/types/session"
 import type { ChartMapping } from "@/components/chart"
-import { Play, Loader2, Send } from "lucide-react"
+import { Loader2, Send } from "lucide-react"
 import { AiMentionInput } from "@/components/ai-mention-input"
 import { normalizeWorkspaceSql, workspaceSqlKey } from "@/lib/workspace-navigation"
 import { SPLIT_PRESETS } from "@/lib/split"
@@ -26,14 +25,6 @@ import { useSplitRatio } from "@/hooks/useSplitRatio"
 import { SplitHandle } from "@/components/ui/split-handle"
 import type { CSSProperties } from "react"
 import { loadWorkspace, saveWorkspace } from "@/lib/workspace-store"
-
-// 本地 monaco（惰性配置：SSR 安全，配置完成前编辑器渲染占位）
-import { configureMonaco } from "@/lib/monaco-setup"
-
-const MonacoEditor = dynamic(() => import("@monaco-editor/react"), {
-  ssr: false,
-  loading: () => <div className="h-full bg-[var(--muted)] animate-pulse rounded-lg" />,
-})
 
 interface SessionWorkspaceProps {
   connectionId: string | null
@@ -49,7 +40,6 @@ export function SessionWorkspace({ connectionId, initialSql, rHistoryId }: Sessi
   const [sqlDraft, setSqlDraft] = useState(
     () => normalizeWorkspaceSql(initialSql) || restored?.lastSql || "",
   )
-  const [monacoReady, setMonacoReady] = useState(false)
   // Navigation can hydrate in more than one render. Track the applied input by
   // value so a late-arriving query is still loaded once without overwriting edits.
   const appliedInitialSqlKey = useRef<string | null>(null)
@@ -59,17 +49,6 @@ export function SessionWorkspace({ connectionId, initialSql, rHistoryId }: Sessi
     restored?.insights?.length ? "insights" : "explore",
   )
   const { toast } = useToast()
-
-  // 配置本地 monaco（幂等；客户端首帧后异步完成，避免 loader.init 回退 CDN）
-  useEffect(() => {
-    let alive = true
-    void configureMonaco().then(() => {
-      if (alive) setMonacoReady(true)
-    })
-    return () => {
-      alive = false
-    }
-  }, [])
 
   // 加载 Schema：供 schema-based 校验与 querySpec 编译使用（异步到达时由 useSession 的 ref 接管）
   useEffect(() => {
@@ -202,41 +181,14 @@ export function SessionWorkspace({ connectionId, initialSql, rHistoryId }: Sessi
       {/* 主区：编辑器与中段共享高度，lg 及以上可用分割条调整 */}
       <div ref={workspaceRef} className="flex min-h-0 flex-col lg:min-h-0 lg:flex-1">
 
-      {/* SQL 编辑器（草稿输入，执行时 dispatch SET_COMPILED_SQL）；高度由分割条决定 */}
-      <div className="flex min-h-[160px] shrink-0 flex-col gap-2 max-lg:h-48 max-lg:sm:h-56 lg:min-h-0 lg:shrink lg:[flex-basis:0] lg:[flex-grow:var(--editor-grow)]">
-        <div className="flex items-center justify-between">
-          <span className="text-xs font-medium text-[var(--muted-foreground)]">SQL 编辑器</span>
-          <div className="flex items-center gap-1.5">
-            <SaveQueryControl connectionId={connectionId} sql={compiledSql?.sql} />
-            <Button size="sm" onClick={runSql} disabled={busy || !sqlDraft.trim()} aria-busy={busy} className="gap-1 h-7 text-xs">
-              {busy ? <Loader2 className="w-3 h-3 animate-spin" /> : <Play className="w-3 h-3" />}
-              {busy ? "执行中" : "执行"}
-            </Button>
-          </div>
-        </div>
-        <div className="flex-1 border rounded-lg overflow-hidden min-h-0">
-          {monacoReady ? (
-            <MonacoEditor
-              height="100%"
-              language="sql"
-              theme="vs-light"
-              value={sqlDraft}
-              onChange={(v) => setSqlDraft(v || "")}
-              options={{
-                minimap: { enabled: false },
-                fontSize: 13,
-                lineNumbers: "on",
-                scrollBeyondLastLine: false,
-                wordWrap: "on",
-                padding: { top: 8, bottom: 8 },
-                tabSize: 2,
-              }}
-            />
-          ) : (
-            <div className="h-full bg-[var(--muted)] animate-pulse rounded-lg" />
-          )}
-        </div>
-      </div>
+      <SqlEditorPanel
+        connectionId={connectionId}
+        sqlDraft={sqlDraft}
+        onDraftChange={setSqlDraft}
+        compiledSql={compiledSql?.sql}
+        busy={busy}
+        onRun={runSql}
+      />
 
       <SplitHandle
         axis="y"
