@@ -9,7 +9,7 @@
 - [ ] 改 API 路由 → 同步 `scripts/offline_workspace_e2e.py` 的 `page.route`（少一个 mock 就 500）
 - [ ] 新编辑器接入 → 先 `await configureMonaco()` 再渲染（`src/lib/monaco-setup.ts`，勿顶层 import）
 - [ ] 图表/UI 颜色 → 只用 `src/app/globals.css` 语义 token（组件不建第二套常量）
-- [ ] 改 AI 契约（ai-contract）→ 提示词、解析、AiVisibilityHint 文案、测试同步
+- [ ] 改 AI 契约（声明 `src/lib/ai-contract.ts` / 解析 `src/lib/ai-contract-parse.ts`）→ 提示词、解析、AiVisibilityHint 文案、测试同步
 - [ ] 改 `.cmd` → 字节级编辑（GBK+CRLF+无 BOM），见 [决策记录](../.agents/notes/2026-09-03-windows-script-encoding-rules.md)
 - [ ] 文档同步（改了什么 → 对应文档节）：根 [AGENTS.md](../AGENTS.md)（验证快照/待办/活跃坑 + 英文 README 同步）· [PLAN.md](PLAN.md)（待办勾掉/新计划）· 对应子 README · 新设计决策 → [.agents/notes/](../.agents/notes/)；职责边界见 [ARCHITECTURE.md](ARCHITECTURE.md)
 - [ ] 三连校验：`python scripts/check-links.py . --fragments --refs` · `python <skill>/check-line-endings.py . --exclude .next --exclude node_modules --exclude .git` · `git diff --check`
