@@ -18,8 +18,8 @@ This version has breaking changes — APIs, conventions, and file structure may 
 - `npm run verify`（typecheck + lint + test，与 CI 同口径）· `npm run dev`（端口 3000；浏览器脚本默认 4321）
 - `npm run db:init`（幂等初始化/补齐元库）· `npm run db:check`（只读漂移检查）· Node 基线 22（`.node-version`）
 
-## 验证快照（2026-09-11，main）
-- 本地门禁 `npm run verify`：vitest 52 files / 312 passed / 0 failed；typecheck / lint: 0 errors、0 warnings（干净检出口径；本机 `.artifacts/` 下的未跟踪脚本会多出 1 条 warning，CI 看不见它）
+## 验证快照（main；各行自带实测日期，未标的为 2026-09-11）
+- 本地门禁 `npm run verify`：typecheck / lint 0 errors、0 warnings；vitest 全绿（2026-09-24 实测 53 files / 316 passed —— 用例会随刀增减，现查该命令末行，别拿本文数字当判据）（口径为干净检出；本机 `.artifacts/` 下的未跟踪脚本会多出 1 条 warning，CI 看不见它）
 - 生产 build: passed（清 `.next` 后）；离线 E2E passed 且已进 CI（`e2e` job：入口 SQL 填充、请求体、Monaco、结果区、明细原始行、连接编辑回填、AI 编排、洞察执行、保存查询闭环、切页恢复、统一历史时间线合并、分割句柄含 R 面板宽度、R 面板停靠/关闭、移动端）
 - 依赖与元库：`npm ci --ignore-scripts` 从锁文件全量重装通过（包数现查 `package-lock.json`，本文不抄数）（next 16.3.4 / react 19.2.8 / vitest 4.1.11 / jsdom 30 / openai 6.49）；空库 `npm run db:init` 建出 12 表 + 35 索引、`npm run db:check` 无漂移；现有库两次 `db:init` 幂等且行数不变；本地离线 E2E 在该依赖集上通过
 - 真实 AI 调用（opencode zen go / `deepseek-flash`）: passed（`json_schema` → `json_object` → 无 `response_format` 降级；3 条洞察、reason=ok；输出预算须覆盖 reasoning token）
