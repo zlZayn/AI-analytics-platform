@@ -14,8 +14,7 @@ import { useCallback, useEffect, useRef, useState } from "react"
 import type * as React from "react"
 import { RWorkbenchHeader } from "./r-workbench-header"
 import { RWorkbenchToolbar } from "./r-workbench-toolbar"
-import { RWorkbenchEditor } from "./r-workbench-editor"
-import { RWorkbenchOutput } from "./r-workbench-output"
+import { RWorkbenchBody } from "./r-workbench-body"
 import { RWorkbenchStatusBar } from "./r-workbench-status-bar"
 import { useWebR } from "@/hooks/useWebR"
 import { useSplitRatio } from "@/hooks/useSplitRatio"
@@ -46,12 +45,6 @@ export function RWorkbench({ dataset, open, onClose, connectionId, sessionId, so
   const webR = useWebR()
   const [code, setCode] = useState("")
   const [injectedFor, setInjectedFor] = useState<SemanticDataset | null>(null)
-  const panelSplit = useSplitRatio(
-    SPLIT_PRESETS.rWorkbench.key,
-    SPLIT_PRESETS.rWorkbench.defaultRatio,
-    SPLIT_PRESETS.rWorkbench.bounds,
-  )
-  const contentRef = useRef<HTMLDivElement | null>(null)
   const initializedRef = useRef(false)
   const codeRef = useRef("")
   const loggedExecRef = useRef<number | null>(null)
@@ -274,46 +267,14 @@ export function RWorkbench({ dataset, open, onClose, connectionId, sessionId, so
         canInterrupt={true}
       />
 
-      {/* 内容区：代码与输出按可拖拽比例分配高度，各自内部滚动（消除「挤压成细长条」） */}
-      <div ref={contentRef} className="flex min-h-0 flex-1 flex-col overflow-auto p-3">
-        <section
-          aria-label="R 代码"
-          style={{ flexGrow: panelSplit.ratio, flexBasis: 0 }}
-          className="flex min-h-[180px] flex-col overflow-hidden rounded-md border border-[var(--border)]"
-        >
-          <div className="flex shrink-0 items-center justify-between border-b border-[var(--border)] bg-[var(--muted)] px-2 py-1">
-            <span className="text-[10px] font-medium text-[var(--muted-foreground)]">代码（df 已注入当前结果集）</span>
-            <span className="hidden text-[10px] text-[var(--muted-foreground)] sm:inline">Ctrl+Enter 运行</span>
-          </div>
-          <div className="min-h-0 flex-1">
-            <RWorkbenchEditor value={code} onChange={setCode} onRun={handleRun} />
-          </div>
-        </section>
-
-        <SplitHandle
-          axis="y"
-          ratio={panelSplit.ratio}
-          bounds={SPLIT_PRESETS.rWorkbench.bounds}
-          onPreview={panelSplit.preview}
-          onCommit={panelSplit.commit}
-          onReset={panelSplit.reset}
-          containerRef={contentRef}
-          label="调整代码与输出高度（双击或 Home 复位）"
-        />
-
-        <section
-          aria-label="R 输出"
-          style={{ flexGrow: 1 - panelSplit.ratio, flexBasis: 0 }}
-          className="flex min-h-[120px] flex-col overflow-hidden rounded-md border border-[var(--border)]"
-        >
-          <div className="shrink-0 border-b border-[var(--border)] bg-[var(--muted)] px-2 py-1 text-[10px] font-medium text-[var(--muted-foreground)]">
-            输出
-          </div>
-          <div className="min-h-0 flex-1">
-            <RWorkbenchOutput items={webR.output} images={webR.images} busy={webR.busy} />
-          </div>
-        </section>
-      </div>
+      <RWorkbenchBody
+        code={code}
+        onCodeChange={setCode}
+        onRun={handleRun}
+        items={webR.output}
+        images={webR.images}
+        busy={webR.busy}
+      />
 
       <RWorkbenchStatusBar
         packages={webR.packages}
