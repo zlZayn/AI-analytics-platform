@@ -8,10 +8,8 @@
 import { useEffect, useMemo, useRef, useState } from "react"
 import dynamic from "next/dynamic"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { SessionView } from "@/components/SessionView"
+import { SaveQueryControl } from "@/components/workspace/save-query-control"
 import { AiVisibilityHint } from "@/components/ai-visibility-hint"
 import { useToast } from "@/components/toast"
 import { fetchApi } from "@/lib/client-api"
@@ -20,7 +18,7 @@ import { useAiAssistant } from "@/hooks/useAiAssistant"
 import type { ApiResponse, SchemaData } from "@/types"
 import type { CompiledSql, SemanticDataset } from "@/types/session"
 import type { ChartMapping } from "@/components/chart"
-import { Play, Loader2, Send, Save } from "lucide-react"
+import { Play, Loader2, Send } from "lucide-react"
 import { AiMentionInput } from "@/components/ai-mention-input"
 import { normalizeWorkspaceSql, workspaceSqlKey } from "@/lib/workspace-navigation"
 import { SPLIT_PRESETS } from "@/lib/split"
@@ -51,8 +49,6 @@ export function SessionWorkspace({ connectionId, initialSql, rHistoryId }: Sessi
   const [sqlDraft, setSqlDraft] = useState(
     () => normalizeWorkspaceSql(initialSql) || restored?.lastSql || "",
   )
-  const [saveDialogOpen, setSaveDialogOpen] = useState(false)
-  const [saveName, setSaveName] = useState("")
   const [monacoReady, setMonacoReady] = useState(false)
   // Navigation can hydrate in more than one render. Track the applied input by
   // value so a late-arriving query is still loaded once without overwriting edits.
@@ -174,22 +170,6 @@ export function SessionWorkspace({ connectionId, initialSql, rHistoryId }: Sessi
     dispatch({ type: "SET_COMPILED_SQL", compiledSql: { sql: sqlDraft.trim(), params: [] } })
   }
 
-  async function saveQuery() {
-    if (!saveName.trim() || !compiledSql?.sql || !connectionId) return
-    try {
-      await fetchApi("/api/query/saved", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ connectionId, name: saveName.trim(), sql: compiledSql.sql }),
-      })
-      setSaveDialogOpen(false)
-      setSaveName("")
-      toast("查询已保存", "success")
-    } catch {
-      toast("保存失败，请稍后重试", "error")
-    }
-  }
-
   function handleMappingChange(mapping: ChartMapping) {
     dispatch({
       type: "UPDATE_DISPLAY_CONFIG",
@@ -227,15 +207,7 @@ export function SessionWorkspace({ connectionId, initialSql, rHistoryId }: Sessi
         <div className="flex items-center justify-between">
           <span className="text-xs font-medium text-[var(--muted-foreground)]">SQL 编辑器</span>
           <div className="flex items-center gap-1.5">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setSaveDialogOpen(true)}
-              disabled={!compiledSql?.sql}
-              className="h-7 text-xs gap-1"
-            >
-              <Save className="w-3.5 h-3.5" /> 保存
-            </Button>
+            <SaveQueryControl connectionId={connectionId} sql={compiledSql?.sql} />
             <Button size="sm" onClick={runSql} disabled={busy || !sqlDraft.trim()} aria-busy={busy} className="gap-1 h-7 text-xs">
               {busy ? <Loader2 className="w-3 h-3 animate-spin" /> : <Play className="w-3 h-3" />}
               {busy ? "执行中" : "执行"}
@@ -396,29 +368,6 @@ export function SessionWorkspace({ connectionId, initialSql, rHistoryId }: Sessi
         </div>
       </div>
 
-      {/* 保存查询对话框 */}
-      <Dialog open={saveDialogOpen} onOpenChange={setSaveDialogOpen}>
-        <DialogContent className="max-w-sm">
-          <DialogHeader>
-            <DialogTitle>保存查询</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-2">
-            <Label htmlFor="save-name" className="text-xs">名称</Label>
-            <Input
-              id="save-name"
-              value={saveName}
-              onChange={(e) => setSaveName(e.target.value)}
-              placeholder="查询名称"
-              className="h-8 text-xs"
-              onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), saveQuery())}
-            />
-          </div>
-          <DialogFooter>
-            <Button variant="outline" size="sm" onClick={() => setSaveDialogOpen(false)}>取消</Button>
-            <Button size="sm" onClick={saveQuery} disabled={!saveName.trim()}>保存</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   )
 }
