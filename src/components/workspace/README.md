@@ -1,6 +1,7 @@
 # workspace/ — 会话工作台
 
-- `session-workspace.tsx`：SQL 编辑器、AI 助手、执行按钮和结果区（AI 编排委托 [useAiAssistant](../../hooks/useAiAssistant.ts)，视图只负责挂载与布局）。
+- `session-workspace.tsx`：会话状态编排与布局（AI 助手、结果区、分割条；SQL 编辑器与保存查询各成文件）。AI 编排委托 [useAiAssistant](../../hooks/useAiAssistant.ts)，视图只负责挂载与布局。
+- `sql-editor-panel.tsx`：SQL 编辑器单元——工具栏（保存查询 + 执行）与 Monaco 草稿区，本地 monaco 就绪状态归它；草稿 owner 仍在父组件（AI 助手会写）。
 - `save-query-control.tsx`：「保存查询」单元——工具栏触发按钮 + 命名对话框 + `POST /api/query/saved`；输入只有 `connectionId` 与已编译 SQL，不读会话状态。
 - 被 `/workspace` 路由依赖；初始 SQL 来自 `connection` 与 `sql` 查询参数。
 - 执行入口：手动 SQL、探索页、查询管理页均调用统一 `buildWorkspaceUrl`；跨页 SQL 使用完整文档导航，到达后统一触发 `SET_COMPILED_SQL`。
