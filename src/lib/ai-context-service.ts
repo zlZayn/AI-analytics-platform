@@ -3,13 +3,12 @@
 
 import { prisma } from "@/lib/prisma"
 import { normalizeReferencedTables } from "@/lib/ai-context"
+import { buildSchemaContext, scanSchema } from "@/lib/schema-service"
 import {
   buildDataProfileText,
-  buildSchemaContext,
   scanAllDataProfiles,
   scanDataProfile,
-  scanSchema,
-} from "@/lib/schema-service"
+} from "@/lib/data-profile-service"
 
 export interface AIContextInput {
   conversationId?: unknown

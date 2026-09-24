@@ -15,7 +15,8 @@
 - `ai-config.ts`：AI 运行配置（输出预算、`response_format` 档位起点、请求头模板与 `{sessionId}`/`{version}` 占位符求值）。
 - `ai-provider.ts`：可注入的 `AICompletionProvider` 契约与 OpenAI 兼容生产 provider（降级链、上游错误说明与密钥抹除）。
 - `ai-outcome.ts`：解析失败分类与用户可读提示（`describeOutcome` / `toClientDiagnostics` / `AIServiceResult`）。
-- `schema-service.ts`：当前连接的 Schema 上下文与数据轮廓（`scanDataProfile` / `buildDataProfileText`），AI 路由与可见性提示共用。
+- `schema-service.ts`：Schema 扫描与上下文文本（`scanSchema` / `buildSchemaContext`），并一处声明平台元库表清单 `PLATFORM_TABLES` 与 `getPool`。
+- `data-profile-service.ts`：列数据轮廓扫描与喂给 AI 的 Markdown 文本（`scanDataProfile` / `scanAllDataProfiles` / `buildDataProfileText`）；池与平台表清单复用 `schema-service`，不另立第二份。
 - `ai-session-mapping.ts`：AI 洞察项 → 会话 action 的单一映射（编译路径 / 回退 SQL）。
 - `client-api.ts` / `api-response.ts`：客户端请求与服务端响应契约。
 - `prisma.ts`：元库 Prisma 客户端单例（连接串取 `DATABASE_URL`，禁 migrate 见根 [AGENTS.md](../../AGENTS.md)）。
