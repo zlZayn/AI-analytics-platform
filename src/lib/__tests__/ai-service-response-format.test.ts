@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest"
-import { isResponseFormatUnsupported, parseResponseFormatChain } from "../ai-service"
+import { parseResponseFormatChain } from "../ai-config"
+import { isResponseFormatUnsupported } from "../ai-provider"
 
 describe("parseResponseFormatChain", () => {
   it("默认从原生 JSON Schema 起，逐级降级到提示词约束", () => {
