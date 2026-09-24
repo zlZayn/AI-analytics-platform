@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest"
-import { AI_RESPONSE_JSON_SCHEMA, MAX_INSIGHT_ITEMS, buildSystemPrompt, parseInsightItems } from "../ai-contract"
+import { AI_RESPONSE_JSON_SCHEMA, MAX_INSIGHT_ITEMS, buildSystemPrompt } from "../ai-contract"
+import { parseInsightItems } from "../ai-contract-parse"
 
 type Variant = { required: string[]; properties: Record<string, unknown> }
 
