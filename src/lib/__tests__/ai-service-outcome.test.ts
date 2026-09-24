@@ -1,6 +1,9 @@
 import { describe, expect, it, vi } from "vitest"
-import type { AICompletion, AICompletionProvider, AIServiceResult } from "../ai-service"
-import { describeOutcome, generateAnalysis, parseMaxTokens, toClientDiagnostics } from "../ai-service"
+import type { AICompletion, AICompletionProvider } from "../ai-provider"
+import type { AIServiceResult } from "../ai-outcome"
+import { describeOutcome, toClientDiagnostics } from "../ai-outcome"
+import { parseMaxTokens } from "../ai-config"
+import { generateAnalysis } from "../ai-service"
 
 const VALID_ITEMS = JSON.stringify({
   items: [

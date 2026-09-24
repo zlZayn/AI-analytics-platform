@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { parseHeaderTemplates, resolveRequestHeaders } from "../ai-service"
+import { parseHeaderTemplates, resolveRequestHeaders } from "../ai-config"
 
 describe("parseHeaderTemplates", () => {
   it("解析 JSON 对象，忽略非字符串与空值", () => {

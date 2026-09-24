@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest"
 import { AI_RESPONSE_JSON_SCHEMA, buildSystemPrompt, parseInsightItems } from "../ai-contract"
-import { generateAnalysis, type AICompletionProvider } from "../ai-service"
+import { generateAnalysis } from "../ai-service"
+import type { AICompletionProvider } from "../ai-provider"
 
 // 旧格式（回退路径）：仅 sql + chart
 const legacy = JSON.stringify({

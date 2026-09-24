@@ -54,7 +54,7 @@ AI 每项输出 `title`、`insight`、`querySpec` + `displayConfig`，或 `sql` 
 
 ## 模块
 
-文件职责、关键导出与改动路由见 [src/lib/README.md](../src/lib/README.md)（`ai-contract` / `ai-context` / `ai-context-service` / `ai-service` / `ai-session-mapping` / `schema-service`）与 [src/hooks/README.md](../src/hooks/README.md)（`useAiAssistant`）；本文件只写 AI 合同、配置与失败语义。
+文件职责、关键导出与改动路由见 [src/lib/README.md](../src/lib/README.md)（`ai-contract` / `ai-context` / `ai-context-service` / `ai-service` 与拆出的 `ai-config` / `ai-provider` / `ai-outcome` / `ai-session-mapping` / `schema-service`）与 [src/hooks/README.md](../src/hooks/README.md)（`useAiAssistant`）；本文件只写 AI 合同、配置与失败语义。
 
 服务端入口合同：`generateAnalysis(message, schemaContext, conversationHistory, provider?, dataProfileText?, businessContext?, sessionId?)` 返回 `{ items }`；测试注入内存 provider，不需要 API Key，不调用真实模型。
 
