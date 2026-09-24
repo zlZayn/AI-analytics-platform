@@ -50,7 +50,7 @@ AI 每项输出 `title`、`insight`、`querySpec` + `displayConfig`，或 `sql` 
 - `querySpec`：结构化查询（dimensions/measures/filters/having/sort/limit/joins），由 `query-compiler.ts` 编译为参数化 SQL（防注入，标识符分段引号）
 - `displayConfig`：`{ chartType, mapping }`，由 `validators.ts` 双模式校验
 - 回退规则：`querySpec` 存在时优先使用；缺失时回退 `sql` 直通，标记 `fallback=true`
-- 单一来源：契约声明在 `src/lib/ai-contract.ts` 的 `INSIGHT_FIELDS`，提示词形状/字段说明、strict JSON Schema 变体、解析截断长度都由它派生；三面一致性由 AI 契约测试守卫（含「提示词必须含 json 字样」这条网关前置条件），测试分类见 [src/lib/__tests__/README.md](../src/lib/__tests__/README.md)
+- 单一来源：契约声明在 `src/lib/ai-contract.ts` 的 `INSIGHT_FIELDS`，提示词形状/字段说明与 strict JSON Schema 变体都由它派生；**解析侧**（`parseInsightItems` / `parseQuerySpec` 与截断长度）住在 `src/lib/ai-contract-parse.ts`，但仍读同一份声明，不复制字面量；三面一致性由 AI 契约测试守卫（含「提示词必须含 json 字样」这条网关前置条件），测试分类见 [src/lib/__tests__/README.md](../src/lib/__tests__/README.md)
 
 ## 模块
 
