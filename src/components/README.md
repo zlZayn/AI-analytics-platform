@@ -12,6 +12,7 @@
 - `chart-config-panel.tsx`：图表引导（表格态）、类型选择与槽位映射；类型清单来自 `lib/variable-types.ts`。
 - `result-toolbar.tsx`：结果区工具条——**R 分析一级按钮** + 「导出 ▼」下拉（CSV / JSON / R 模板，各带一行说明），title 提示语含 BOM 与兼容性说明，改动时保留。
 - `insight-card.tsx`：AI 洞察卡片（标题、说明、SQL 展开、执行、统计区块）。
+- `chart.tsx`：`./charts` 的兼容出口（re-export `Chart` 与 `ChartMapping` / `ChartType` / `ChartProps`），只为保住既有 import 路径，不放实现。
 - `ai-mention-input.tsx` / `ai-mention-panel.tsx`：@ 选表输入与面板；`ai-visibility-hint.tsx`：AI 可见范围提示，内容由 `lib/ai-context.ts` 的 `CONTEXT_SOURCES` 声明渲染（与提示词注入同一来源）。
 - 变更影响路由：工作台状态改动 → [workspace/README.md](workspace/README.md) 与 [hooks/README.md](../hooks/README.md)。
 - 工作约束 → [AGENTS.md](AGENTS.md)。

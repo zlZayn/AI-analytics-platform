@@ -18,5 +18,16 @@
 - `schema-service.ts`：当前连接的 Schema 上下文与数据轮廓（`scanDataProfile` / `buildDataProfileText`），AI 路由与可见性提示共用。
 - `ai-session-mapping.ts`：AI 洞察项 → 会话 action 的单一映射（编译路径 / 回退 SQL）。
 - `client-api.ts` / `api-response.ts`：客户端请求与服务端响应契约。
+- `prisma.ts`：元库 Prisma 客户端单例（连接串取 `DATABASE_URL`，禁 migrate 见根 [AGENTS.md](../../AGENTS.md)）。
+- `encryption.ts`：连接凭据的加解密（`encrypt` / `decrypt`，密钥缺失即抛错）。
+- `connection-payload.ts`：连接表单 → 请求体（`buildConnectionPayload`），新建与编辑回填共用同一份映射。
+- `sql-identifiers.ts`：Postgres 标识符引用与合法性检查（`quotePostgresIdentifier`：空值、超长、控制字符）。
+- `query-cancellation.ts`：可取消的查询执行（`executeCancelable` + `QueryCancelledError`），长查询中止与池清理共用。
+- `mention.ts`：AI 输入里 `@表名` 提及的解析与替换（纯函数，无 DOM）。
+- `monaco-setup.ts`：本地托管 monaco（`configureMonaco`，惰性 + 浏览器守卫，离线/内网可用；新编辑器必须先 await 它，见根 [AGENTS.md](../../AGENTS.md) 活跃坑）。
+- `utils.ts`：`cn()`（clsx + tailwind-merge 的类名合并）。
+- `r-bridge.ts`：`SemanticDataset` ↔ R 代码的纯函数层（数据注入与代码拼装）。
+- `r-stats.ts`：statTest 黑盒统计的 R 代码生成、输出解析与结论摘要（`buildStatTestCode` / `parseStatTestOutput` / `summarizeStatTest`）。
+- `webr-client.ts`：WebR 会话客户端（`WebRClient` 状态机、注入阈值与超时；`ImageBitmap` 归它所有）。
 - `__tests__/`：核心库单元测试，详见 [__tests__/README.md](__tests__/README.md)。
 - 规则 → [AGENTS.md](AGENTS.md)；设计 → [docs/ARCHITECTURE.md](../../docs/ARCHITECTURE.md)。
